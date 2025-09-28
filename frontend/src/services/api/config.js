@@ -49,6 +49,17 @@ const API_CONFIG = {
       create: '/api/method/frappe_devsecops_dashboard.api.change_requests.create_change_request',
       update: '/api/method/frappe_devsecops_dashboard.api.change_requests.update_change_request'
     },
+
+    // Swagger Collections
+    swaggerCollections: {
+      list: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.get_swagger_collections',
+      detail: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.get_swagger_collection_detail',
+      create: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.create_swagger_collection',
+      update: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.update_swagger_collection',
+      delete: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.delete_swagger_collection',
+      import: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.import_swagger_collection',
+      export: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.export_swagger_collection'
+    },
     
     // Dashboard
     dashboard: {

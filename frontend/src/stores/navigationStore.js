@@ -23,11 +23,15 @@ const useNavigationStore = create(
       // Incident detail state
       selectedIncidentId: null,
       showIncidentDetail: false,
-      
+
+      // Swagger detail state
+      selectedSwaggerId: null,
+      showSwaggerDetail: false,
+
       // Mobile state
       isMobile: false,
       mobileMenuVisible: false,
-      
+
       // Breadcrumb state
       breadcrumbs: [],
 
@@ -47,7 +51,7 @@ const useNavigationStore = create(
        */
       navigateToRoute: (route, projectId = null, appId = null) => {
         const state = get()
-        
+
         switch (route) {
           case 'dashboard':
             set({
@@ -57,22 +61,41 @@ const useNavigationStore = create(
               selectedAppId: null,
               showAppDetail: false,
               selectedIncidentId: null,
-              showIncidentDetail: false
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
             })
             window.location.hash = ''
             break
 
-          case 'change-requests':
+          case 'projects':
             set({
-              currentRoute: 'change-requests',
+              currentRoute: 'projects',
               selectedProjectId: null,
               showProjectDetail: false,
               selectedAppId: null,
               showAppDetail: false,
               selectedIncidentId: null,
-              showIncidentDetail: false
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
             })
-            window.location.hash = 'change-requests'
+            window.location.hash = 'projects'
+            break
+
+          case 'team-utilization':
+            set({
+              currentRoute: 'team-utilization',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'team-utilization'
             break
 
           case 'project-apps':
@@ -83,35 +106,26 @@ const useNavigationStore = create(
               selectedAppId: null,
               showAppDetail: false,
               selectedIncidentId: null,
-              showIncidentDetail: false
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
             })
             window.location.hash = 'project-apps'
             break
 
-          case 'devops-config':
+          case 'change-requests':
             set({
-              currentRoute: 'devops-config',
+              currentRoute: 'change-requests',
               selectedProjectId: null,
               showProjectDetail: false,
               selectedAppId: null,
               showAppDetail: false,
               selectedIncidentId: null,
-              showIncidentDetail: false
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
             })
-            window.location.hash = 'devops-config'
-            break
-
-          case 'monitoring-dashboards':
-            set({
-              currentRoute: 'monitoring-dashboards',
-              selectedProjectId: null,
-              showProjectDetail: false,
-              selectedAppId: null,
-              showAppDetail: false,
-              selectedIncidentId: null,
-              showIncidentDetail: false
-            })
-            window.location.hash = 'monitoring-dashboards'
+            window.location.hash = 'change-requests'
             break
 
           case 'incidents':
@@ -122,10 +136,59 @@ const useNavigationStore = create(
               selectedAppId: null,
               showAppDetail: false,
               selectedIncidentId: null,
-              showIncidentDetail: false
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
             })
             window.location.hash = 'incidents'
             break
+
+          case 'monitoring-dashboards':
+            set({
+              currentRoute: 'monitoring-dashboards',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'monitoring-dashboards'
+            break
+
+          case 'swagger-collections':
+            set({
+              currentRoute: 'swagger-collections',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'swagger-collections'
+            break
+
+          case 'devops-config':
+            set({
+              currentRoute: 'devops-config',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'devops-config'
+            break
+
+
 
           case 'project-detail':
             if (projectId) {
@@ -166,9 +229,28 @@ const useNavigationStore = create(
                 selectedAppId: null,
                 showAppDetail: false,
                 selectedIncidentId: appId,
-                showIncidentDetail: true
+                showIncidentDetail: true,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
               })
               window.location.hash = `incident/${appId}`
+            }
+            break
+
+          case 'swagger-detail':
+            if (appId) { // appId parameter is used for swaggerId in this case
+              set({
+                currentRoute: 'swagger-collections',
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: appId,
+                showSwaggerDetail: true
+              })
+              window.location.hash = `swagger/${appId}`
             }
             break
 
@@ -187,27 +269,38 @@ const useNavigationStore = create(
        */
       handleHashChange: () => {
         const hash = window.location.hash.slice(1) // Remove the '#'
-        
-        if (hash === 'change-requests') {
-          get().navigateToRoute('change-requests')
+
+        if (hash === 'projects') {
+          get().navigateToRoute('projects')
+        } else if (hash === 'team-utilization') {
+          get().navigateToRoute('team-utilization')
         } else if (hash === 'project-apps') {
           get().navigateToRoute('project-apps')
-        } else if (hash === 'devops-config') {
-          get().navigateToRoute('devops-config')
-        } else if (hash === 'monitoring-dashboards') {
-          get().navigateToRoute('monitoring-dashboards')
+        } else if (hash === 'change-requests') {
+          get().navigateToRoute('change-requests')
         } else if (hash === 'incidents') {
           get().navigateToRoute('incidents')
+        } else if (hash === 'monitoring-dashboards') {
+          get().navigateToRoute('monitoring-dashboards')
+        } else if (hash === 'swagger-collections') {
+          get().navigateToRoute('swagger-collections')
+        } else if (hash === 'devops-config') {
+          get().navigateToRoute('devops-config')
+        } else if (hash === 'system-test') {
+          get().navigateToRoute('system-test')
+
         } else if (hash.startsWith('project/')) {
           const projectId = hash.split('/')[1]
           set({
-            currentRoute: 'dashboard',
+            currentRoute: 'projects',
             selectedProjectId: projectId,
             showProjectDetail: true,
             selectedAppId: null,
             showAppDetail: false,
             selectedIncidentId: null,
-            showIncidentDetail: false
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
           })
         } else if (hash.startsWith('app/')) {
           const appId = hash.split('/')[1]
@@ -218,7 +311,9 @@ const useNavigationStore = create(
             selectedAppId: appId,
             showAppDetail: true,
             selectedIncidentId: null,
-            showIncidentDetail: false
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
           })
         } else if (hash.startsWith('incident/')) {
           const incidentId = hash.split('/')[1]
@@ -229,7 +324,22 @@ const useNavigationStore = create(
             selectedAppId: null,
             showAppDetail: false,
             selectedIncidentId: incidentId,
-            showIncidentDetail: true
+            showIncidentDetail: true,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+        } else if (hash.startsWith('swagger/')) {
+          const swaggerId = hash.split('/')[1]
+          set({
+            currentRoute: 'swagger-collections',
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: swaggerId,
+            showSwaggerDetail: true
           })
         } else {
           // Default to dashboard
@@ -240,7 +350,9 @@ const useNavigationStore = create(
             selectedAppId: null,
             showAppDetail: false,
             selectedIncidentId: null,
-            showIncidentDetail: false
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
           })
         }
       },
@@ -260,12 +372,8 @@ const useNavigationStore = create(
         if (state.showProjectDetail && state.selectedProjectId) {
           items.push(
             {
-              title: 'Dashboard',
-              onClick: () => get().navigateToRoute('dashboard')
-            },
-            {
               title: 'Projects',
-              onClick: () => get().navigateToRoute('dashboard')
+              onClick: () => get().navigateToRoute('projects')
             },
             {
               title: state.selectedProjectId
@@ -283,6 +391,10 @@ const useNavigationStore = create(
           }
 
           items.push(
+            {
+              title: 'Ops',
+              onClick: () => get().navigateToRoute('project-apps')
+            },
             {
               title: 'Project Apps',
               onClick: () => get().navigateToRoute('project-apps')
@@ -302,6 +414,10 @@ const useNavigationStore = create(
 
           items.push(
             {
+              title: 'Ops',
+              onClick: () => get().navigateToRoute('incidents')
+            },
+            {
               title: 'Incidents',
               onClick: () => get().navigateToRoute('incidents')
             },
@@ -309,22 +425,74 @@ const useNavigationStore = create(
               title: getIncidentTitle(state.selectedIncidentId)
             }
           )
+        } else if (state.showSwaggerDetail && state.selectedSwaggerId) {
+          const getSwaggerTitle = (swaggerId) => {
+            const swaggerTitles = {
+              'swagger-001': 'ePrescription API v1.0',
+              'swagger-002': 'Patient Portal API v2.1'
+            }
+            return swaggerTitles[swaggerId] || swaggerId
+          }
+
+          items.push(
+            {
+              title: 'Ops',
+              onClick: () => get().navigateToRoute('swagger-collections')
+            },
+            {
+              title: 'Swagger Collections',
+              onClick: () => get().navigateToRoute('swagger-collections')
+            },
+            {
+              title: getSwaggerTitle(state.selectedSwaggerId)
+            }
+          )
         } else {
           switch (state.currentRoute) {
-            case 'change-requests':
-              items.push({ title: 'Change Requests' })
+            case 'projects':
+              items.push({ title: 'Projects' })
+              break
+            case 'team-utilization':
+              items.push(
+                { title: 'Projects', onClick: () => get().navigateToRoute('projects') },
+                { title: 'Team Utilization' }
+              )
               break
             case 'project-apps':
-              items.push({ title: 'Project Apps' })
+              items.push(
+                { title: 'Ops' },
+                { title: 'Project Apps' }
+              )
               break
-            case 'devops-config':
-              items.push({ title: 'DevOps Configuration' })
-              break
-            case 'monitoring-dashboards':
-              items.push({ title: 'Monitoring Dashboards' })
+            case 'change-requests':
+              items.push(
+                { title: 'Ops' },
+                { title: 'Change Requests' }
+              )
               break
             case 'incidents':
-              items.push({ title: 'Incidents' })
+              items.push(
+                { title: 'Ops' },
+                { title: 'Incidents' }
+              )
+              break
+            case 'monitoring-dashboards':
+              items.push(
+                { title: 'Ops' },
+                { title: 'Monitoring Dashboards' }
+              )
+              break
+            case 'swagger-collections':
+              items.push(
+                { title: 'Ops' },
+                { title: 'Swagger Collections' }
+              )
+              break
+            case 'devops-config':
+              items.push(
+                { title: 'Settings' },
+                { title: 'DevOps Configuration' }
+              )
               break
             default:
               items.push({ title: 'Dashboard' })
@@ -345,6 +513,8 @@ const useNavigationStore = create(
         showAppDetail: false,
         selectedIncidentId: null,
         showIncidentDetail: false,
+        selectedSwaggerId: null,
+        showSwaggerDetail: false,
         mobileMenuVisible: false,
         breadcrumbs: []
       })

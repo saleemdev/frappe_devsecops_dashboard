@@ -14,7 +14,9 @@ import {
   Input,
   Button,
   Space,
-  Divider
+  Divider,
+  Statistic,
+  List
 } from 'antd'
 import {
   ProjectOutlined,
@@ -25,6 +27,8 @@ import {
   BarChartOutlined,
   SafetyOutlined,
   DashboardOutlined,
+  AppstoreOutlined,
+  BellOutlined,
   DownOutlined,
   UpOutlined,
   PaperClipOutlined,
@@ -33,9 +37,12 @@ import {
   SendOutlined,
   SearchOutlined,
   ClearOutlined,
-  FilterOutlined
+  FilterOutlined,
+  ApiOutlined
 } from '@ant-design/icons'
 import { useResponsive, getResponsiveGrid } from '../hooks/useResponsive'
+import api from '../services/api'
+
 import { getDashboardData, getProjectDetails, getProjectsWithTasks } from '../utils/erpnextApiUtils'
 import ProjectDetail from './ProjectDetail'
 
@@ -149,6 +156,13 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
   const [selectedStep, setSelectedStep] = useState(null)
   const [projectComments, setProjectComments] = useState({})
   const [projectFiles, setProjectFiles] = useState({})
+  // New DevSecOps metrics state
+  const [crStats, setCrStats] = useState({ approved: 0, rejected: 0, pending: 0, avgApprovalHrs: 0 })
+  const [incStats, setIncStats] = useState({ severity: { Critical: 0, High: 0, Medium: 0, Low: 0 }, open: 0, closed: 0, avgResolutionHrs: 0 })
+  const [appStats, setAppStats] = useState({ active: 0, deployments14d: 0, successRate: 0 })
+  const [apiStats, setApiStats] = useState({ collections: 0, endpoints: 0, passed: 0, failed: 0 })
+  const [activity, setActivity] = useState([])
+
 
   // Search/Filter state
   const [searchQuery, setSearchQuery] = useState('')
@@ -346,6 +360,119 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
           if (fallbackData.projects) {
             initializeProjectCollapsedState(fallbackData.projects)
           }
+  // Fetch data for new DevSecOps metrics dashboard
+  useEffect(() => {
+    let mounted = true
+    const toDate = (d) => {
+      if (!d) return null
+      try { return new Date(d) } catch { return null }
+    }
+
+    const compute = async () => {
+      try {
+        const [crRes, incRes, appRes, swRes] = await Promise.all([
+          api.changeRequests.getChangeRequests(),
+          api.incidents.getIncidents(),
+          api.applications.getApplications(),
+          api.swaggerCollections.getSwaggerCollections()
+        ])
+
+
+        if (!mounted) return
+
+        const crs = crRes?.data || []
+        const approved = crs.filter(c => (c.status || '').toLowerCase().includes('approved')).length
+        const rejected = crs.filter(c => (c.status || '').toLowerCase().includes('rejected')).length
+        const pending = crs.filter(c => !(c.status || '').toLowerCase().includes('approved') && !(c.status || '').toLowerCase().includes('rejected')).length
+        const approvedWithDates = crs.filter(c => c.approvalDate && c.requestDate)
+        const avgApprovalHrs = approvedWithDates.length
+          ? Math.round(approvedWithDates
+              .map(c => (toDate(c.approvalDate) - toDate(c.requestDate)) / 36e5)
+              .filter(v => Number.isFinite(v) && v >= 0)
+              .reduce((a,b)=>a+b,0) / approvedWithDates.length)
+          : 0
+        setCrStats({ approved, rejected, pending, avgApprovalHrs })
+
+        const incs = incRes?.data || []
+        const severity = { Critical: 0, High: 0, Medium: 0, Low: 0 }
+        incs.forEach(i => { const s = (i.severity || '').toLowerCase();
+          if (s === 'critical') severity.Critical++
+          else if (s === 'high') severity.High++
+          else if (s === 'medium') severity.Medium++
+          else severity.Low++
+        })
+        const open = incs.filter(i => (i.status || '').toLowerCase() !== 'closed').length
+        const closed = incs.filter(i => (i.status || '').toLowerCase() === 'closed').length
+        const closedWithDates = incs.filter(i => (i.status || '').toLowerCase() === 'closed' && i.reportedDate && i.updatedDate)
+        const avgResolutionHrs = closedWithDates.length
+          ? Math.round(closedWithDates
+              .map(i => (toDate(i.updatedDate) - toDate(i.reportedDate)) / 36e5)
+              .filter(v => Number.isFinite(v) && v >= 0)
+              .reduce((a,b)=>a+b,0) / closedWithDates.length)
+          : 0
+        setIncStats({ severity, open, closed, avgResolutionHrs })
+
+        const apps = appRes?.data || []
+        const active = apps.filter(a => (a.status || '').toLowerCase() === 'active').length
+        const now = new Date()
+        const past14 = new Date(now.getTime() - 14*24*3600*1000)
+        let totalDeploys = 0
+        let successDeploys = 0
+        apps.forEach(a => (a.deploymentHistory || []).forEach(d => {
+          const dt = toDate(d.date)
+          if (dt && dt >= past14) totalDeploys++
+          if ((d.status || '').toLowerCase() === 'success') successDeploys++
+        }))
+        const successRate = totalDeploys > 0 ? Math.round((successDeploys/totalDeploys)*100) : 0
+        setAppStats({ active, deployments14d: totalDeploys, successRate })
+
+        const sw = swRes?.data || []
+        const collections = sw.length
+        const endpoints = sw.reduce((sum, c) => sum + ((c.endpoints || []).length), 0)
+        const passed = sw.filter(c => (c.testStatus || '').toLowerCase() === 'passed').length
+        const failed = sw.filter(c => (c.testStatus || '').toLowerCase() === 'failed').length
+        setApiStats({ collections, endpoints, passed, failed })
+
+        // Activity feed
+        const activityItems = []
+        apps.forEach(a => (a.deploymentHistory || []).slice(-3).forEach(d => {
+          activityItems.push({
+            date: toDate(d.date) || new Date(),
+            title: `Deployment: ${a.name} ${d.version}`,
+            description: `${d.status} • by ${d.deployedBy || 'system'}`
+          })
+        }))
+        crs.forEach(c => {
+          if (c.approvalDate) activityItems.push({
+            date: toDate(c.approvalDate),
+            title: `Change Approved: ${c.title}`,
+            description: `Approved by ${c.approvedBy || 'N/A'}`
+          })
+          else activityItems.push({
+            date: toDate(c.requestDate),
+            title: `Change Requested: ${c.title}`,
+            description: `Requested by ${c.requestedBy || 'N/A'}`
+          })
+        })
+        incs.forEach(i => {
+          const last = (i.timeline || [])[ (i.timeline || []).length - 1 ]
+          if (last) activityItems.push({
+            date: toDate(last.date),
+            title: `Incident: ${i.title}`,
+            description: `${last.action} • ${last.user}`
+          })
+        })
+        activityItems.sort((a,b) => (b.date||0) - (a.date||0))
+        setActivity(activityItems.slice(0, 10))
+      } catch (e) {
+        console.error('Metrics load failed', e)
+      }
+    }
+
+    compute()
+    return () => { mounted = false }
+  }, [])
+
         } catch (fallbackErr) {
           console.error('Fallback API also failed:', fallbackErr)
           // Keep using mock data as final fallback
@@ -374,6 +501,139 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
       />
     )
   }
+
+
+  // New DevSecOps Metrics Dashboard (early return)
+  return (
+    <div style={{ padding: isMobile ? '12px' : '16px', backgroundColor: token.colorBgLayout }}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={12} lg={6}>
+          <Card title={<span><DashboardOutlined style={{ color: token.colorPrimary, marginRight: 8 }} />Change Requests</span>}>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text>Pending</Text>
+              <Text strong>{crStats.pending}</Text>
+            </Row>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text>Approved</Text>
+              <Text strong>{crStats.approved}</Text>
+            </Row>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text>Rejected</Text>
+              <Text strong>{crStats.rejected}</Text>
+            </Row>
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Avg approval time</Text>
+              <div style={{ fontWeight: 600 }}>{crStats.avgApprovalHrs} hrs</div>
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} md={12} lg={6}>
+          <Card title={<span><SafetyOutlined style={{ color: token.colorWarning, marginRight: 8 }} />Incidents</span>}>
+            <Text type="secondary" style={{ fontSize: 12 }}>Open vs Closed</Text>
+            <Progress
+              percent={(() => { const total = incStats.open + incStats.closed; return total ? Math.round((incStats.closed / total) * 100) : 0 })()}
+              status="active"
+              showInfo
+            />
+            <Space size="small" wrap>
+              <Tag color="red">Critical: {incStats.severity.Critical}</Tag>
+              <Tag color="volcano">High: {incStats.severity.High}</Tag>
+              <Tag color="gold">Medium: {incStats.severity.Medium}</Tag>
+              <Tag color="blue">Low: {incStats.severity.Low}</Tag>
+            </Space>
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Avg resolution time</Text>
+              <div style={{ fontWeight: 600 }}>{incStats.avgResolutionHrs} hrs</div>
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} md={12} lg={6}>
+          <Card title={<span><AppstoreOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />Applications & Releases</span>}>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text>Active Applications</Text>
+              <Text strong>{appStats.active}</Text>
+            </Row>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text>Deployments (14d)</Text>
+              <Text strong>{appStats.deployments14d}</Text>
+            </Row>
+            <Text type="secondary" style={{ fontSize: 12 }}>Deployment success rate</Text>
+            <Progress percent={appStats.successRate} status="normal" />
+          </Card>
+        </Col>
+
+        <Col xs={24} md={12} lg={6}>
+          <Card title={<span><ApiOutlined style={{ color: token.colorPrimary, marginRight: 8 }} />Swagger APIs</span>}>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text>Collections</Text>
+              <Text strong>{apiStats.collections}</Text>
+            </Row>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text>Total Endpoints</Text>
+              <Text strong>{apiStats.endpoints}</Text>
+            </Row>
+            <Space size="small" wrap>
+              <Tag color="green">Passed: {apiStats.passed}</Tag>
+              <Tag color="red">Failed: {apiStats.failed}</Tag>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
+        <Col xs={24} lg={12}>
+          <Card title={<span><BellOutlined style={{ color: token.colorPrimary, marginRight: 8 }} />Current Activity</span>}>
+            <List
+              dataSource={activity}
+              locale={{ emptyText: 'No recent activity' }}
+              renderItem={(item) => (
+                <List.Item>
+                  <List.Item.Meta
+                    title={<span style={{ fontSize: 14 }}>{item.title}</span>}
+                    description={<span style={{ fontSize: 12, color: token.colorTextSecondary }}>{item.description}</span>}
+                  />
+                  <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{item.date ? new Date(item.date).toLocaleString() : ''}</div>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          <Card title={<span><BarChartOutlined style={{ color: token.colorPrimary, marginRight: 8 }} />Key Indicators</span>}>
+            <Row gutter={[12, 12]}>
+              <Col span={12}>
+                <Card size="small">
+                  <Text type="secondary" style={{ fontSize: 12 }}>Avg CR Approval</Text>
+                  <div style={{ fontSize: 20, fontWeight: 600 }}>{crStats.avgApprovalHrs} hrs</div>
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card size="small">
+                  <Text type="secondary" style={{ fontSize: 12 }}>Avg Incident Resolution</Text>
+                  <div style={{ fontSize: 20, fontWeight: 600 }}>{incStats.avgResolutionHrs} hrs</div>
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card size="small">
+                  <Text type="secondary" style={{ fontSize: 12 }}>Deploy Success</Text>
+                  <Progress percent={appStats.successRate} size="small" showInfo />
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card size="small">
+                  <Text type="secondary" style={{ fontSize: 12 }}>APIs Health Passed</Text>
+                  <div style={{ fontSize: 20, fontWeight: 600 }}>{apiStats.passed}</div>
+                </Card>
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  )
 
   return (
     <div data-testid="dashboard-container" style={{
@@ -506,6 +766,7 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
                   icon={<ClearOutlined />}
                   onClick={clearSearch}
                   style={{ fontSize: '12px' }}
+
                 >
                   Clear
                 </Button>

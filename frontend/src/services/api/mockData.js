@@ -306,6 +306,194 @@ export const mockDashboardMetrics = {
   }
 }
 
+// Mock Swagger Collections Data
+export const mockSwaggerCollections = [
+  {
+    id: 'swagger-001',
+    name: 'ePrescription API',
+    description: 'Complete API documentation for the ePrescription system including patient management, prescription handling, and pharmacy integration.',
+    version: '2.1.0',
+    project: 'ePrescription',
+    status: 'Active',
+    createdDate: '2024-01-15',
+    updatedDate: '2024-03-20',
+    author: 'John Smith',
+    baseUrl: 'https://api.eprescription.com/v2',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/patients',
+        summary: 'Get all patients',
+        tags: ['Patients']
+      },
+      {
+        method: 'POST',
+        path: '/patients',
+        summary: 'Create new patient',
+        tags: ['Patients']
+      },
+      {
+        method: 'GET',
+        path: '/prescriptions',
+        summary: 'Get prescriptions',
+        tags: ['Prescriptions']
+      },
+      {
+        method: 'POST',
+        path: '/prescriptions',
+        summary: 'Create prescription',
+        tags: ['Prescriptions']
+      },
+      {
+        method: 'GET',
+        path: '/medications',
+        summary: 'Search medications',
+        tags: ['Medications']
+      }
+    ],
+    tags: ['Healthcare', 'API', 'Production'],
+    documentation: 'https://docs.eprescription.com/api',
+    testingUrl: 'https://test.eprescription.com/swagger-ui',
+    lastTested: '2024-03-18',
+    testStatus: 'Passed'
+  },
+  {
+    id: 'swagger-002',
+    name: 'Patient Portal API',
+    description: 'Patient-facing API for appointment scheduling, medical records access, and communication with healthcare providers.',
+    version: '1.8.3',
+    project: 'Patient Portal',
+    status: 'Active',
+    createdDate: '2024-02-01',
+    updatedDate: '2024-03-15',
+    author: 'Sarah Johnson',
+    baseUrl: 'https://portal.healthsystem.com/api/v1',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/appointments',
+        summary: 'Get patient appointments',
+        tags: ['Appointments']
+      },
+      {
+        method: 'POST',
+        path: '/appointments',
+        summary: 'Schedule appointment',
+        tags: ['Appointments']
+      },
+      {
+        method: 'GET',
+        path: '/medical-records',
+        summary: 'Get medical records',
+        tags: ['Records']
+      },
+      {
+        method: 'GET',
+        path: '/messages',
+        summary: 'Get patient messages',
+        tags: ['Communication']
+      },
+      {
+        method: 'POST',
+        path: '/messages',
+        summary: 'Send message to provider',
+        tags: ['Communication']
+      }
+    ],
+    tags: ['Patient Portal', 'API', 'Production'],
+    documentation: 'https://docs.portal.healthsystem.com',
+    testingUrl: 'https://test-portal.healthsystem.com/swagger',
+    lastTested: '2024-03-14',
+    testStatus: 'Passed'
+  },
+  {
+    id: 'swagger-003',
+    name: 'Mobile Health API',
+    description: 'RESTful API for mobile health application supporting fitness tracking, health monitoring, and telemedicine features.',
+    version: '3.0.0-beta',
+    project: 'Mobile Health App',
+    status: 'Development',
+    createdDate: '2024-02-20',
+    updatedDate: '2024-03-22',
+    author: 'Mike Chen',
+    baseUrl: 'https://api.mobilehealth.com/v3',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/health-metrics',
+        summary: 'Get health metrics',
+        tags: ['Health Data']
+      },
+      {
+        method: 'POST',
+        path: '/health-metrics',
+        summary: 'Record health data',
+        tags: ['Health Data']
+      },
+      {
+        method: 'GET',
+        path: '/fitness-activities',
+        summary: 'Get fitness activities',
+        tags: ['Fitness']
+      },
+      {
+        method: 'POST',
+        path: '/telemedicine/sessions',
+        summary: 'Start telemedicine session',
+        tags: ['Telemedicine']
+      }
+    ],
+    tags: ['Mobile', 'Health', 'Beta'],
+    documentation: 'https://docs.mobilehealth.com/api/v3',
+    testingUrl: 'https://beta-api.mobilehealth.com/docs',
+    lastTested: '2024-03-21',
+    testStatus: 'Failed'
+  },
+  {
+    id: 'swagger-004',
+    name: 'Analytics Dashboard API',
+    description: 'Data analytics and reporting API providing insights into healthcare operations, patient outcomes, and system performance.',
+    version: '1.5.2',
+    project: 'Analytics Dashboard',
+    status: 'Active',
+    createdDate: '2024-01-10',
+    updatedDate: '2024-03-10',
+    author: 'Lisa Wang',
+    baseUrl: 'https://analytics.healthsystem.com/api/v1',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/reports',
+        summary: 'Get available reports',
+        tags: ['Reports']
+      },
+      {
+        method: 'POST',
+        path: '/reports/generate',
+        summary: 'Generate custom report',
+        tags: ['Reports']
+      },
+      {
+        method: 'GET',
+        path: '/metrics/dashboard',
+        summary: 'Get dashboard metrics',
+        tags: ['Metrics']
+      },
+      {
+        method: 'GET',
+        path: '/analytics/trends',
+        summary: 'Get trend analysis',
+        tags: ['Analytics']
+      }
+    ],
+    tags: ['Analytics', 'Reporting', 'Production'],
+    documentation: 'https://docs.analytics.healthsystem.com',
+    testingUrl: 'https://test-analytics.healthsystem.com/swagger',
+    lastTested: '2024-03-09',
+    testStatus: 'Passed'
+  }
+]
+
 // Export simulateDelay function
 export { simulateDelay }
 
@@ -316,5 +504,6 @@ export default {
   mockIncidents,
   mockChangeRequests,
   mockDashboardMetrics,
+  mockSwaggerCollections,
   simulateDelay
 }

@@ -6,6 +6,7 @@
 import { API_CONFIG, clearCache } from './config.js'
 import applicationsService from './applications.js'
 import incidentsService from './incidents.js'
+import swaggerCollectionsService from './swaggerCollections.js'
 
 // Projects service (simplified for now)
 class ProjectsService {
@@ -147,6 +148,7 @@ class ApiService {
     this.projects = projectsService
     this.dashboard = dashboardService
     this.changeRequests = changeRequestsService
+    this.swaggerCollections = swaggerCollectionsService
     this.auth = authService
   }
   

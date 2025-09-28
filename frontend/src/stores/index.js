@@ -7,6 +7,7 @@ import useAuthStore from './authStore.js'
 import useNavigationStore from './navigationStore.js'
 import useApplicationsStore from './applicationsStore.js'
 import useIncidentsStore from './incidentsStore.js'
+import useSwaggerCollectionsStore from './swaggerCollectionsStore.js'
 
 // Store utilities
 export const resetAllStores = () => {
@@ -14,13 +15,15 @@ export const resetAllStores = () => {
   useNavigationStore.getState().reset()
   useApplicationsStore.getState().reset()
   useIncidentsStore.getState().reset()
+  useSwaggerCollectionsStore.getState().reset()
 }
 
 export const getStoreStates = () => ({
   auth: useAuthStore.getState(),
   navigation: useNavigationStore.getState(),
   applications: useApplicationsStore.getState(),
-  incidents: useIncidentsStore.getState()
+  incidents: useIncidentsStore.getState(),
+  swaggerCollections: useSwaggerCollectionsStore.getState()
 })
 
 // Development helpers
@@ -31,6 +34,7 @@ export const logStoreStates = () => {
     console.log('Navigation:', useNavigationStore.getState())
     console.log('Applications:', useApplicationsStore.getState())
     console.log('Incidents:', useIncidentsStore.getState())
+    console.log('Swagger Collections:', useSwaggerCollectionsStore.getState())
     console.groupEnd()
   }
 }
@@ -40,7 +44,8 @@ export {
   useAuthStore,
   useNavigationStore,
   useApplicationsStore,
-  useIncidentsStore
+  useIncidentsStore,
+  useSwaggerCollectionsStore
 }
 
 // Export default object with all stores
@@ -49,6 +54,7 @@ export default {
   useNavigationStore,
   useApplicationsStore,
   useIncidentsStore,
+  useSwaggerCollectionsStore,
   resetAllStores,
   getStoreStates,
   logStoreStates

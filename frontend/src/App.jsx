@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Layout, Typography, Button, theme, Avatar, Dropdown, Space, Menu, Breadcrumb, Drawer } from 'antd'
 import {
   BulbOutlined,
@@ -10,27 +10,33 @@ import {
   SettingOutlined,
   BellOutlined,
   DashboardOutlined,
-  FileTextOutlined,
   AppstoreOutlined,
   BuildOutlined,
   HomeOutlined,
   ProjectOutlined,
-  MenuOutlined,
-  BarChartOutlined,
-  ExclamationCircleOutlined
+  MenuOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
 import UnauthorizedPage from './components/UnauthorizedPage'
+
 import ChangeRequests from './components/ChangeRequests'
 import ProjectApps from './components/ProjectApps'
+import ProjectAppDetail from './components/ProjectAppDetail'
 import DevOpsConfig from './components/DevOpsConfig'
 import MonitoringDashboards from './components/MonitoringDashboards'
 import Incidents from './components/Incidents'
-import { ConfigProvider } from 'antd'
-import { buildLoginUrl, handlePostLoginRedirect, getCurrentUrlForRedirect } from './utils/redirectUtils'
-import { useAuthStore, useNavigationStore } from './stores/index.js'
+import IncidentDetail from './components/IncidentDetail'
+import TeamUtilization from './components/TeamUtilization'
+import SwaggerCollections from './components/SwaggerCollections'
+import SwaggerCollectionDetail from './components/SwaggerCollectionDetail'
+import SystemTest from './components/SystemTest'
 
-const { Header, Content, Sider } = Layout
+import { ConfigProvider } from 'antd'
+import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
+import useAuthStore from './stores/authStore.js'
+import useNavigationStore from './stores/navigationStore.js'
+
+const { Header, Content } = Layout
 const { Title, Text } = Typography
 
 function App() {
@@ -45,35 +51,53 @@ function App() {
     logout
   } = useAuthStore()
 
+  const navigationState = useNavigationStore()
+
+  // Destructure with defaults to prevent undefined errors
   const {
-    currentRoute,
-    selectedProjectId,
-    showProjectDetail,
-    selectedAppId,
-    showAppDetail,
-    selectedIncidentId,
-    showIncidentDetail,
-    isMobile,
-    mobileMenuVisible,
-    navigateToRoute,
-    handleHashChange,
-    getBreadcrumbs,
-    setIsMobile,
-    toggleMobileMenu
-  } = useNavigationStore()
+    currentRoute = 'dashboard',
+    selectedProjectId = null,
+    showProjectDetail = false,
+    selectedAppId = null,
+    showAppDetail = false,
+    selectedIncidentId = null,
+    showIncidentDetail = false,
+    selectedSwaggerId = null,
+    showSwaggerDetail = false,
+    isMobile = false,
+    mobileMenuVisible = false,
+    navigateToRoute = () => {},
+    handleHashChange = () => {},
+    getBreadcrumbs = () => [],
+    setIsMobile = () => {},
+    toggleMobileMenu = () => {}
+  } = navigationState || {}
 
-  // Route detection based on URL hash - now handled by navigation store
+
+
+  // Early return if navigation store is not initialized
+  if (!navigationState) {
+    return (
+      <Layout style={{ minHeight: '100vh' }}>
+        <Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div>Loading...</div>
+        </Content>
+      </Layout>
+    )
+  }
+
+  // Route detection (hash-based). Run once on mount to avoid update loops.
   useEffect(() => {
-    // Set initial route
-    handleHashChange()
+    if (typeof handleHashChange === 'function') {
+      // Set initial route from current hash
+      handleHashChange()
 
-    // Listen for hash changes
-    window.addEventListener('hashchange', handleHashChange)
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange)
+      const onHashChange = () => handleHashChange()
+      window.addEventListener('hashchange', onHashChange)
+      return () => window.removeEventListener('hashchange', onHashChange)
     }
-  }, [handleHashChange])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Check authentication status
   useEffect(() => {
@@ -86,8 +110,6 @@ function App() {
       handlePostLoginRedirect(isAuthenticated)
     }
   }, [isAuthenticated])
-
-
 
   // Navigation is now handled by the navigation store
 
@@ -128,9 +150,9 @@ function App() {
       borderRadiusLG: 12,
       borderRadiusXS: 4,
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-      fontSize: 14,
-      fontSizeLG: 16,
-      fontSizeXL: 20,
+      fontSize: 12,
+      fontSizeLG: 14,
+      fontSizeXL: 18,
       lineHeight: 1.5714285714285714,
       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
       boxShadowSecondary: '0 4px 16px rgba(0, 0, 0, 0.08)',
@@ -188,8 +210,8 @@ function App() {
     )
   }
 
-  // Show unauthorized page if not authenticated
-  if (!isAuthenticated) {
+  // Show unauthorized page if not authenticated (stay within app UX)
+  if (isAuthenticated === false) {
     return (
       <ConfigProvider theme={themeConfig}>
         <UnauthorizedPage
@@ -216,18 +238,103 @@ function App() {
         selectedAppId={selectedAppId}
         showIncidentDetail={showIncidentDetail}
         selectedIncidentId={selectedIncidentId}
+        showSwaggerDetail={showSwaggerDetail}
+        selectedSwaggerId={selectedSwaggerId}
+        isMobile={isMobile}
+        mobileMenuVisible={mobileMenuVisible}
+        setIsMobile={setIsMobile}
+        toggleMobileMenu={toggleMobileMenu}
       />
     </ConfigProvider>
   )
 }
 
 // Component that can access theme tokens
-function AppContent({ isDarkMode, toggleTheme, userInfo, onLogout, currentRoute, navigateToRoute, showProjectDetail, selectedProjectId, showAppDetail, selectedAppId, showIncidentDetail, selectedIncidentId }) {
+function AppContent({
+  isDarkMode,
+  toggleTheme,
+  userInfo,
+  onLogout,
+  currentRoute,
+  navigateToRoute,
+  showProjectDetail,
+  selectedProjectId,
+  showAppDetail,
+  selectedAppId,
+  showIncidentDetail,
+  selectedIncidentId,
+  showSwaggerDetail,
+  selectedSwaggerId,
+  isMobile,
+  mobileMenuVisible,
+  setIsMobile,
+  toggleMobileMenu
+}) {
   const { token } = theme.useToken()
 
-  // Mobile responsiveness state
-  const [isMobile, setIsMobile] = useState(false)
-  const [mobileMenuVisible, setMobileMenuVisible] = useState(false)
+  // Function to render current page based on route and state
+  const renderCurrentPage = () => {
+    // Handle detail views first with null safety
+    if (showAppDetail === true && selectedAppId) {
+      return <ProjectAppDetail appId={selectedAppId} />
+    }
+
+    if (showIncidentDetail === true && selectedIncidentId) {
+      return <IncidentDetail incidentId={selectedIncidentId} />
+    }
+
+    if (showSwaggerDetail === true && selectedSwaggerId) {
+      return <SwaggerCollectionDetail swaggerId={selectedSwaggerId} />
+    }
+
+    // Handle main routes
+    switch (currentRoute) {
+      case 'projects':
+        return (
+          <Dashboard
+            navigateToRoute={navigateToRoute}
+            showProjectDetail={showProjectDetail}
+            selectedProjectId={selectedProjectId}
+          />
+        )
+      case 'team-utilization':
+        return <TeamUtilization />
+      case 'project-apps':
+        return (
+          <ProjectApps
+            navigateToRoute={navigateToRoute}
+            showAppDetail={showAppDetail}
+            selectedAppId={selectedAppId}
+          />
+        )
+      case 'change-requests':
+        return <ChangeRequests />
+      case 'incidents':
+        return <Incidents
+          navigateToRoute={navigateToRoute}
+          showIncidentDetail={showIncidentDetail}
+          selectedIncidentId={selectedIncidentId}
+        />
+      case 'monitoring-dashboards':
+        return <MonitoringDashboards />
+      case 'swagger-collections':
+        return <SwaggerCollections />
+      case 'devops-config':
+        return <DevOpsConfig />
+      case 'system-test':
+        return <SystemTest />
+
+      case 'dashboard':
+      default:
+        return (
+          <Dashboard
+            navigateToRoute={navigateToRoute}
+            showProjectDetail={showProjectDetail}
+            selectedProjectId={selectedProjectId}
+          />
+        )
+    }
+  }
 
   // Check screen size for mobile responsiveness
   useEffect(() => {
@@ -239,7 +346,7 @@ function AppContent({ isDarkMode, toggleTheme, userInfo, onLogout, currentRoute,
     window.addEventListener('resize', checkScreenSize)
 
     return () => window.removeEventListener('resize', checkScreenSize)
-  }, [])
+  }, [setIsMobile])
 
   // Navigation menu items for horizontal navigation
   const navigationItems = [
@@ -249,29 +356,57 @@ function AppContent({ isDarkMode, toggleTheme, userInfo, onLogout, currentRoute,
       label: 'Dashboard'
     },
     {
-      key: 'change-requests',
-      icon: <FileTextOutlined />,
-      label: 'Change Requests'
+      key: 'projects-menu',
+      icon: <ProjectOutlined />,
+      label: 'Projects',
+      children: [
+        {
+          key: 'projects',
+          label: 'Project Cards'
+        },
+        {
+          key: 'team-utilization',
+          label: 'Team Utilization'
+        }
+      ]
     },
     {
-      key: 'project-apps',
+      key: 'ops-menu',
       icon: <AppstoreOutlined />,
-      label: 'Project Apps'
+      label: 'Ops',
+      children: [
+        {
+          key: 'project-apps',
+          label: 'Project Apps'
+        },
+        {
+          key: 'change-requests',
+          label: 'Change Requests'
+        },
+        {
+          key: 'incidents',
+          label: 'Incidents'
+        },
+        {
+          key: 'monitoring-dashboards',
+          label: 'Monitoring Dashboards'
+        },
+        {
+          key: 'swagger-collections',
+          label: 'Swagger Collections'
+        }
+      ]
     },
     {
-      key: 'devops-config',
+      key: 'settings-menu',
       icon: <BuildOutlined />,
-      label: 'DevOps Config'
-    },
-    {
-      key: 'monitoring-dashboards',
-      icon: <BarChartOutlined />,
-      label: 'Monitoring Dashboards'
-    },
-    {
-      key: 'incidents',
-      icon: <ExclamationCircleOutlined />,
-      label: 'Incidents'
+      label: 'Settings',
+      children: [
+        {
+          key: 'devops-config',
+          label: 'DevOps Config'
+        }
+      ]
     }
   ]
 
@@ -292,7 +427,7 @@ function AppContent({ isDarkMode, toggleTheme, userInfo, onLogout, currentRoute,
         },
         {
           title: 'Projects',
-          onClick: () => navigateToRoute('dashboard')
+          onClick: () => navigateToRoute('projects')
         },
         {
           title: selectedProjectId
@@ -439,7 +574,7 @@ function AppContent({ isDarkMode, toggleTheme, userInfo, onLogout, currentRoute,
               <Button
                 type="text"
                 icon={<MenuOutlined />}
-                onClick={() => setMobileMenuVisible(true)}
+                onClick={() => toggleMobileMenu()}
                 style={{
                   color: token.colorText,
                   height: '40px',
@@ -481,10 +616,8 @@ function AppContent({ isDarkMode, toggleTheme, userInfo, onLogout, currentRoute,
                   border: 'none',
                   minWidth: '320px'
                 }}
-                items={navigationItems.map(item => ({
-                  ...item,
-                  onClick: () => navigateToRoute(item.key)
-                }))}
+                onClick={({ key }) => navigateToRoute(key)}
+                items={navigationItems}
               />
             )}
           </div>
@@ -572,7 +705,7 @@ function AppContent({ isDarkMode, toggleTheme, userInfo, onLogout, currentRoute,
       <Drawer
         title="Navigation"
         placement="left"
-        onClose={() => setMobileMenuVisible(false)}
+        onClose={() => toggleMobileMenu()}
         open={mobileMenuVisible}
         width={280}
         styles={{
@@ -586,13 +719,11 @@ function AppContent({ isDarkMode, toggleTheme, userInfo, onLogout, currentRoute,
             backgroundColor: 'transparent',
             border: 'none'
           }}
-          items={navigationItems.map(item => ({
-            ...item,
-            onClick: () => {
-              navigateToRoute(item.key)
-              setMobileMenuVisible(false)
-            }
-          }))}
+          onClick={({ key }) => {
+            navigateToRoute(key)
+            toggleMobileMenu()
+          }}
+          items={navigationItems}
         />
       </Drawer>
 
@@ -657,39 +788,6 @@ function AppContent({ isDarkMode, toggleTheme, userInfo, onLogout, currentRoute,
     </Layout>
   )
 
-  function renderCurrentPage() {
-    switch (currentRoute) {
-      case 'change-requests':
-        return <ChangeRequests />
-      case 'project-apps':
-        return (
-          <ProjectApps
-            navigateToRoute={navigateToRoute}
-            showAppDetail={showAppDetail}
-            selectedAppId={selectedAppId}
-          />
-        )
-      case 'devops-config':
-        return <DevOpsConfig />
-      case 'monitoring-dashboards':
-        return <MonitoringDashboards />
-      case 'incidents':
-        return <Incidents
-          navigateToRoute={navigateToRoute}
-          showIncidentDetail={showIncidentDetail}
-          selectedIncidentId={selectedIncidentId}
-        />
-      case 'dashboard':
-      default:
-        return (
-          <Dashboard
-            navigateToRoute={navigateToRoute}
-            showProjectDetail={showProjectDetail}
-            selectedProjectId={selectedProjectId}
-          />
-        )
-    }
-  }
 }
 
 export default App

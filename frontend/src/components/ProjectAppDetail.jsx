@@ -18,7 +18,8 @@ import {
   Spin,
   Empty,
   Tooltip,
-  message
+  message,
+  Statistic
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -280,6 +281,15 @@ const ProjectAppDetail = ({ appId }) => {
 
   // Use the data from Zustand store or fallback to mock data
   const finalAppData = appData || mockAppData[appId]
+
+  // Derived counts for responsive summaries
+  const envVarCount = (finalAppData?.environmentVariables || []).length
+  const sensitiveCount = (finalAppData?.environmentVariables || []).filter(v => v.sensitive).length
+  const recentLogs = (finalAppData?.deploymentHistory || []).slice(0, 5).map(d => ({
+    timestamp: d.date,
+    level: d.status === 'Failed' ? 'ERROR' : d.status === 'Success' ? 'INFO' : 'WARN',
+    message: `Deployment ${d.version} ${String(d.status || '').toLowerCase()}`
+  }))
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -546,6 +556,66 @@ const ProjectAppDetail = ({ appId }) => {
                   </Row>
                   <div style={{ marginTop: 16 }}>
                     <Paragraph>{finalAppData.description}</Paragraph>
+                    <Row gutter={16} style={{ marginTop: 8 }}>
+                      <Col xs={24} lg={12}>
+                        <Card title="Deployment Highlights" size="small">
+                          <Timeline
+                            items={(finalAppData.deploymentHistory || []).slice(0,4).map(d => ({
+                              children: (
+                                <span>
+                                  <strong>{d.version}</strong> — {d.status} <Text type="secondary">({d.date})</Text>
+                                </span>
+                              )
+                            }))}
+                          />
+                        </Card>
+                      </Col>
+                      <Col xs={24} lg={12}>
+                        <Card title="Service & Links" size="small">
+                          <Descriptions column={1} size="small">
+                            <Descriptions.Item label="Repository">
+                              <a href={finalAppData.repositoryUrl} target="_blank" rel="noreferrer">{finalAppData.repositoryUrl}</a>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Deployment">
+                              <a href={finalAppData.deploymentUrl} target="_blank" rel="noreferrer">{finalAppData.deploymentUrl}</a>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Environment">{finalAppData.environment}</Descriptions.Item>
+                            <Descriptions.Item label="Last Deployment">{finalAppData.lastDeployment}</Descriptions.Item>
+                          </Descriptions>
+                        </Card>
+                      </Col>
+                    </Row>
+                    <Row gutter={16} style={{ marginTop: 8 }}>
+                      <Col xs={24} md={12}>
+                        <Card title="Configuration Summary" size="small">
+                          <Row gutter={16}>
+                            <Col xs={12}>
+                              <Statistic title="Env Variables" value={envVarCount} />
+                            </Col>
+                            <Col xs={12}>
+                              <Statistic title="Sensitive" value={sensitiveCount} valueStyle={{ color: sensitiveCount > 0 ? '#fa541c' : undefined }} />
+                            </Col>
+                          </Row>
+                        </Card>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Card title="Recent Logs" size="small">
+                          <List
+                            size="small"
+                            dataSource={recentLogs}
+                            renderItem={(log) => (
+                              <List.Item>
+                                <Space>
+                                  <Tag color={log.level === 'ERROR' ? 'red' : log.level === 'WARN' ? 'orange' : 'blue'}>{log.level}</Tag>
+                                  <Text>{log.message}</Text>
+                                  <Text type="secondary">{log.timestamp}</Text>
+                                </Space>
+                              </List.Item>
+                            )}
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
                   </div>
                 </div>
               )
@@ -606,6 +676,7 @@ const ProjectAppDetail = ({ appId }) => {
             },
             {
               key: 'security',
+
               label: 'Security Scans',
               children: (
                 <div>

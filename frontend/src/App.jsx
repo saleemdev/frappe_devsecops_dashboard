@@ -295,6 +295,7 @@ function AppContent({
             navigateToRoute={navigateToRoute}
             showProjectDetail={showProjectDetail}
             selectedProjectId={selectedProjectId}
+            viewMode="projects"
           />
         )
       case 'team-utilization':
@@ -331,6 +332,7 @@ function AppContent({
             navigateToRoute={navigateToRoute}
             showProjectDetail={showProjectDetail}
             selectedProjectId={selectedProjectId}
+            viewMode="metrics"
           />
         )
     }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Row,
   Col,
@@ -15,7 +15,7 @@ import {
   Button,
   Space,
   Divider,
-  Statistic,
+  Spin,
   List
 } from 'antd'
 import {
@@ -40,6 +40,8 @@ import {
   FilterOutlined,
   ApiOutlined
 } from '@ant-design/icons'
+import { Line, Column, Pie, Area, Gauge } from '@ant-design/plots'
+
 import { useResponsive, getResponsiveGrid } from '../hooks/useResponsive'
 import api from '../services/api'
 
@@ -139,7 +141,7 @@ const mockData = {
 
 
 
-function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
+function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, viewMode = 'metrics' }) {
   const { token } = theme.useToken()
   const { isMobile, currentBreakpoint } = useResponsive()
   const gridConfig = getResponsiveGrid(currentBreakpoint)
@@ -162,6 +164,8 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
   const [appStats, setAppStats] = useState({ active: 0, deployments14d: 0, successRate: 0 })
   const [apiStats, setApiStats] = useState({ collections: 0, endpoints: 0, passed: 0, failed: 0 })
   const [activity, setActivity] = useState([])
+  const [deployTrend, setDeployTrend] = useState([])
+
 
 
   // Search/Filter state
@@ -426,6 +430,24 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
         const successRate = totalDeploys > 0 ? Math.round((successDeploys/totalDeploys)*100) : 0
         setAppStats({ active, deployments14d: totalDeploys, successRate })
 
+        // Build deployment trend for last 14 days
+        const trendMap = new Map()
+        for (let i = 13; i >= 0; i--) {
+          const dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)
+          const key = dt.toISOString().slice(0, 10)
+          trendMap.set(key, 0)
+        }
+        apps.forEach(a => (a.deploymentHistory || []).forEach(d => {
+          const dt = toDate(d.date)
+          if (dt && dt >= past14) {
+            const key = dt.toISOString().slice(0, 10)
+            trendMap.set(key, (trendMap.get(key) || 0) + 1)
+          }
+        }))
+        const deployTrendArr = Array.from(trendMap.entries()).map(([date, value]) => ({ date, value }))
+        setDeployTrend(deployTrendArr)
+
+
         const sw = swRes?.data || []
         const collections = sw.length
         const endpoints = sw.reduce((sum, c) => sum + ((c.endpoints || []).length), 0)
@@ -481,7 +503,6 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
         setLoading(false)
       }
     }
-
     fetchData()
   }, [])
 
@@ -503,8 +524,85 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
   }
 
 
-  // New DevSecOps Metrics Dashboard (early return)
-  return (
+  // Chart configs (derived from state)
+  const incidentsPieData = [
+    { type: 'Critical', value: incStats.severity.Critical },
+    { type: 'High', value: incStats.severity.High },
+    { type: 'Medium', value: incStats.severity.Medium },
+    { type: 'Low', value: incStats.severity.Low },
+  ]
+  const incidentsPieConfig = {
+    data: incidentsPieData,
+    angleField: 'value',
+    colorField: 'type',
+    radius: 0.9,
+    legend: false,
+    height: 180,
+    padding: 0,
+    label: { text: 'value', position: 'spider', connector: true },
+  }
+
+  const crColumnData = [
+    { status: 'Approved', value: crStats.approved },
+    { status: 'Rejected', value: crStats.rejected },
+    { status: 'Pending', value: crStats.pending },
+  ]
+  const crColumnConfig = {
+    data: crColumnData,
+    xField: 'status',
+    yField: 'value',
+    columnWidthRatio: 0.5,
+    height: 180,
+    autoFit: true,
+  }
+
+  const deploymentsLineConfig = {
+    data: deployTrend,
+    xField: 'date',
+    yField: 'value',
+    height: 160,
+    autoFit: true,
+    smooth: true,
+  }
+
+  const deploymentsAreaData = deployTrend.reduce((acc, d, idx) => {
+    const cum = (acc[idx - 1]?.cum || 0) + d.value
+    acc.push({ date: d.date, cum })
+    return acc
+  }, [])
+  const deploymentsAreaConfig = {
+    data: deploymentsAreaData,
+    xField: 'date',
+    yField: 'cum',
+    height: 100,
+    autoFit: true,
+    smooth: true,
+    areaStyle: { fillOpacity: 0.15 },
+  }
+
+  const deployGaugeConfig = {
+    percent: (appStats.successRate || 0) / 100,
+    range: { color: [token.colorError, token.colorWarning, token.colorSuccess] },
+    height: 160,
+    indicator: { pointer: { style: { stroke: token.colorTextTertiary } }, pin: { style: { stroke: token.colorTextTertiary } } },
+    axis: { label: null, subTickLine: null, tickLine: null },
+    statistic: { content: { formatter: () => `${appStats.successRate}%` } },
+  }
+
+  const apiPassTotal = apiStats.passed + apiStats.failed
+  const apiPassRate = apiPassTotal ? Math.round((apiStats.passed / apiPassTotal) * 100) : 0
+  const apiGaugeConfig = {
+    percent: apiPassRate / 100,
+    range: { color: [token.colorError, token.colorWarning, token.colorSuccess] },
+    height: 160,
+    indicator: { pointer: { style: { stroke: token.colorTextTertiary } }, pin: { style: { stroke: token.colorTextTertiary } } },
+    axis: { label: null, subTickLine: null, tickLine: null },
+    statistic: { content: { formatter: () => `${apiPassRate}%` } },
+  }
+
+  // New DevSecOps Metrics Dashboard (default)
+  if (viewMode !== 'projects') {
+    return (
     <div style={{ padding: isMobile ? '12px' : '16px', backgroundColor: token.colorBgLayout }}>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12} lg={6}>
@@ -525,6 +623,8 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
               <Text type="secondary" style={{ fontSize: 12 }}>Avg approval time</Text>
               <div style={{ fontWeight: 600 }}>{crStats.avgApprovalHrs} hrs</div>
             </div>
+            <Divider style={{ margin: '12px 0' }} />
+            {loading ? <Spin /> : <Column {...crColumnConfig} />}
           </Card>
         </Col>
 
@@ -543,6 +643,9 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
               <Tag color="blue">Low: {incStats.severity.Low}</Tag>
             </Space>
             <div style={{ marginTop: 8 }}>
+              {loading ? <Spin /> : <Pie {...incidentsPieConfig} />}
+            </div>
+            <div style={{ marginTop: 8 }}>
               <Text type="secondary" style={{ fontSize: 12 }}>Avg resolution time</Text>
               <div style={{ fontWeight: 600 }}>{incStats.avgResolutionHrs} hrs</div>
             </div>
@@ -558,9 +661,16 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
             <Row justify="space-between" style={{ marginBottom: 8 }}>
               <Text>Deployments (14d)</Text>
               <Text strong>{appStats.deployments14d}</Text>
+
             </Row>
             <Text type="secondary" style={{ fontSize: 12 }}>Deployment success rate</Text>
             <Progress percent={appStats.successRate} status="normal" />
+            <div style={{ marginTop: 8 }}>
+              {loading ? <Spin /> : <>
+                <Line {...deploymentsLineConfig} />
+                <div style={{ marginTop: 8 }}><Area {...deploymentsAreaConfig} /></div>
+              </>}
+            </div>
           </Card>
         </Col>
 
@@ -619,13 +729,13 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
               <Col span={12}>
                 <Card size="small">
                   <Text type="secondary" style={{ fontSize: 12 }}>Deploy Success</Text>
-                  <Progress percent={appStats.successRate} size="small" showInfo />
+                  {loading ? <Spin /> : <Gauge {...deployGaugeConfig} />}
                 </Card>
               </Col>
               <Col span={12}>
                 <Card size="small">
-                  <Text type="secondary" style={{ fontSize: 12 }}>APIs Health Passed</Text>
-                  <div style={{ fontSize: 20, fontWeight: 600 }}>{apiStats.passed}</div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>APIs Health Pass Rate</Text>
+                  {loading ? <Spin /> : <Gauge {...apiGaugeConfig} />}
                 </Card>
               </Col>
             </Row>
@@ -634,6 +744,7 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
       </Row>
     </div>
   )
+}
 
   return (
     <div data-testid="dashboard-container" style={{
@@ -988,136 +1099,7 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId }) {
           </div>
         </div>
 
-        {/* Right Section - Sidebar (Scrollable) */}
-        {!isMobile && (
-          <div style={{
-            flex: '0 0 35%',
-            padding: '16px',
-            paddingTop: '12px',
-            paddingLeft: '8px',
-            overflowY: 'auto',
-            height: '100%',
-            borderLeft: `1px solid ${token.colorBorder}`
-          }}>
-          {/* Team Utilization */}
-          <Card
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <TeamOutlined style={{ color: token.colorPrimary }} />
-                <span style={{ fontSize: '16px' }}>Team Utilization</span>
-              </div>
-            }
-            style={{ marginBottom: 16 }}
-            size="small"
-          >
-            <div style={{ marginBottom: 16 }}>
-              <Row justify="space-between" style={{ marginBottom: 8 }}>
-                <Text style={{ fontSize: '13px' }}>
-                  <BarChartOutlined style={{ marginRight: 6, color: token.colorPrimary }} />
-                  Average Utilization:
-                </Text>
-                <Text strong style={{ fontSize: '13px' }}>{loading ? '...' : (dashboardData?.teamUtilization?.average || 0)}%</Text>
-              </Row>
-              <Row justify="space-between" style={{ marginBottom: 8 }}>
-                <Text style={{ fontSize: '13px' }}>
-                  <UserOutlined style={{ marginRight: 6, color: token.colorPrimary }} />
-                  Team Members:
-                </Text>
-                <Text strong style={{ fontSize: '13px' }}>{loading ? '...' : (dashboardData?.teamUtilization?.members || 0)}</Text>
-              </Row>
-              <Row justify="space-between" style={{ marginBottom: 8 }}>
-                <Text style={{ fontSize: '13px' }}>
-                  <ClockCircleOutlined style={{ marginRight: 6, color: token.colorWarning }} />
-                  Over Capacity:
-                </Text>
-                <Text strong style={{ fontSize: '13px' }}>{loading ? '...' : (dashboardData?.teamUtilization?.overCapacity || 0)}</Text>
-              </Row>
-            </div>
-
-            <div>
-              {loading ? (
-                <Text type="secondary" style={{ fontSize: '12px' }}>Loading team data...</Text>
-              ) : (dashboardData?.teamUtilization?.individuals || []).map(member => (
-                <div key={member.name} style={{ marginBottom: 10 }}>
-                  <Row justify="space-between" style={{ marginBottom: 4 }}>
-                    <Text style={{ fontSize: 11 }}>{member.name}</Text>
-                    <Text style={{ fontSize: 11, fontWeight: 'bold' }}>{member.utilization}%</Text>
-                  </Row>
-                  <div className="utilization-bar">
-                    <div
-                      className="utilization-fill"
-                      style={{ width: `${member.utilization}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-          </div>
-        )}
-
-        {/* Mobile Sidebar - Show below projects on mobile */}
-        {isMobile && (
-          <div style={{
-            padding: '12px',
-            paddingTop: '8px'
-          }}>
-            {/* Team Utilization */}
-            <Card
-              title={
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <TeamOutlined style={{ color: token.colorPrimary }} />
-                  <span style={{ fontSize: '16px' }}>Team Utilization</span>
-                </div>
-              }
-              style={{ marginBottom: 16 }}
-              size="small"
-            >
-              <div style={{ marginBottom: 16 }}>
-                <Row justify="space-between" style={{ marginBottom: 8 }}>
-                  <Text style={{ fontSize: '13px' }}>
-                    <BarChartOutlined style={{ marginRight: 6, color: token.colorPrimary }} />
-                    Average Utilization:
-                  </Text>
-                  <Text strong style={{ fontSize: '13px' }}>{loading ? '...' : (dashboardData?.teamUtilization?.average || 0)}%</Text>
-                </Row>
-                <Row justify="space-between" style={{ marginBottom: 8 }}>
-                  <Text style={{ fontSize: '13px' }}>
-                    <UserOutlined style={{ marginRight: 6, color: token.colorPrimary }} />
-                    Team Members:
-                  </Text>
-                  <Text strong style={{ fontSize: '13px' }}>{loading ? '...' : (dashboardData?.teamUtilization?.members || 0)}</Text>
-                </Row>
-                <Row justify="space-between" style={{ marginBottom: 8 }}>
-                  <Text style={{ fontSize: '13px' }}>
-                    <ClockCircleOutlined style={{ marginRight: 6, color: token.colorWarning }} />
-                    Over Capacity:
-                  </Text>
-                  <Text strong style={{ fontSize: '13px' }}>{loading ? '...' : (dashboardData?.teamUtilization?.overCapacity || 0)}</Text>
-                </Row>
-              </div>
-
-              <div>
-                {loading ? (
-                  <Text type="secondary" style={{ fontSize: '12px' }}>Loading team data...</Text>
-                ) : (dashboardData?.teamUtilization?.individuals || []).map(member => (
-                  <div key={member.name} style={{ marginBottom: 10 }}>
-                    <Row justify="space-between" style={{ marginBottom: 4 }}>
-                      <Text style={{ fontSize: 11 }}>{member.name}</Text>
-                      <Text style={{ fontSize: 11, fontWeight: 'bold' }}>{member.utilization}%</Text>
-                    </Row>
-                    <Progress
-                      percent={member.utilization}
-                      size="small"
-                      strokeColor={member.utilization > 100 ? token.colorError : token.colorSuccess}
-                      showInfo={false}
-                    />
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        )}
+        {/* Right Section intentionally left empty (Team Utilization moved to dedicated route) */}
       </div>
 
       {/* Sprint Report Modal */}

@@ -1,0 +1,12 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="8" cy="8" r="7.5" fill="#1890ff" stroke="#0050b3" stroke-width="1"/>
+  
+  <!-- Shield shape -->
+  <path d="M8 2L11 4V7C11 9.25 9.75 11.25 8 12C6.25 11.25 5 9.25 5 7V4L8 2Z" fill="white"/>
+  
+  <!-- Inner security elements -->
+  <circle cx="8" cy="6.5" r="1" fill="#1890ff"/>
+  <path d="M7 8H9V10H7V8Z" fill="#1890ff"/>
+  <path d="M7.5 9V9.5H8.5V9H7.5Z" fill="white"/>
+</svg>

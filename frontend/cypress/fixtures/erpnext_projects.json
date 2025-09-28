@@ -1,0 +1,215 @@
+{
+  "success": true,
+  "metrics": {
+    "total_projects": 2,
+    "active_projects": 1,
+    "total_tasks": 20,
+    "completed_tasks": 11,
+    "average_completion": 58.3,
+    "team_capacity": 85,
+    "completion_rate": 55.0
+  },
+  "lifecycle_phases": [
+    {
+      "name": "Planning",
+      "description": "Project planning and requirements gathering phase"
+    },
+    {
+      "name": "Development", 
+      "description": "Development and implementation phase"
+    },
+    {
+      "name": "Security Review",
+      "description": "Security assessment and review phase"
+    },
+    {
+      "name": "Testing",
+      "description": "Quality assurance and testing phase"
+    },
+    {
+      "name": "Deployment",
+      "description": "Deployment and go-live phase"
+    }
+  ],
+  "projects": [
+    {
+      "id": "PROJ-ALPHA-001",
+      "name": "Test Project Alpha",
+      "project_name": "Test Project Alpha",
+      "project_status": "Open",
+      "status": "Open",
+      "client": "Test Client A",
+      "customer": "Test Client A",
+      "project_type": "Healthcare",
+      "priority": "High",
+      "progress": 75.5,
+      "percent_complete": 75.5,
+      "task_count": 8,
+      "completed_tasks": 6,
+      "completion_rate": 75.0,
+      "current_phase": "Testing",
+      "expected_start_date": "2024-01-15",
+      "expected_end_date": "2024-06-30",
+      "actual_start_date": "2024-01-20",
+      "cost_center": "IT Department",
+      "department": "Technology",
+      "delivery_phases": [
+        {
+          "section_id": "PHASE-001",
+          "section_name": "Planning",
+          "section_status": "complete",
+          "section_progress": 100.0,
+          "section_order": 1,
+          "task_count": 2,
+          "completed_tasks": 2,
+          "in_progress_tasks": 0,
+          "name": "Planning",
+          "status": "complete",
+          "progress": 100.0
+        },
+        {
+          "section_id": "PHASE-002", 
+          "section_name": "Development",
+          "section_status": "complete",
+          "section_progress": 100.0,
+          "section_order": 2,
+          "task_count": 3,
+          "completed_tasks": 3,
+          "in_progress_tasks": 0,
+          "name": "Development",
+          "status": "complete",
+          "progress": 100.0
+        },
+        {
+          "section_id": "PHASE-003",
+          "section_name": "Security Review",
+          "section_status": "complete",
+          "section_progress": 100.0,
+          "section_order": 3,
+          "task_count": 1,
+          "completed_tasks": 1,
+          "in_progress_tasks": 0,
+          "name": "Security Review",
+          "status": "complete",
+          "progress": 100.0
+        },
+        {
+          "section_id": "PHASE-004",
+          "section_name": "Testing",
+          "section_status": "in_progress",
+          "section_progress": 50.0,
+          "section_order": 4,
+          "task_count": 2,
+          "completed_tasks": 1,
+          "in_progress_tasks": 1,
+          "name": "Testing",
+          "status": "in_progress",
+          "progress": 50.0
+        },
+        {
+          "section_id": "PHASE-005",
+          "section_name": "Deployment",
+          "section_status": "pending",
+          "section_progress": 0.0,
+          "section_order": 5,
+          "task_count": 1,
+          "completed_tasks": 0,
+          "in_progress_tasks": 0,
+          "name": "Deployment",
+          "status": "pending",
+          "progress": 0.0
+        }
+      ]
+    },
+    {
+      "id": "PROJ-BETA-002",
+      "name": "Test Project Beta",
+      "project_name": "Test Project Beta",
+      "project_status": "On Hold",
+      "status": "On Hold",
+      "client": "Test Client B",
+      "customer": "Test Client B",
+      "project_type": "Government",
+      "priority": "Medium",
+      "progress": 45.2,
+      "percent_complete": 45.2,
+      "task_count": 12,
+      "completed_tasks": 5,
+      "completion_rate": 41.7,
+      "current_phase": "Development",
+      "expected_start_date": "2024-02-01",
+      "expected_end_date": "2024-08-31",
+      "actual_start_date": "2024-02-05",
+      "cost_center": "Operations",
+      "department": "Business Development",
+      "delivery_phases": [
+        {
+          "section_id": "PHASE-006",
+          "section_name": "Planning",
+          "section_status": "complete",
+          "section_progress": 100.0,
+          "section_order": 1,
+          "task_count": 3,
+          "completed_tasks": 3,
+          "in_progress_tasks": 0,
+          "name": "Planning",
+          "status": "complete",
+          "progress": 100.0
+        },
+        {
+          "section_id": "PHASE-007",
+          "section_name": "Requirements Analysis",
+          "section_status": "complete",
+          "section_progress": 100.0,
+          "section_order": 2,
+          "task_count": 2,
+          "completed_tasks": 2,
+          "in_progress_tasks": 0,
+          "name": "Requirements Analysis",
+          "status": "complete",
+          "progress": 100.0
+        },
+        {
+          "section_id": "PHASE-008",
+          "section_name": "Development",
+          "section_status": "in_progress",
+          "section_progress": 25.0,
+          "section_order": 3,
+          "task_count": 4,
+          "completed_tasks": 1,
+          "in_progress_tasks": 1,
+          "name": "Development",
+          "status": "in_progress",
+          "progress": 25.0
+        },
+        {
+          "section_id": "PHASE-009",
+          "section_name": "Security Review",
+          "section_status": "pending",
+          "section_progress": 0.0,
+          "section_order": 4,
+          "task_count": 2,
+          "completed_tasks": 0,
+          "in_progress_tasks": 0,
+          "name": "Security Review",
+          "status": "pending",
+          "progress": 0.0
+        },
+        {
+          "section_id": "PHASE-010",
+          "section_name": "Testing",
+          "section_status": "pending",
+          "section_progress": 0.0,
+          "section_order": 5,
+          "task_count": 1,
+          "completed_tasks": 0,
+          "in_progress_tasks": 0,
+          "name": "Testing",
+          "status": "pending",
+          "progress": 0.0
+        }
+      ]
+    }
+  ],
+  "timestamp": "2024-01-15T10:30:00Z"
+}

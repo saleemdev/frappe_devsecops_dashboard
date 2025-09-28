@@ -1,0 +1,132 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+build/
+dist-ssr/
+.vite/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.output/
+.vercel/
+.netlify/
+
+# Vite specific
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.local
+
+# Logs
+logs/
+*.log
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Cypress
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+
+# Jest
+coverage/
+
+# Storybook build outputs
+storybook-static/
+
+# Temporary folders
+tmp/
+temp/
+
+# Build artifacts specific to Frappe framework
+# Note: Built assets and HTML should be committed for deployment
+# ../frappe_devsecops_dashboard/public/frontend/
+# ../frappe_devsecops_dashboard/www/devsecops-ui.html
+
+# Hot reload and development files
+.hot-update.*
+
+# TypeScript
+*.tsbuildinfo
+
+# Test results
+test-results/
+playwright-report/
+test-results.xml
+
+# Bundle analyzer
+bundle-analyzer-report.html
+
+# Source maps (uncomment if you don't want to commit them)
+# *.map
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# MacOS
+.AppleDouble
+.LSOverride
+
+# Windows
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Linux
+*~
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Compressed files
+*.zip
+*.tar.gz
+*.rar

@@ -1,0 +1,22 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with rounded corners for iOS -->
+  <rect width="180" height="180" rx="40" fill="#1890ff"/>
+  
+  <!-- Shield shape -->
+  <path d="M90 30L120 50V85C120 115 105 140 90 150C75 140 60 115 60 85V50L90 30Z" fill="white"/>
+  
+  <!-- Inner security elements -->
+  <circle cx="90" cy="75" r="12" fill="#1890ff"/>
+  <path d="M78 95H102V125H78V95Z" fill="#1890ff"/>
+  <path d="M84 115V120H96V115H84Z" fill="white"/>
+  
+  <!-- DevOps gear elements -->
+  <circle cx="65" cy="60" r="8" fill="#52c41a" opacity="0.9"/>
+  <circle cx="115" cy="60" r="8" fill="#52c41a" opacity="0.9"/>
+  <circle cx="65" cy="110" r="8" fill="#52c41a" opacity="0.9"/>
+  <circle cx="115" cy="110" r="8" fill="#52c41a" opacity="0.9"/>
+  
+  <!-- Additional security indicators -->
+  <path d="M90 45L95 55L85 55Z" fill="#ffa940"/>
+  <path d="M90 135L95 125L85 125Z" fill="#ffa940"/>
+</svg>

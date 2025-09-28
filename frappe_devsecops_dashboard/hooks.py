@@ -222,3 +222,10 @@ whitelisted_methods = [
 	"frappe_devsecops_dashboard.api.dashboard.get_dashboard_data",
 	"frappe_devsecops_dashboard.api.dashboard.get_project_details"
 ]
+
+# Build hooks for frontend assets
+# --------------------------------
+build_hooks = {
+	"before_build": "frappe_devsecops_dashboard.build.before_build",
+	"after_build": "frappe_devsecops_dashboard.build.after_build"
+}

@@ -1,0 +1,9 @@
+{
+  "build_command": "cd frontend && python build.py",
+  "watch": [
+    "frontend/src/**/*.js",
+    "frontend/src/**/*.jsx",
+    "frontend/src/**/*.css",
+    "frontend/public/**/*"
+  ]
+}

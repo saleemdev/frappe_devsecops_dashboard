@@ -1,0 +1,36 @@
+{
+  "name": "DOD DevSecOps Dashboard",
+  "short_name": "DevSecOps",
+  "description": "Comprehensive project management and security monitoring for Department of Defense DevSecOps initiatives",
+  "start_url": "/devsecops-ui",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1890ff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon-16x16.svg",
+      "sizes": "16x16",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon-32x32.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["productivity", "business", "utilities"],
+  "lang": "en-US",
+  "scope": "/devsecops-ui",
+  "prefer_related_applications": false
+}

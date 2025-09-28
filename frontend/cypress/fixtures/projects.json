@@ -1,0 +1,126 @@
+{
+  "success": true,
+  "projects": [
+    {
+      "id": "PROJ-ALPHA-001",
+      "name": "Test Project Alpha",
+      "project_name": "Test Project Alpha",
+      "project_status": "Open",
+      "status": "Open",
+      "client": "Test Client A",
+      "customer": "Test Client A",
+      "project_type": "Healthcare",
+      "priority": "High",
+      "progress": 75.5,
+      "percent_complete": 75.5,
+      "task_count": 8,
+      "completed_tasks": 6,
+      "completion_rate": 75.0,
+      "current_phase": "Testing",
+      "expected_start_date": "2024-01-15",
+      "expected_end_date": "2024-06-30",
+      "actual_start_date": "2024-01-20",
+      "cost_center": "IT Department",
+      "department": "Technology",
+      "delivery_phases": [
+        {
+          "section_id": "PHASE-001",
+          "section_name": "Planning",
+          "section_status": "complete",
+          "section_progress": 100.0,
+          "section_order": 1,
+          "task_count": 2,
+          "completed_tasks": 2,
+          "in_progress_tasks": 0,
+          "name": "Planning",
+          "status": "complete",
+          "progress": 100.0
+        },
+        {
+          "section_id": "PHASE-002",
+          "section_name": "Development",
+          "section_status": "complete",
+          "section_progress": 100.0,
+          "section_order": 2,
+          "task_count": 3,
+          "completed_tasks": 3,
+          "in_progress_tasks": 0,
+          "name": "Development",
+          "status": "complete",
+          "progress": 100.0
+        },
+        {
+          "section_id": "PHASE-003",
+          "section_name": "Security Review",
+          "section_status": "complete",
+          "section_progress": 100.0,
+          "section_order": 3,
+          "task_count": 1,
+          "completed_tasks": 1,
+          "in_progress_tasks": 0,
+          "name": "Security Review",
+          "status": "complete",
+          "progress": 100.0
+        },
+        {
+          "section_id": "PHASE-004",
+          "section_name": "Testing",
+          "section_status": "in_progress",
+          "section_progress": 50.0,
+          "section_order": 4,
+          "task_count": 2,
+          "completed_tasks": 1,
+          "in_progress_tasks": 1,
+          "name": "Testing",
+          "status": "in_progress",
+          "progress": 50.0
+        },
+        {
+          "section_id": "PHASE-005",
+          "section_name": "Deployment",
+          "section_status": "pending",
+          "section_progress": 0.0,
+          "section_order": 5,
+          "task_count": 1,
+          "completed_tasks": 0,
+          "in_progress_tasks": 0,
+          "name": "Deployment",
+          "status": "pending",
+          "progress": 0.0
+        }
+      ]
+    },
+    {
+      "name": "Test Project Beta",
+      "project_status": "On Hold",
+      "client": "Test Client B",
+      "task_count": 12,
+      "completion_rate": 45.2,
+      "delivery_phases": [
+        {
+          "section_id": "SECT-004",
+          "section_name": "Analysis",
+          "section_status": "complete",
+          "section_progress": 100.0,
+          "section_order": 1,
+          "name": "Analysis",
+          "status": "complete"
+        },
+        {
+          "section_id": "SECT-005",
+          "section_name": "Design",
+          "section_status": "in_progress",
+          "section_progress": 30.0,
+          "section_order": 2,
+          "name": "Design",
+          "status": "in_progress"
+        }
+      ]
+    }
+  ],
+  "metrics": {
+    "total_projects": 2,
+    "total_tasks": 20,
+    "average_completion": 60.35
+  }
+}

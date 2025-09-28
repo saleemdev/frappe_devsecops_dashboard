@@ -1,0 +1,41 @@
+{
+  "name": "frappe-devsecops-dashboard-frontend",
+  "version": "1.0.0",
+  "description": "DevSecOps Dashboard with ERPNext Project and Task Type integration",
+  "main": "src/main.jsx",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --base=/assets/frappe_devsecops_dashboard/frontend/",
+    "preview": "vite preview",
+    "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test:e2e": "cypress run --spec 'cypress/e2e/**/*.cy.js'",
+    "test:e2e:headed": "cypress run --spec 'cypress/e2e/**/*.cy.js' --headed",
+    "test:dashboard": "cypress run --spec 'cypress/e2e/dashboard.cy.js'",
+    "test:responsive": "cypress run --spec 'cypress/e2e/responsive.cy.js'",
+    "test:accessibility": "cypress run --spec 'cypress/e2e/accessibility.cy.js'"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.4.0",
+    "antd": "^5.21.0",
+    "axios": "^1.6.0",
+    "dayjs": "^1.11.10",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@cypress/code-coverage": "^3.14.6",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "cypress": "^15.3.0",
+    "cypress-axe": "^1.7.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.6",
+    "vite": "^5.3.0"
+  }
+}

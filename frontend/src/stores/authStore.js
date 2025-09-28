@@ -1,0 +1,259 @@
+/**
+ * Authentication Zustand Store
+ * Manages user authentication state
+ */
+
+import { create } from 'zustand'
+import { devtools, persist } from 'zustand/middleware'
+import apiService from '../services/api/index.js'
+
+const useAuthStore = create(
+  devtools(
+    persist(
+      (set, get) => ({
+        // State
+        isAuthenticated: null, // null = checking, true/false = result
+        user: null,
+        loading: false,
+        error: null,
+
+        // Actions
+        setLoading: (loading) => set({ loading }),
+        
+        setError: (error) => set({ error }),
+        
+        clearError: () => set({ error: null }),
+
+        /**
+         * Check current authentication status
+         */
+        checkAuthentication: async () => {
+          set({ loading: true, error: null })
+          
+          try {
+            // First check if we have a valid session cookie
+            const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+              const [key, value] = cookie.trim().split('=')
+              acc[key] = value
+              return acc
+            }, {})
+
+            if (!cookies.sid && !cookies.user_id) {
+              // No session cookies, user is not authenticated
+              set({
+                isAuthenticated: false,
+                user: null,
+                loading: false
+              })
+              return false
+            }
+
+            // Try to get current user info
+            const response = await apiService.auth.getCurrentUser()
+            
+            if (response.success && response.data) {
+              set({
+                isAuthenticated: true,
+                user: response.data,
+                loading: false
+              })
+              return true
+            } else {
+              throw new Error('Invalid session')
+            }
+          } catch (error) {
+            console.error('Authentication check failed:', error)
+            
+            // If authentication fails, redirect to login
+            if (error.status === 401) {
+              window.location.href = '/login'
+            }
+            
+            set({
+              isAuthenticated: false,
+              user: null,
+              error: error.message || 'Authentication failed',
+              loading: false
+            })
+            return false
+          }
+        },
+
+        /**
+         * Login user (redirects to Frappe login)
+         */
+        login: () => {
+          // Frappe handles login, so we redirect to the login page
+          const currentUrl = window.location.href
+          const loginUrl = `/login?redirect-to=${encodeURIComponent(currentUrl)}`
+          window.location.href = loginUrl
+        },
+
+        /**
+         * Logout user
+         */
+        logout: async () => {
+          set({ loading: true })
+          
+          try {
+            await apiService.auth.logout()
+          } catch (error) {
+            console.error('Logout error:', error)
+          } finally {
+            // Clear state regardless of API call result
+            set({
+              isAuthenticated: false,
+              user: null,
+              loading: false,
+              error: null
+            })
+            
+            // Clear all other stores
+            const { useApplicationsStore } = await import('./applicationsStore.js')
+            const { useIncidentsStore } = await import('./incidentsStore.js')
+            const { useNavigationStore } = await import('./navigationStore.js')
+            
+            useApplicationsStore.getState().reset()
+            useIncidentsStore.getState().reset()
+            useNavigationStore.getState().reset()
+          }
+        },
+
+        /**
+         * Update user profile
+         */
+        updateUser: (userData) => set((state) => ({
+          user: { ...state.user, ...userData }
+        })),
+
+        /**
+         * Handle post-login redirect
+         */
+        handlePostLoginRedirect: () => {
+          const urlParams = new URLSearchParams(window.location.search)
+          const redirectTo = urlParams.get('redirect-to')
+          
+          if (redirectTo) {
+            // Clean up URL and redirect
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.hash)
+            window.location.href = redirectTo
+          }
+        },
+
+        /**
+         * Get user permissions
+         */
+        getUserPermissions: () => {
+          const { user } = get()
+          
+          if (!user) return []
+          
+          // In a real implementation, this would come from the user object
+          // For now, return mock permissions based on user role
+          const mockPermissions = [
+            'read:dashboard',
+            'read:projects',
+            'read:applications',
+            'read:incidents',
+            'write:incidents',
+            'read:change-requests',
+            'write:change-requests'
+          ]
+          
+          return mockPermissions
+        },
+
+        /**
+         * Check if user has specific permission
+         */
+        hasPermission: (permission) => {
+          const permissions = get().getUserPermissions()
+          return permissions.includes(permission)
+        },
+
+        /**
+         * Check if user has any of the specified permissions
+         */
+        hasAnyPermission: (permissions) => {
+          const userPermissions = get().getUserPermissions()
+          return permissions.some(permission => userPermissions.includes(permission))
+        },
+
+        /**
+         * Check if user has all of the specified permissions
+         */
+        hasAllPermissions: (permissions) => {
+          const userPermissions = get().getUserPermissions()
+          return permissions.every(permission => userPermissions.includes(permission))
+        },
+
+        /**
+         * Reset auth state
+         */
+        reset: () => set({
+          isAuthenticated: null,
+          user: null,
+          loading: false,
+          error: null
+        })
+      }),
+      {
+        name: 'auth-store',
+        // Only persist user data, not loading/error states
+        partialize: (state) => ({
+          isAuthenticated: state.isAuthenticated,
+          user: state.user
+        }),
+        // Custom storage to handle session-based auth
+        storage: {
+          getItem: (name) => {
+            const value = localStorage.getItem(name)
+            if (value) {
+              try {
+                const parsed = JSON.parse(value)
+                // Check if we still have valid session cookies
+                const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+                  const [key, val] = cookie.trim().split('=')
+                  acc[key] = val
+                  return acc
+                }, {})
+                
+                // If no session cookies, clear stored auth state
+                if (!cookies.sid && !cookies.user_id) {
+                  localStorage.removeItem(name)
+                  return null
+                }
+                
+                return parsed
+              } catch {
+                return null
+              }
+            }
+            return null
+          },
+          setItem: (name, value) => {
+            localStorage.setItem(name, JSON.stringify(value))
+          },
+          removeItem: (name) => {
+            localStorage.removeItem(name)
+          }
+        }
+      }
+    ),
+    {
+      name: 'auth-store',
+      serialize: {
+        options: {
+          map: {
+            isAuthenticated: true,
+            user: true,
+            loading: true,
+            error: true
+          }
+        }
+      }
+    }
+  )
+)
+
+export default useAuthStore

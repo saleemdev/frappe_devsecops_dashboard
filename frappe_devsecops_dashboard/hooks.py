@@ -213,3 +213,12 @@ app_license = "MIT"
 # auth_hooks = [
 # 	"frappe_devsecops_dashboard.auth.validate"
 # ]
+
+# Whitelisted API Methods
+# -----------------------
+# Methods that can be called via HTTP API without authentication
+
+whitelisted_methods = [
+	"frappe_devsecops_dashboard.api.dashboard.get_dashboard_data",
+	"frappe_devsecops_dashboard.api.dashboard.get_project_details"
+]

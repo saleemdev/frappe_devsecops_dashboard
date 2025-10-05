@@ -30,6 +30,8 @@ import TeamUtilization from './components/TeamUtilization'
 import SwaggerCollections from './components/SwaggerCollections'
 import SwaggerCollectionDetail from './components/SwaggerCollectionDetail'
 import SystemTest from './components/SystemTest'
+import ApiTestRunner from './components/ApiTestRunner'
+import ApiDiagnostics from './components/ApiDiagnostics'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -324,6 +326,10 @@ function AppContent({
         return <DevOpsConfig />
       case 'system-test':
         return <SystemTest />
+      case 'api-test':
+        return <ApiTestRunner />
+      case 'api-diagnostics':
+        return <ApiDiagnostics />
 
       case 'dashboard':
       default:

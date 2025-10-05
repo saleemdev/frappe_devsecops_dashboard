@@ -3,7 +3,7 @@
  * Handles all swagger collection-related API calls
  */
 
-import { API_CONFIG, createApiClient, withRetry, withCache } from './config.js'
+import { API_CONFIG, createApiClient, withRetry, withCache, isMockEnabled } from './config.js'
 import { mockSwaggerCollections, simulateDelay } from './mockData.js'
 
 class SwaggerCollectionsService {
@@ -23,7 +23,7 @@ class SwaggerCollectionsService {
    * Get all swagger collections
    */
   async getSwaggerCollections(filters = {}) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('swaggerCollections')) {
       await simulateDelay()
       
       let collections = [...mockSwaggerCollections]
@@ -76,7 +76,7 @@ class SwaggerCollectionsService {
    * Get swagger collection by ID
    */
   async getSwaggerCollection(id) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('swaggerCollections')) {
       await simulateDelay()
       
       const collection = mockSwaggerCollections.find(col => col.id === id)
@@ -114,7 +114,7 @@ class SwaggerCollectionsService {
    * Create new swagger collection
    */
   async createSwaggerCollection(collectionData) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('swaggerCollections')) {
       await simulateDelay(1000)
       
       const newCollection = {
@@ -157,7 +157,7 @@ class SwaggerCollectionsService {
    * Update swagger collection
    */
   async updateSwaggerCollection(id, collectionData) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('swaggerCollections')) {
       await simulateDelay(800)
       
       const index = mockSwaggerCollections.findIndex(col => col.id === id)
@@ -206,7 +206,7 @@ class SwaggerCollectionsService {
    * Delete swagger collection
    */
   async deleteSwaggerCollection(id) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('swaggerCollections')) {
       await simulateDelay(500)
       
       const index = mockSwaggerCollections.findIndex(col => col.id === id)
@@ -247,7 +247,7 @@ class SwaggerCollectionsService {
    * Import swagger collection from URL or file
    */
   async importSwaggerCollection(importData) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('swaggerCollections')) {
       await simulateDelay(2000)
       
       const newCollection = {
@@ -294,7 +294,7 @@ class SwaggerCollectionsService {
    * Export swagger collection
    */
   async exportSwaggerCollection(id, format = 'json') {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('swaggerCollections')) {
       await simulateDelay(1000)
       
       const collection = mockSwaggerCollections.find(col => col.id === id)

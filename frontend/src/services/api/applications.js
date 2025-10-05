@@ -3,7 +3,7 @@
  * Handles all application-related API calls
  */
 
-import { API_CONFIG, createApiClient, withRetry, withCache } from './config.js'
+import { API_CONFIG, createApiClient, withRetry, withCache, isMockEnabled } from './config.js'
 import { mockApplications, simulateDelay } from './mockData.js'
 
 class ApplicationsService {
@@ -23,7 +23,7 @@ class ApplicationsService {
    * Get all applications
    */
   async getApplications(filters = {}) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('applications')) {
       await simulateDelay()
       
       let applications = [...mockApplications]
@@ -68,7 +68,7 @@ class ApplicationsService {
    * Get application by ID
    */
   async getApplication(id) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('applications')) {
       await simulateDelay()
       
       const application = mockApplications.find(app => app.id === id)
@@ -106,7 +106,7 @@ class ApplicationsService {
    * Create new application
    */
   async createApplication(applicationData) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('applications')) {
       await simulateDelay(1000)
       
       const newApplication = {
@@ -160,7 +160,7 @@ class ApplicationsService {
    * Update application
    */
   async updateApplication(id, applicationData) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('applications')) {
       await simulateDelay(800)
       
       const index = mockApplications.findIndex(app => app.id === id)
@@ -209,7 +209,7 @@ class ApplicationsService {
    * Delete application
    */
   async deleteApplication(id) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('applications')) {
       await simulateDelay(500)
       
       const index = mockApplications.findIndex(app => app.id === id)
@@ -250,7 +250,7 @@ class ApplicationsService {
    * Get application metrics
    */
   async getApplicationMetrics(id, timeRange = '24h') {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('applications')) {
       await simulateDelay()
       
       const application = mockApplications.find(app => app.id === id)

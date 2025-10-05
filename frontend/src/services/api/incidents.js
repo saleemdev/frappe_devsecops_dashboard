@@ -3,7 +3,7 @@
  * Handles all incident-related API calls
  */
 
-import { API_CONFIG, createApiClient, withRetry, withCache } from './config.js'
+import { API_CONFIG, createApiClient, withRetry, withCache, isMockEnabled } from './config.js'
 import { mockIncidents, simulateDelay } from './mockData.js'
 
 class IncidentsService {
@@ -23,7 +23,7 @@ class IncidentsService {
    * Get all incidents
    */
   async getIncidents(filters = {}) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('incidents')) {
       await simulateDelay()
       
       let incidents = [...mockIncidents]
@@ -78,7 +78,7 @@ class IncidentsService {
    * Get incident by ID
    */
   async getIncident(id) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('incidents')) {
       await simulateDelay()
       
       const incident = mockIncidents.find(inc => inc.id === id)
@@ -116,7 +116,7 @@ class IncidentsService {
    * Create new incident
    */
   async createIncident(incidentData) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('incidents')) {
       await simulateDelay(1000)
       
       const newIncident = {
@@ -165,7 +165,7 @@ class IncidentsService {
    * Update incident
    */
   async updateIncident(id, incidentData) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('incidents')) {
       await simulateDelay(800)
       
       const index = mockIncidents.findIndex(inc => inc.id === id)
@@ -238,7 +238,7 @@ class IncidentsService {
    * Add timeline entry to incident
    */
   async addTimelineEntry(id, timelineEntry) {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('incidents')) {
       await simulateDelay(300)
       
       const index = mockIncidents.findIndex(inc => inc.id === id)
@@ -293,7 +293,7 @@ class IncidentsService {
    * Get incident statistics
    */
   async getIncidentStats(timeRange = '30d') {
-    if (API_CONFIG.features.useMockData) {
+    if (isMockEnabled('incidents')) {
       await simulateDelay()
       
       const stats = {

@@ -311,6 +311,69 @@ export const getProjects = async () => {
   }
 }
 
+/**
+ * Get tasks for a specific project with Task Type information
+ * @param {string} projectId - Project ID or name
+ * @returns {Promise<Array>} List of tasks with task_type field
+ */
+export const getProjectTasksWithTypes = async (projectId) => {
+  try {
+    // Query ERPNext Task doctype for tasks belonging to this project
+    const response = await axios.get('/api/resource/Task', {
+      params: {
+        fields: JSON.stringify([
+          'name',
+          'subject',
+          'status',
+          'priority',
+          'project',
+          'task_type',
+          'exp_start_date',
+          'exp_end_date',
+          '_assign',
+          'description'
+        ]),
+        filters: JSON.stringify([
+          ['project', '=', projectId]
+        ]),
+        limit_page_length: 999
+      },
+      headers: {
+        'X-Frappe-CSRF-Token': window.csrf_token || ''
+      }
+    })
+
+    if (response.data && response.data.data) {
+      const tasks = response.data.data.map(task => ({
+        id: task.name,
+        name: task.name,
+        subject: task.subject,
+        status: task.status,
+        priority: task.priority,
+        project: task.project,
+        task_type: task.task_type,
+        due_date: task.exp_end_date,
+        start_date: task.exp_start_date,
+        assigned_to: task._assign ? JSON.parse(task._assign)[0] : null,
+        description: task.description
+      }))
+
+      return tasks
+    }
+
+    return []
+
+  } catch (error) {
+    console.error('[erpnextApiUtils] Error fetching project tasks:', error)
+    console.error('[erpnextApiUtils] Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    })
+    return []
+  }
+}
+
 // Export the main function for backward compatibility
 export const getProjectsWithTasks = getDashboardData
 
@@ -320,5 +383,6 @@ export default {
   getProjectDetails,
   getTaskTypes,
   getProjects,
-  getProjectsWithTasks: getDashboardData
+  getProjectsWithTasks: getDashboardData,
+  getProjectTasksWithTypes
 }

@@ -56,6 +56,41 @@ export const mockProjects = [
   }
 ]
 
+// Mock Task Types (DevSecOps lifecycle) with custom_priority ordering
+export const mockTaskTypes = [
+  { name: 'Planning', custom_priority: 1 },
+  { name: 'Requirements', custom_priority: 2 },
+  { name: 'Design', custom_priority: 3 },
+  { name: 'Development', custom_priority: 4 },
+  { name: 'Security Review', custom_priority: 5 },
+  { name: 'Testing', custom_priority: 6 },
+  { name: 'Deployment', custom_priority: 7 },
+  { name: 'Operations', custom_priority: 8 }
+]
+
+// Mock Tasks per Project keyed by project id
+// Each task mirrors key fields from ERPNext Task
+export const mockTasksByProject = {
+  'proj-001': [
+    { id: 'T-001', subject: 'Draft project plan', status: 'Completed', assigned_to: 'John Smith', due_date: '2024-01-10', priority: 'Medium', description: 'Create initial plan', task_type: 'Planning' },
+    { id: 'T-002', subject: 'Stakeholder interviews', status: 'Completed', assigned_to: 'Sarah Johnson', due_date: '2024-01-12', priority: 'Low', description: 'Interview key stakeholders', task_type: 'Requirements' },
+    { id: 'T-003', subject: 'Wireframes', status: 'Completed', assigned_to: 'Mike Chen', due_date: '2024-01-18', priority: 'Medium', description: 'Low-fidelity wireframes', task_type: 'Design' },
+    { id: 'T-004', subject: 'API endpoints v1', status: 'In Progress', assigned_to: 'John Smith', due_date: '2024-02-05', priority: 'High', description: 'Implement core endpoints', task_type: 'Development' },
+    { id: 'T-005', subject: 'Dependency audit', status: 'Pending', assigned_to: 'Sarah Johnson', due_date: '2024-02-08', priority: 'Medium', description: 'Run security audit', task_type: 'Security Review' },
+    { id: 'T-006', subject: 'Unit tests core', status: 'In Progress', assigned_to: 'Mike Chen', due_date: '2024-02-12', priority: 'Medium', description: 'Write unit tests', task_type: 'Testing' },
+    { id: 'T-007', subject: 'Staging deploy', status: 'Pending', assigned_to: 'John Smith', due_date: '2024-02-20', priority: 'High', description: 'Deploy to staging', task_type: 'Deployment' },
+    { id: 'T-008', subject: 'Monitoring setup', status: 'Pending', assigned_to: 'Sarah Johnson', due_date: '2024-02-25', priority: 'Medium', description: 'Set up dashboards', task_type: 'Operations' }
+  ],
+  'proj-002': [
+    { id: 'T-101', subject: 'Requirements doc', status: 'Completed', assigned_to: 'Alex Rodriguez', due_date: '2024-02-05', priority: 'Medium', description: 'Finalize requirements', task_type: 'Requirements' },
+    { id: 'T-102', subject: 'UI design', status: 'Completed', assigned_to: 'Lisa Wang', due_date: '2024-02-10', priority: 'Low', description: 'Design major screens', task_type: 'Design' },
+    { id: 'T-103', subject: 'Frontend scaffolding', status: 'In Progress', assigned_to: 'David Kim', due_date: '2024-02-18', priority: 'High', description: 'Set up app shell', task_type: 'Development' },
+    { id: 'T-104', subject: 'SAST pipeline', status: 'Pending', assigned_to: 'Alex Rodriguez', due_date: '2024-02-21', priority: 'Medium', description: 'Configure SAST', task_type: 'Security Review' },
+    { id: 'T-105', subject: 'E2E tests', status: 'Pending', assigned_to: 'Lisa Wang', due_date: '2024-02-28', priority: 'Medium', description: 'Cypress tests', task_type: 'Testing' }
+  ]
+}
+
+
 // Mock Applications Data
 export const mockApplications = [
   {
@@ -495,6 +530,88 @@ export const mockSwaggerCollections = [
 ]
 
 // Export simulateDelay function
+
+// Mock Zenhub Sprint Report (sample payload)
+export const mockZenhubSprintReport = (projectId = 'PROJ-0001') => ({
+  success: true,
+  workspace_id: '68d3a2e3b671ce000f7b301b',
+  workspace_name: 'Eprescription / Healthpro Pharma',
+  sprints: [
+    {
+      sprint_id: 'sprint_001',
+      sprint_name: 'Sprint 23',
+      state: 'active',
+      start_date: '2025-09-16',
+      end_date: '2025-09-30',
+      total_story_points: 34,
+      completed_story_points: 21,
+      remaining_story_points: 13,
+      utilization_percentage: 61.76,
+      team_members: [
+        { id: 'user_1', name: 'John Doe', username: 'jdoe' },
+        { id: 'user_2', name: 'Jane Smith', username: 'jsmith' }
+      ],
+      team_member_story_points: [
+        { id: 'user_1', name: 'John Doe', username: 'jdoe', total_story_points: 15, completed_story_points: 10, utilization_percentage: 66.67 },
+        { id: 'user_2', name: 'Jane Smith', username: 'jsmith', total_story_points: 19, completed_story_points: 11, utilization_percentage: 57.89 }
+      ],
+      // Backward-compat summary
+      issues_summary: { total: 5, completed: 2, in_progress: 2, blocked: 1 },
+      // New detailed issues array
+      issues: [
+        {
+          issue_id: 'Z-101',
+          title: 'User authentication API',
+          status: 'Done',
+          state: 'closed',
+          story_points: 5,
+          assignees: [{ id: 'user_1', name: 'John Doe' }],
+          blocked_by: []
+        },
+        {
+          issue_id: 'Z-102',
+          title: 'API rate limit issues',
+          status: 'Blocked',
+          state: 'open',
+          story_points: 3,
+          assignees: [{ id: 'user_2', name: 'Jane Smith' }],
+          blocked_by: ['Z-087']
+        },
+        {
+          issue_id: 'Z-103',
+          title: 'Implement audit logs',
+          status: 'In Progress',
+          state: 'in_progress',
+          story_points: 8,
+          assignees: [{ id: 'user_1', name: 'John Doe' }],
+          blocked_by: []
+        },
+        {
+          issue_id: 'Z-104',
+          title: 'Build dashboard widgets',
+          status: 'To Do',
+          state: 'open',
+          story_points: 8,
+          assignees: [],
+          blocked_by: []
+        },
+        {
+          issue_id: 'Z-105',
+          title: 'Integration tests',
+          status: 'In Review',
+          state: 'open',
+          story_points: 10,
+          assignees: [{ id: 'user_2', name: 'Jane Smith' }],
+          blocked_by: []
+        }
+      ],
+      blockers: [
+        { issue_id: 'Z-102', title: 'API rate limit issues', blocked_by: ['Z-087'] }
+      ]
+    }
+  ]
+})
+
 export { simulateDelay }
 
 // Default export

@@ -7,25 +7,37 @@ import { API_CONFIG, clearCache } from './config.js'
 import applicationsService from './applications.js'
 import incidentsService from './incidents.js'
 import swaggerCollectionsService from './swaggerCollections.js'
+import zenhubService from './zenhub.js'
 
-// Projects service (simplified for now)
-class ProjectsService {
-  async getProjects(filters = {}) {
-    // This would use the existing erpnextApiUtils for now
-    // and be migrated to the new pattern later
-    const { getProjectsWithTasks } = await import('../../utils/erpnextApiUtils.js')
-    return getProjectsWithTasks()
-  }
-  
-  async getProject(id) {
-    const { getProjectDetails } = await import('../../utils/erpnextApiUtils.js')
-    return getProjectDetails(id)
-  }
-}
+// Projects service
+import projectsService from './projects.js'
 
 // Dashboard service (simplified for now)
 class DashboardService {
   async getDashboardMetrics() {
+    if (isMockEnabled('dashboard')) {
+      const { mockProjects, mockTaskTypes, simulateDelay } = await import('./mockData.js')
+      await simulateDelay(500)
+
+      // Return mock dashboard data with proper structure
+      const result = {
+        success: true,
+        projects: mockProjects,
+        metrics: {
+          total_projects: mockProjects.length,
+          active_projects: mockProjects.filter(p => p.status === 'Active').length,
+          total_tasks: mockProjects.reduce((sum, p) => sum + (p.tasks?.total || 0), 0),
+          completed_tasks: mockProjects.reduce((sum, p) => sum + (p.tasks?.completed || 0), 0),
+          average_completion: Math.round(mockProjects.reduce((sum, p) => sum + (p.progress || 0), 0) / mockProjects.length),
+          team_capacity: 85,
+          completion_rate: 75
+        },
+        lifecycle_phases: mockTaskTypes.map(t => ({ name: t.name, custom_priority: t.custom_priority })),
+        timestamp: new Date().toISOString()
+      }
+      return result
+    }
+
     const { getDashboardData } = await import('../../utils/erpnextApiUtils.js')
     return getDashboardData()
   }
@@ -135,7 +147,6 @@ class AuthService {
 }
 
 // Create service instances
-const projectsService = new ProjectsService()
 const dashboardService = new DashboardService()
 const changeRequestsService = new ChangeRequestsService()
 const authService = new AuthService()
@@ -149,9 +160,10 @@ class ApiService {
     this.dashboard = dashboardService
     this.changeRequests = changeRequestsService
     this.swaggerCollections = swaggerCollectionsService
+    this.zenhub = zenhubService
     this.auth = authService
   }
-  
+
   /**
    * Switch between mock and real API mode
    */
@@ -160,8 +172,6 @@ class ApiService {
     
     // Clear all caches when switching modes
     clearCache()
-    
-    console.log(`API mode switched to: ${useMockData ? 'Mock' : 'Real'}`)
   }
   
   /**
@@ -176,7 +186,6 @@ class ApiService {
    */
   clearAllCaches() {
     clearCache()
-    console.log('All API caches cleared')
   }
   
   /**

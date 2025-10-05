@@ -7,7 +7,7 @@
 const API_CONFIG = {
   // Base URL for Frappe instance
   baseURL: window.location.origin,
-  
+
   // API endpoints
   endpoints: {
     // Authentication
@@ -16,14 +16,14 @@ const API_CONFIG = {
       logout: '/api/method/logout',
       session: '/api/method/frappe.auth.get_logged_user'
     },
-    
+
     // Projects
     projects: {
       list: '/api/resource/Project',
       detail: '/api/resource/Project',
       tasks: '/api/resource/Task'
     },
-    
+
     // Applications
     applications: {
       list: '/api/method/frappe_devsecops_dashboard.api.applications.get_applications',
@@ -32,7 +32,7 @@ const API_CONFIG = {
       update: '/api/method/frappe_devsecops_dashboard.api.applications.update_application',
       delete: '/api/method/frappe_devsecops_dashboard.api.applications.delete_application'
     },
-    
+
     // Incidents
     incidents: {
       list: '/api/method/frappe_devsecops_dashboard.api.incidents.get_incidents',
@@ -41,7 +41,7 @@ const API_CONFIG = {
       update: '/api/method/frappe_devsecops_dashboard.api.incidents.update_incident',
       delete: '/api/method/frappe_devsecops_dashboard.api.incidents.delete_incident'
     },
-    
+
     // Change Requests
     changeRequests: {
       list: '/api/method/frappe_devsecops_dashboard.api.change_requests.get_change_requests',
@@ -60,20 +60,38 @@ const API_CONFIG = {
       import: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.import_swagger_collection',
       export: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.export_swagger_collection'
     },
-    
+
+    	// Zenhub (sprints, issues)
+    	zenhub: {
+    	  sprintData: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_sprint_data',
+    	  workspaceIssues: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_workspace_issues'
+    	},
+
+
     // Dashboard
     dashboard: {
       metrics: '/api/method/frappe_devsecops_dashboard.api.dashboard.get_dashboard_metrics',
       projects: '/api/method/frappe_devsecops_dashboard.api.dashboard.get_projects_with_tasks'
     }
   },
-  
+
   // Request configuration
   timeout: 30000,
-  
+
   // Feature flags
   features: {
-    useMockData: true, // Set to false when real APIs are ready
+    // Granular mock data control per service. Backward compatible with boolean.
+    // If a boolean is provided, it acts as a global toggle.
+    // If an object is provided, it controls individual services.
+    useMockData: {
+      applications: true,
+      incidents: true,
+      projects: false,        // ✓ Use real ERPNext data for projects
+      changeRequests: true,
+      swaggerCollections: true,
+      dashboard: false,       // ✓ Use real ERPNext data for dashboard
+      zenhub: false           // Use real Zenhub API by default
+    },
     enableCaching: true,
     enableRetry: true
   }
@@ -84,7 +102,7 @@ const API_CONFIG = {
  */
 const createApiClient = async () => {
   const axios = (await import('axios')).default
-  
+
   const client = axios.create({
     baseURL: API_CONFIG.baseURL,
     timeout: API_CONFIG.timeout,
@@ -93,7 +111,7 @@ const createApiClient = async () => {
       'Accept': 'application/json'
     }
   })
-  
+
   // Request interceptor for CSRF token
   client.interceptors.request.use(
     (config) => {
@@ -101,7 +119,7 @@ const createApiClient = async () => {
       if (window.csrf_token) {
         config.headers['X-Frappe-CSRF-Token'] = window.csrf_token
       }
-      
+
       // Add timestamp to prevent caching for GET requests
       if (config.method === 'get' && !API_CONFIG.features.enableCaching) {
         config.params = {
@@ -109,14 +127,14 @@ const createApiClient = async () => {
           _t: Date.now()
         }
       }
-      
+
       return config
     },
     (error) => {
       return Promise.reject(error)
     }
   )
-  
+
   // Response interceptor for error handling
   client.interceptors.response.use(
     (response) => {
@@ -133,7 +151,7 @@ const createApiClient = async () => {
       // Handle common Frappe errors
       if (error.response) {
         const { status, data } = error.response
-        
+
         switch (status) {
           case 401:
             // Unauthorized - redirect to login
@@ -154,7 +172,7 @@ const createApiClient = async () => {
           default:
             console.error('API error:', data.message || error.message)
         }
-        
+
         // Return structured error
         return Promise.reject({
           status,
@@ -162,7 +180,7 @@ const createApiClient = async () => {
           data: data
         })
       }
-      
+
       // Network or other errors
       return Promise.reject({
         status: 0,
@@ -171,7 +189,7 @@ const createApiClient = async () => {
       })
     }
   )
-  
+
   return client
 }
 
@@ -182,20 +200,20 @@ const withRetry = async (apiCall, maxRetries = 3) => {
   if (!API_CONFIG.features.enableRetry) {
     return apiCall()
   }
-  
+
   let lastError
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await apiCall()
     } catch (error) {
       lastError = error
-      
+
       // Don't retry on client errors (4xx)
       if (error.status >= 400 && error.status < 500) {
         throw error
       }
-      
+
       // Wait before retry (exponential backoff)
       if (attempt < maxRetries) {
         const delay = Math.pow(2, attempt) * 1000
@@ -203,7 +221,7 @@ const withRetry = async (apiCall, maxRetries = 3) => {
       }
     }
   }
-  
+
   throw lastError
 }
 
@@ -217,18 +235,18 @@ const withCache = async (key, apiCall) => {
   if (!API_CONFIG.features.enableCaching) {
     return apiCall()
   }
-  
+
   const cached = cache.get(key)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data
   }
-  
+
   const data = await apiCall()
   cache.set(key, {
     data,
     timestamp: Date.now()
   })
-  
+
   return data
 }
 
@@ -243,10 +261,24 @@ const clearCache = (key = null) => {
   }
 }
 
+// Helper to determine if mock is enabled for a specific service
+// Accepts serviceName like 'applications', 'incidents', 'projects',
+// 'changeRequests', 'swaggerCollections', 'dashboard'.
+const isMockEnabled = (serviceName) => {
+  const setting = API_CONFIG.features?.useMockData
+  if (typeof setting === 'boolean') return setting
+  if (setting && typeof setting === 'object') {
+    // default to false if not explicitly set
+    return !!setting[serviceName]
+  }
+  return false
+}
+
 export {
   API_CONFIG,
   createApiClient,
   withRetry,
   withCache,
-  clearCache
+  clearCache,
+  isMockEnabled
 }

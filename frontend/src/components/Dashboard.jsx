@@ -47,6 +47,8 @@ import api from '../services/api'
 
 import { getDashboardData, getProjectDetails, getProjectsWithTasks } from '../utils/erpnextApiUtils'
 import ProjectDetail from './ProjectDetail'
+import TaskTypeTasksModal from './TaskTypeTasksModal'
+import SprintReportDialog from './SprintReportDialog'
 
 const { Title, Text } = Typography
 
@@ -141,7 +143,7 @@ const mockData = {
 
 
 
-function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, viewMode = 'metrics' }) {
+function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, viewMode = 'metrics', initialDashboardData = null }) {
   const { token } = theme.useToken()
   const { isMobile, currentBreakpoint } = useResponsive()
   const gridConfig = getResponsiveGrid(currentBreakpoint)
@@ -156,6 +158,10 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
   const [projectCollapsed, setProjectCollapsed] = useState({})
   const [sprintModalVisible, setSprintModalVisible] = useState(false)
   const [selectedStep, setSelectedStep] = useState(null)
+  // Sprint Report Dialog state
+  const [sprintDialogOpen, setSprintDialogOpen] = useState(false)
+  const [sprintDialogProjectId, setSprintDialogProjectId] = useState(null)
+  const [sprintDialogProjectName, setSprintDialogProjectName] = useState('')
   const [projectComments, setProjectComments] = useState({})
   const [projectFiles, setProjectFiles] = useState({})
   // New DevSecOps metrics state
@@ -166,7 +172,9 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
   const [activity, setActivity] = useState([])
   const [deployTrend, setDeployTrend] = useState([])
 
-
+  // Task Type grouped summaries per project and modal state
+  const [taskTypeSummaryMap, setTaskTypeSummaryMap] = useState({})
+  const [tasksModal, setTasksModal] = useState({ open: false, loading: false, projectId: null, taskType: null, tasks: [], projectName: '' })
 
   // Search/Filter state
   const [searchQuery, setSearchQuery] = useState('')
@@ -249,7 +257,12 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
       progress: project.progress || 0,
       totalSteps: project.delivery_phases?.length || 8
     })
-    setSprintModalVisible(true)
+    // Open new Sprint Report Dialog (Zenhub)
+    setSprintDialogProjectId(project.id || project.name)
+    setSprintDialogProjectName(project.name || '')
+    setSprintDialogOpen(true)
+    // Do not open legacy modal
+    setSprintModalVisible(false)
   }
 
   // Handle file upload for specific project
@@ -273,12 +286,50 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
     }
   }
 
+  // Load Task Type summary for a project (idempotent)
+  const loadSummaryForProject = async (projectId) => {
+    if (taskTypeSummaryMap[projectId]) {
+      return
+    }
+
+    try {
+      const res = await api.projects.getTaskTypeSummary(projectId)
+
+      if (res?.success) {
+        setTaskTypeSummaryMap(prev => {
+          const updated = { ...prev, [projectId]: res.data || [] }
+          return updated
+        })
+      }
+    } catch (e) {
+      console.error('[Dashboard] Failed to load task type summary for', projectId, ':', e)
+    }
+  }
+
+  // Click Task Type to open modal with tasks
+  const handleTaskTypeClick = async (project, group) => {
+    setTasksModal({ open: true, loading: true, projectId: project.id, taskType: group.taskType || group.name, tasks: [], projectName: project.name })
+    try {
+      const res = await api.projects.getTasksByType(project.id, group.taskType || group.name)
+      setTasksModal(prev => ({ ...prev, loading: false, tasks: res?.data || [] }))
+    } catch (e) {
+      console.error('Failed to load tasks by type', e)
+      setTasksModal(prev => ({ ...prev, loading: false }))
+    }
+  }
+
   // Toggle project collapse state
   const toggleProjectCollapse = (projectId) => {
-    setProjectCollapsed(prev => ({
-      ...prev,
-      [projectId]: !prev[projectId]
-    }))
+    setProjectCollapsed(prev => {
+      const next = !prev[projectId]
+      const newState = { ...prev, [projectId]: next }
+
+      if (!next) {
+        // expanded -> load summary lazily
+        setTimeout(() => loadSummaryForProject(projectId), 0)
+      }
+      return newState
+    })
   }
 
   // Initialize project collapsed state when data changes
@@ -290,8 +341,18 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
     setProjectCollapsed(initialState)
   }
 
-  // Fetch dashboard data on component mount
+  // Initialize from injected data (for tests/components) or fetch from API
   useEffect(() => {
+    if (initialDashboardData) {
+      try {
+        setDashboardData(initialDashboardData)
+        if (initialDashboardData.projects) initializeProjectCollapsedState(initialDashboardData.projects)
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     const fetchData = async () => {
       try {
         setLoading(true)
@@ -504,7 +565,7 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
       }
     }
     fetchData()
-  }, [])
+  }, [initialDashboardData])
 
   // Update filtered projects when dashboard data changes
   useEffect(() => {
@@ -808,9 +869,10 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
         display: 'flex',
         overflow: 'hidden'
       }}>
-        {/* Left Section - Projects (Scrollable) */}
+        {/* Projects Section - Full Width (Scrollable) */}
         <div style={{
-          flex: isMobile ? '1' : '0 0 65%',
+          flex: '1',
+          width: '100%',
           padding: isMobile ? '12px' : '16px',
           paddingTop: isMobile ? '8px' : '12px',
           overflowY: 'auto',
@@ -915,7 +977,8 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
                   </div>
                 </div>
               </Card>
-            ) : (filteredProjects.length > 0 ? filteredProjects : (dashboardData?.projects || [])).map(project => (
+            ) : (filteredProjects.length > 0 ? filteredProjects : (dashboardData?.projects || [])).map(project => {
+              return (
               <Card key={project.id} data-testid={`project-card-${project.name}`} className="project-card" style={{ marginBottom: 16 }}>
                 <Collapse
                   ghost
@@ -994,51 +1057,57 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
                       ),
                       children: (
                         <div style={{ marginTop: 16 }}>
-                          {/* Delivery Lifecycle Steps */}
+                          {/* DevSecOps Lifecycle (Task Types) */}
                           <div style={{ marginBottom: 24 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                               <DashboardOutlined style={{ color: token.colorPrimary }} />
-                              <Text strong style={{ fontSize: '14px' }}>Delivery Lifecycle Progress</Text>
+                              <Text strong style={{ fontSize: '14px' }}>DevSecOps Lifecycle</Text>
                             </div>
-                            <Steps
-                              data-testid="delivery-phases"
-                              direction="vertical"
-                              size="small"
-                              current={(project.delivery_phases || project.deliveryPhases || []).findIndex(phase => (phase.section_status || phase.status) === 'in_progress') || 0}
-                              style={{ fontSize: '10px' }}
-                              items={(project.delivery_phases || project.deliveryPhases || (dashboardData?.deliveryLifecycle || []).map(step => ({ name: step, status: 'pending', task_count: 0, completed_tasks: 0, progress: 0 }))).map((phase) => {
-                                const phaseStatus = phase.section_status || phase.status
-                                const phaseProgress = phase.section_progress || phase.progress
-                                const phaseName = phase.section_name || phase.name
-                                const isCompleted = phaseStatus === 'complete'
-                                const isActive = phaseStatus === 'in_progress'
+                            {(() => {
+                              const groups = taskTypeSummaryMap[project.id]
 
-                                return {
-                                  title: (
-                                    <div data-testid={`phase-${phaseName}`} className={phaseStatus}>
-                                      <span
-                                        style={{
-                                          fontSize: '11px',
-                                          color: isActive ? token.colorPrimary : isCompleted ? token.colorSuccess : token.colorTextTertiary,
-                                          fontWeight: isActive ? 'bold' : 'normal'
-                                        }}
-                                      >
-                                        {String(phaseName || 'Unknown Phase')}
-                                      </span>
-                                      {phase.task_count > 0 && (
-                                        <div style={{ fontSize: '9px', color: token.colorTextTertiary, marginTop: '2px' }}>
-                                          {phase.completed_tasks}/{phase.task_count} tasks ({Math.round(phaseProgress)}%)
-                                        </div>
-                                      )}
+                              if (!groups) {
+                                return (
+                                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                                    <Spin size="small" />
+                                    <div style={{ marginTop: 8, fontSize: 11, color: token.colorTextTertiary }}>
+                                      Loading Task Type data...
                                     </div>
-                                  ),
-                                  status: isCompleted ? 'finish' : isActive ? 'process' : 'wait',
-                                  icon: isCompleted ? <CheckCircleOutlined style={{ color: token.colorSuccess }} /> :
-                                        isActive ? <ClockCircleOutlined style={{ color: token.colorPrimary }} /> :
-                                        <ClockCircleOutlined style={{ color: token.colorTextSecondary }} />
-                                }
-                              })}
-                            />
+                                  </div>
+                                )
+                              }
+                              const currentIdx = (() => {
+                                const wip = groups.findIndex(g => g.percent > 0 && g.percent < 100)
+                                if (wip >= 0) return wip
+                                const lastDone = [...groups].reverse().findIndex(g => g.percent === 100)
+                                if (lastDone >= 0) return groups.length - 1 - lastDone
+                                return 0
+                              })()
+                              return (
+                                <Steps
+                                  data-testid="task-type-steps"
+                                  direction="vertical"
+                                  size="small"
+                                  current={currentIdx}
+                                  style={{ fontSize: '10px' }}
+                                  items={groups.map((g) => ({
+                                    title: (
+                                      <div
+                                        role="button"
+                                        onClick={(e) => { e.stopPropagation(); handleTaskTypeClick(project, g) }}
+                                        style={{ cursor: 'pointer' }}
+                                      >
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                          <span style={{ fontSize: 11 }}>{g.name}</span>
+                                          <Tag color={g.color} style={{ marginLeft: 8, fontSize: 10 }}>{g.completionRate}</Tag>
+                                        </div>
+                                      </div>
+                                    ),
+                                    status: g.percent === 100 ? 'finish' : g.percent > 0 ? 'process' : 'wait',
+                                  }))}
+                                />
+                              )
+                            })()}
                           </div>
 
                           <Divider style={{ margin: '16px 0' }} />
@@ -1069,6 +1138,8 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
                             </div>
                             <Space.Compact style={{ width: '100%' }}>
                               <Input.TextArea
+
+
                                 value={projectComments[project.id] || ''}
                                 onChange={(e) => setProjectComments(prev => ({
                                   ...prev,
@@ -1095,12 +1166,21 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
                   ]}
                 />
               </Card>
-            ))}
+            )}
+            )}
           </div>
         </div>
-
-        {/* Right Section intentionally left empty (Team Utilization moved to dedicated route) */}
       </div>
+
+      {/* Tasks by Task Type Modal */}
+      <TaskTypeTasksModal
+        open={tasksModal.open}
+        onCancel={() => setTasksModal(prev => ({ ...prev, open: false }))}
+        taskType={tasksModal.taskType}
+        projectName={tasksModal.projectName}
+        loading={tasksModal.loading}
+        tasks={tasksModal.tasks}
+      />
 
       {/* Sprint Report Modal */}
       <Modal
@@ -1186,6 +1266,15 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
           </div>
         </div>
       </Modal>
+
+      {/* New Sprint Report Dialog (Zenhub) */}
+      <SprintReportDialog
+        open={sprintDialogOpen}
+        onClose={() => setSprintDialogOpen(false)}
+        projectId={sprintDialogProjectId}
+        projectName={sprintDialogProjectName}
+      />
+
     </div>
   )
 }

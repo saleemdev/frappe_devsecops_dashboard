@@ -1,0 +1,296 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:CR-{YY}-{#####}",
+ "creation": "2025-10-16 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_information_tab",
+  "basic_info_section",
+  "title",
+  "cr_number",
+  "column_break_1",
+  "prepared_for",
+  "submission_date",
+  "project",
+  "section_break_2",
+  "system_affected",
+  "originator_name",
+  "column_break_3",
+  "originator_organization",
+  "originators_manager",
+  "change_details_tab",
+  "change_category_section",
+  "change_category",
+  "column_break_4",
+  "downtime_expected",
+  "section_break_3",
+  "detailed_description",
+  "section_break_4",
+  "release_notes",
+  "implementation_tab",
+  "deployment_section",
+  "implementation_date",
+  "implementation_time",
+  "testing_section",
+  "testing_plan",
+  "rollback_section",
+  "rollback_plan",
+  "approval_tab",
+  "approval_status_section",
+  "approval_status",
+  "column_break_5",
+  "workflow_state",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_information_tab",
+   "fieldtype": "Tab Break",
+   "label": "Basic Information"
+  },
+  {
+   "fieldname": "basic_info_section",
+   "fieldtype": "Section Break",
+   "label": "Change Request Overview"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Change Request Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cr_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "CR Number",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "prepared_for",
+   "fieldtype": "Data",
+   "label": "Prepared For"
+  },
+  {
+   "default": "Today",
+   "fieldname": "submission_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Date Submitted",
+   "reqd": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break",
+   "label": "Originator Details"
+  },
+  {
+   "fieldname": "system_affected",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "System/Application Affected",
+   "reqd": 1
+  },
+  {
+   "fieldname": "originator_name",
+   "fieldtype": "Data",
+   "label": "Originator Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "originator_organization",
+   "fieldtype": "Data",
+   "label": "Originator Organization"
+  },
+  {
+   "fieldname": "originators_manager",
+   "fieldtype": "Data",
+   "label": "Originator's Manager"
+  },
+  {
+   "fieldname": "change_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Change Details"
+  },
+  {
+   "fieldname": "change_category_section",
+   "fieldtype": "Section Break",
+   "label": "Change Classification"
+  },
+  {
+   "default": "Standard Change",
+   "fieldname": "change_category",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Change Request Category",
+   "options": "Major Change\nMinor Change\nStandard Change\nEmergency Change",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "downtime_expected",
+   "fieldtype": "Check",
+   "label": "Downtime Expected"
+  },
+  {
+   "fieldname": "section_break_3",
+   "fieldtype": "Section Break",
+   "label": "Change Description"
+  },
+  {
+   "fieldname": "detailed_description",
+   "fieldtype": "Text Editor",
+   "label": "Detailed Description of Proposed Change",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_4",
+   "fieldtype": "Section Break",
+   "label": "Release Information"
+  },
+  {
+   "fieldname": "release_notes",
+   "fieldtype": "Text Editor",
+   "label": "Release Notes"
+  },
+  {
+   "fieldname": "implementation_tab",
+   "fieldtype": "Tab Break",
+   "label": "Implementation"
+  },
+  {
+   "fieldname": "deployment_section",
+   "fieldtype": "Section Break",
+   "label": "Deployment Schedule"
+  },
+  {
+   "fieldname": "implementation_date",
+   "fieldtype": "Date",
+   "in_standard_filter": 1,
+   "label": "Implementation/Deployment Date"
+  },
+  {
+   "fieldname": "implementation_time",
+   "fieldtype": "Time",
+   "label": "Implementation/Deployment Time"
+  },
+  {
+   "fieldname": "testing_section",
+   "fieldtype": "Section Break",
+   "label": "Testing & Validation"
+  },
+  {
+   "fieldname": "testing_plan",
+   "fieldtype": "Text Editor",
+   "label": "Testing and Validation Plan"
+  },
+  {
+   "fieldname": "rollback_section",
+   "fieldtype": "Section Break",
+   "label": "Rollback Strategy"
+  },
+  {
+   "fieldname": "rollback_plan",
+   "fieldtype": "Text Editor",
+   "label": "Rollback/Backout Plan"
+  },
+  {
+   "fieldname": "approval_tab",
+   "fieldtype": "Tab Break",
+   "label": "Approval"
+  },
+  {
+   "fieldname": "approval_status_section",
+   "fieldtype": "Section Break",
+   "label": "Approval Status"
+  },
+  {
+   "default": "Pending Review",
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Change Request Acceptance",
+   "options": "\nPending Review\nRework\nNot Accepted\nWithdrawn\nDeferred\nApproved for Implementation"
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "workflow_state",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Workflow State",
+   "options": "\nDraft\nPending Approval\nApproved\nRejected\nImplemented\nClosed"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Change Request",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-10-16 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe Devsecops Dashboard",
+ "name": "Change Request",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

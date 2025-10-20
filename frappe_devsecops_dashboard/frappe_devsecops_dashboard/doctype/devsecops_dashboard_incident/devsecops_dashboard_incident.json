@@ -1,0 +1,426 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:INC-{#####}",
+ "creation": "2024-01-20 08:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "incident_details_tab",
+  "basic_information_section",
+  "incident_id",
+  "title",
+  "priority",
+  "column_break_basic",
+  "status",
+  "category",
+  "severity",
+  "section_break_assignment",
+  "assigned_to",
+  "assigned_to_name",
+  "team",
+  "column_break_assignment",
+  "reported_by",
+  "reported_by_name",
+  "reported_date",
+  "section_break_description",
+  "description",
+  "column_break_systems",
+  "affected_systems",
+  "impact_description",
+  "section_break_resolution",
+  "resolution_notes",
+  "root_cause",
+  "column_break_resolution",
+  "workaround",
+  "preventive_measures",
+  "timeline_tab",
+  "timeline_section",
+  "incident_timeline",
+  "dates_and_sla_tab",
+  "sla_tracking_section",
+  "sla_due_date",
+  "time_to_resolve",
+  "column_break_sla",
+  "sla_status",
+  "breach_reason",
+  "additional_details_tab",
+  "technical_information_section",
+  "error_message",
+  "log_reference",
+  "column_break_technical",
+  "incident_type",
+  "service_affected",
+  "section_break_communication",
+  "customer_communication",
+  "internal_notes",
+  "section_break_related",
+  "related_incidents",
+  "related_changes",
+  "column_break_related",
+  "problem_ticket",
+  "knowledge_base_article"
+ ],
+ "fields": [
+  {
+   "fieldname": "incident_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Incident Details"
+  },
+  {
+   "fieldname": "basic_information_section",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "fieldname": "incident_id",
+   "fieldtype": "Data",
+   "label": "Incident ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Priority",
+   "options": "Low\nMedium\nHigh\nCritical",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "New\nOpen\nAcknowledged\nIn Progress\nPending Customer\nPending Third Party\nResolved\nClosed\nReopened\nCancelled",
+   "reqd": 1,
+   "default": "New"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Category",
+   "options": "Infrastructure\nSecurity\nApplication\nNetwork\nDatabase\nAPI\nPerformance\nData\nConfiguration\nAccess\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "severity",
+   "fieldtype": "Select",
+   "label": "Severity",
+   "options": "S1 - Critical\nS2 - High\nS3 - Medium\nS4 - Low"
+  },
+  {
+   "fieldname": "section_break_assignment",
+   "fieldtype": "Section Break",
+   "label": "Assignment & Reporting"
+  },
+  {
+   "fieldname": "assigned_to",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Assigned To",
+   "options": "User"
+  },
+  {
+   "fieldname": "assigned_to_name",
+   "fieldtype": "Data",
+   "fetch_from": "assigned_to.full_name",
+   "label": "Assigned To Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "team",
+   "fieldtype": "Select",
+   "label": "Team",
+   "options": "L1 Support\nL2 Engineering\nL3 Engineering\nDatabase Team\nNetwork Team\nSecurity Team\nDevOps Team\nApplication Team"
+  },
+  {
+   "fieldname": "column_break_assignment",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reported_by",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Reported By",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reported_by_name",
+   "fieldtype": "Data",
+   "fetch_from": "reported_by.full_name",
+   "label": "Reported By Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reported_date",
+   "fieldtype": "Datetime",
+   "label": "Reported Date",
+   "reqd": 1,
+   "default": "Now"
+  },
+  {
+   "fieldname": "section_break_description",
+   "fieldtype": "Section Break",
+   "label": "Description & Impact"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "column_break_systems",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "affected_systems",
+   "fieldtype": "Small Text",
+   "label": "Affected Systems"
+  },
+  {
+   "fieldname": "impact_description",
+   "fieldtype": "Small Text",
+   "label": "Impact Description"
+  },
+  {
+   "fieldname": "section_break_resolution",
+   "fieldtype": "Section Break",
+   "label": "Resolution & Root Cause"
+  },
+  {
+   "fieldname": "resolution_notes",
+   "fieldtype": "Text Editor",
+   "label": "Resolution Notes"
+  },
+  {
+   "fieldname": "root_cause",
+   "fieldtype": "Text Editor",
+   "label": "Root Cause"
+  },
+  {
+   "fieldname": "column_break_resolution",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "workaround",
+   "fieldtype": "Small Text",
+   "label": "Workaround"
+  },
+  {
+   "fieldname": "preventive_measures",
+   "fieldtype": "Small Text",
+   "label": "Preventive Measures"
+  },
+  {
+   "fieldname": "timeline_tab",
+   "fieldtype": "Tab Break",
+   "label": "Timeline"
+  },
+  {
+   "fieldname": "timeline_section",
+   "fieldtype": "Section Break",
+   "label": "Incident Timeline"
+  },
+  {
+   "fieldname": "incident_timeline",
+   "fieldtype": "Table",
+   "label": "Timeline Events",
+   "options": "Incident Timeline Item"
+  },
+  {
+   "fieldname": "dates_and_sla_tab",
+   "fieldtype": "Tab Break",
+   "label": "Dates & SLA"
+  },
+  {
+   "fieldname": "sla_tracking_section",
+   "fieldtype": "Section Break",
+   "label": "SLA Tracking"
+  },
+  {
+   "fieldname": "sla_due_date",
+   "fieldtype": "Datetime",
+   "label": "SLA Due Date"
+  },
+  {
+   "fieldname": "time_to_resolve",
+   "fieldtype": "Duration",
+   "label": "Time to Resolve"
+  },
+  {
+   "fieldname": "column_break_sla",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sla_status",
+   "fieldtype": "Select",
+   "label": "SLA Status",
+   "options": "Within SLA\nApproaching Breach\nBreached\nPaused",
+   "default": "Within SLA"
+  },
+  {
+   "fieldname": "breach_reason",
+   "fieldtype": "Small Text",
+   "label": "Breach Reason"
+  },
+  {
+   "fieldname": "additional_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Additional Details"
+  },
+  {
+   "fieldname": "technical_information_section",
+   "fieldtype": "Section Break",
+   "label": "Technical Information"
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Code",
+   "label": "Error Message",
+   "options": "Text"
+  },
+  {
+   "fieldname": "log_reference",
+   "fieldtype": "Small Text",
+   "label": "Log Reference"
+  },
+  {
+   "fieldname": "column_break_technical",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "incident_type",
+   "fieldtype": "Select",
+   "label": "Incident Type",
+   "options": "Service Outage\nPerformance Degradation\nConnection Timeout\nData Issue\nSecurity Breach\nConfiguration Error\nHardware Failure\nSoftware Bug\nUser Error\nOther"
+  },
+  {
+   "fieldname": "service_affected",
+   "fieldtype": "Data",
+   "label": "Service Affected"
+  },
+  {
+   "fieldname": "section_break_communication",
+   "fieldtype": "Section Break",
+   "label": "Communication"
+  },
+  {
+   "fieldname": "customer_communication",
+   "fieldtype": "Text Editor",
+   "label": "Customer Communication"
+  },
+  {
+   "fieldname": "internal_notes",
+   "fieldtype": "Text Editor",
+   "label": "Internal Notes"
+  },
+  {
+   "fieldname": "section_break_related",
+   "fieldtype": "Section Break",
+   "label": "Related Records"
+  },
+  {
+   "fieldname": "related_incidents",
+   "fieldtype": "Small Text",
+   "label": "Related Incidents"
+  },
+  {
+   "fieldname": "related_changes",
+   "fieldtype": "Small Text",
+   "label": "Related Changes"
+  },
+  {
+   "fieldname": "column_break_related",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "problem_ticket",
+   "fieldtype": "Data",
+   "label": "Problem Ticket"
+  },
+  {
+   "fieldname": "knowledge_base_article",
+   "fieldtype": "Data",
+   "label": "Knowledge Base Article"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2024-01-21 08:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe Devsecops Dashboard",
+ "name": "Devsecops Dashboard Incident",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "L2 Engineer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "L1 Support",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1,
+ "track_seen": 1
+}

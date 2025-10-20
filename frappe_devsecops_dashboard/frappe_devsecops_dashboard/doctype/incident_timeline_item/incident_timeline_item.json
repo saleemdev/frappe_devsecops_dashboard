@@ -1,0 +1,101 @@
+{
+ "actions": [],
+ "creation": "2024-01-21 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "event_timestamp",
+  "event_type",
+  "column_break_1",
+  "event_source",
+  "user",
+  "section_break_description",
+  "description",
+  "section_break_technical",
+  "technical_details",
+  "column_break_technical",
+  "attachments"
+ ],
+ "fields": [
+  {
+   "fieldname": "event_timestamp",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Timestamp",
+   "reqd": 1,
+   "default": "Now"
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Event Type",
+   "options": "Automated\nManual\nStatus Change\nAssignment\nComment\nInvestigation\nResolution\nCommunication\nEscalation\nSLA Update",
+   "reqd": 1,
+   "default": "Manual"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "event_source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "\nMonitoring System\nPagerDuty\nSlack\nEmail\nManual Entry\nAPI\nDeployment System\nLoad Balancer\nHealth Check\nAuto Scaling\nSecurity Alert\nOther"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User"
+  },
+  {
+   "fieldname": "section_break_description",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "in_list_view": 1,
+   "label": "Description",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_technical",
+   "fieldtype": "Section Break",
+   "label": "Additional Details"
+  },
+  {
+   "fieldname": "technical_details",
+   "fieldtype": "Code",
+   "label": "Technical Details",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "column_break_technical",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "attachments",
+   "fieldtype": "Small Text",
+   "label": "Attachments/References"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2024-01-21 09:15:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe Devsecops Dashboard",
+ "name": "Incident Timeline Item",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

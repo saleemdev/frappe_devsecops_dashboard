@@ -46,14 +46,6 @@ apiClient.interceptors.response.use(
     return response
   },
   (error) => {
-    console.error('API Error:', error)
-    
-    if (error.response?.status === 403) {
-      console.error('Authentication error - please refresh the page')
-    } else if (error.response?.status === 500) {
-      console.error('Server error - please try again later')
-    }
-    
     return Promise.reject(error)
   }
 )
@@ -82,8 +74,6 @@ export const getDashboardData = async () => {
     throw new Error('Invalid response format')
     
   } catch (error) {
-    console.error('Error fetching dashboard data:', error)
-    
     // Return fallback data structure
     return {
       success: false,
@@ -128,10 +118,8 @@ export const getProjectDetails = async (projectName) => {
     }
     
     throw new Error('Invalid response format')
-    
+
   } catch (error) {
-    console.error('Error fetching project details:', error)
-    
     return {
       success: false,
       error: error.message || 'Failed to fetch project details',
@@ -276,9 +264,8 @@ export const getTaskTypes = async () => {
     }
     
     return []
-    
+
   } catch (error) {
-    console.error('Error fetching task types:', error)
     return []
   }
 }
@@ -304,9 +291,8 @@ export const getProjects = async () => {
     }
     
     return []
-    
+
   } catch (error) {
-    console.error('Error fetching projects:', error)
     return []
   }
 }
@@ -364,12 +350,6 @@ export const getProjectTasksWithTypes = async (projectId) => {
     return []
 
   } catch (error) {
-    console.error('[erpnextApiUtils] Error fetching project tasks:', error)
-    console.error('[erpnextApiUtils] Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    })
     return []
   }
 }

@@ -20,8 +20,10 @@ import Dashboard from './components/Dashboard'
 import UnauthorizedPage from './components/UnauthorizedPage'
 
 import ChangeRequests from './components/ChangeRequests'
+import ChangeRequestForm from './components/ChangeRequestForm'
 import ProjectApps from './components/ProjectApps'
 import ProjectAppDetail from './components/ProjectAppDetail'
+import ProjectEdit from './components/ProjectEdit'
 import DevOpsConfig from './components/DevOpsConfig'
 import MonitoringDashboards from './components/MonitoringDashboards'
 import Incidents from './components/Incidents'
@@ -66,6 +68,8 @@ function App() {
     showIncidentDetail = false,
     selectedSwaggerId = null,
     showSwaggerDetail = false,
+    selectedChangeRequestId = null,
+    showChangeRequestForm = false,
     isMobile = false,
     mobileMenuVisible = false,
     navigateToRoute = () => {},
@@ -242,6 +246,8 @@ function App() {
         selectedIncidentId={selectedIncidentId}
         showSwaggerDetail={showSwaggerDetail}
         selectedSwaggerId={selectedSwaggerId}
+        selectedChangeRequestId={selectedChangeRequestId}
+        showChangeRequestForm={showChangeRequestForm}
         isMobile={isMobile}
         mobileMenuVisible={mobileMenuVisible}
         setIsMobile={setIsMobile}
@@ -270,7 +276,9 @@ function AppContent({
   isMobile,
   mobileMenuVisible,
   setIsMobile,
-  toggleMobileMenu
+  toggleMobileMenu,
+  selectedChangeRequestId,
+  showChangeRequestForm
 }) {
   const { token } = theme.useToken()
 
@@ -312,6 +320,10 @@ function AppContent({
         )
       case 'change-requests':
         return <ChangeRequests />
+      case 'change-requests-new':
+        return <ChangeRequestForm mode="create" />
+      case 'change-requests-edit':
+        return <ChangeRequestForm mode="edit" id={selectedChangeRequestId} />
       case 'incidents':
         return <Incidents
           navigateToRoute={navigateToRoute}
@@ -330,6 +342,14 @@ function AppContent({
         return <ApiTestRunner />
       case 'api-diagnostics':
         return <ApiDiagnostics />
+
+      case 'project-edit':
+        return (
+          <ProjectEdit
+            projectId={selectedProjectId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
 
       case 'dashboard':
       default:
@@ -514,7 +534,6 @@ function AppContent({
       label: 'Dashboard Preferences',
       onClick: () => {
         // Placeholder for future implementation
-        console.log('Dashboard Preferences clicked')
       }
     },
     {
@@ -523,7 +542,6 @@ function AppContent({
       label: 'Notification Settings',
       onClick: () => {
         // Placeholder for future implementation
-        console.log('Notification Settings clicked')
       }
     }
   ]

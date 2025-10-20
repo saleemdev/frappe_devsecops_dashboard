@@ -52,13 +52,11 @@ const ProjectAppDetail = ({ appId }) => {
 
   const { navigateToRoute } = useNavigationStore()
 
-  console.log('ProjectAppDetail rendered with appId:', appId)
-
   // Load application data when component mounts or appId changes
   useEffect(() => {
     if (appId) {
       fetchApplication(appId).catch((error) => {
-        console.error('Failed to fetch application:', error)
+
         message.error('Failed to load application details')
       })
     }

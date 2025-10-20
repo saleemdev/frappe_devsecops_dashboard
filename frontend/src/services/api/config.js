@@ -154,23 +154,19 @@ const createApiClient = async () => {
 
         switch (status) {
           case 401:
-            // Unauthorized - redirect to login
-            window.location.href = '/login'
+            // Unauthorized - don't auto-redirect, let the app handle it
             break
           case 403:
             // Forbidden - show permission error
-            console.error('Permission denied:', data.message || 'Access forbidden')
             break
           case 404:
             // Not found
-            console.error('Resource not found:', error.config.url)
             break
           case 500:
             // Server error
-            console.error('Server error:', data.message || 'Internal server error')
             break
           default:
-            console.error('API error:', data.message || error.message)
+            // Handle error
         }
 
         // Return structured error

@@ -139,7 +139,6 @@ const IncidentDetail = ({ incidentId, navigateToRoute, onIncidentUpdate }) => {
           setIncidentData(null)
         }
       } catch (error) {
-        console.error('Failed to load incident data:', error)
         setIncidentData(null)
       } finally {
         setLoading(false)

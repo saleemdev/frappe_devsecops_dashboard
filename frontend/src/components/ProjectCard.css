@@ -1,0 +1,831 @@
+/* Enhanced Project Card Styling */
+
+/* Main card container */
+.project-card-enhanced {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  margin-bottom: 16px;
+}
+
+.project-card-enhanced:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Card header - Primary visual hierarchy */
+.project-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.project-card-header-primary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.project-card-title-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.project-card-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.project-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+.project-card-status-tag {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+/* Header secondary info */
+.project-card-header-secondary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.project-card-client,
+.project-card-phase {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* Action buttons */
+.project-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.project-card-action-btn {
+  font-size: 12px;
+  height: 28px;
+  padding: 0 12px;
+}
+
+/* Progress section */
+.project-card-progress-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: rgba(24, 144, 255, 0.04);
+  border-radius: 6px;
+  border-left: 3px solid #1890ff;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.progress-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.progress-value {
+  font-size: 14px;
+  color: #1890ff;
+}
+
+/* Metrics section - Compact design */
+.project-card-metrics-section {
+  margin-bottom: 12px;
+}
+
+.project-card-metrics-descriptions {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.project-card-metrics-descriptions .ant-descriptions-item {
+  padding-bottom: 4px;
+}
+
+.project-card-metrics-descriptions .ant-descriptions-item-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(0, 0, 0, 0.45);
+  padding: 0 8px 0 0;
+}
+
+.project-card-metrics-descriptions .ant-descriptions-item-content {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.metric-item {
+  padding: 4px 0;
+}
+
+/* Dates section */
+.project-card-dates-section {
+  margin-bottom: 16px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.project-card-descriptions {
+  background-color: #fafafa;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.project-card-descriptions .ant-descriptions-item {
+  padding-bottom: 8px;
+}
+
+.project-card-descriptions .ant-descriptions-item-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.project-card-descriptions .ant-descriptions-item-content {
+  font-size: 12px;
+}
+
+/* Lifecycle section */
+.project-card-lifecycle-section {
+  margin-bottom: 16px;
+}
+
+.project-card-steps {
+  font-size: 12px;
+}
+
+.lifecycle-step-title {
+  cursor: pointer;
+  padding: 4px 0;
+  transition: all 0.3s ease;
+}
+
+.lifecycle-step-title:hover {
+  color: #1890ff;
+}
+
+.lifecycle-step-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lifecycle-step-tag {
+  font-size: 10px;
+  margin-left: 8px;
+}
+
+/* Attachments section */
+.project-card-attachments-section {
+  margin-bottom: 16px;
+}
+
+.attachments-list {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: #fafafa;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.attachment-item:last-child {
+  border-bottom: none;
+}
+
+/* Comments section */
+.project-card-comments-section {
+  margin-bottom: 0;
+}
+
+.project-card-comment-input {
+  font-size: 12px;
+}
+
+.project-card-comment-input textarea {
+  resize: vertical;
+}
+
+/* Content wrapper */
+.project-card-content {
+  padding: 12px 0;
+}
+
+/* Responsive design - Tablet */
+@media (max-width: 768px) {
+  .project-card-header {
+    gap: 10px;
+  }
+
+  .project-card-header-primary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .project-card-title {
+    font-size: 15px;
+  }
+
+  .project-card-header-secondary {
+    width: 100%;
+    font-size: 12px;
+  }
+
+  .project-card-actions {
+    width: 100%;
+  }
+
+  .project-card-action-btn {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .metric-box {
+    padding: 10px;
+  }
+
+  .metric-value {
+    font-size: 14px;
+  }
+}
+
+/* Responsive design - Mobile */
+@media (max-width: 576px) {
+  .project-card-enhanced {
+    margin-bottom: 12px;
+  }
+
+  .project-card-header {
+    gap: 8px;
+  }
+
+  .project-card-header-primary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .project-card-title-section {
+    width: 100%;
+  }
+
+  .project-card-title {
+    font-size: 14px;
+  }
+
+  .project-card-status-tag {
+    align-self: flex-start;
+  }
+
+  .project-card-header-secondary {
+    width: 100%;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .project-card-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .project-card-action-btn {
+    width: 100%;
+    font-size: 11px;
+    height: 32px;
+  }
+
+  .project-card-progress-section {
+    margin-bottom: 12px;
+    padding: 10px;
+  }
+
+  .progress-header {
+    font-size: 11px;
+  }
+
+  .progress-value {
+    font-size: 12px;
+  }
+
+  .metric-box {
+    padding: 8px;
+    font-size: 11px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+  }
+
+  .metric-value {
+    font-size: 13px;
+  }
+
+  .section-header {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+
+  .project-card-descriptions {
+    padding: 10px;
+  }
+
+  .project-card-descriptions .ant-descriptions-item {
+    padding-bottom: 6px;
+  }
+
+  .project-card-descriptions .ant-descriptions-item-label {
+    font-size: 11px;
+  }
+
+  .project-card-descriptions .ant-descriptions-item-content {
+    font-size: 11px;
+  }
+
+  .attachments-list {
+    max-height: 150px;
+    padding: 10px;
+  }
+
+  .attachment-item {
+    padding: 4px 0;
+    font-size: 11px;
+  }
+
+  .project-card-comment-input {
+    font-size: 11px;
+  }
+
+  .project-card-content {
+    padding: 8px 0;
+  }
+}
+
+/* Dark mode support */
+[data-theme='dark'] .project-card-enhanced {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='dark'] .project-card-enhanced:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme='dark'] .project-card-progress-section {
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+[data-theme='dark'] .metric-box {
+  background-color: #262626;
+  border-color: #434343;
+}
+
+[data-theme='dark'] .metric-box:hover {
+  background-color: #2d2d2d;
+  border-color: #595959;
+}
+
+[data-theme='dark'] .project-card-descriptions {
+  background-color: #262626;
+}
+
+[data-theme='dark'] .attachments-list {
+  background-color: #262626;
+  border-color: #434343;
+}
+
+[data-theme='dark'] .attachment-item {
+  border-bottom-color: #434343;
+}
+
+/* Accessibility - Focus states */
+.project-card-action-btn:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+.lifecycle-step-title:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .project-card-enhanced,
+  .metric-box,
+  .lifecycle-step-title {
+    transition: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .project-card-enhanced {
+    border: 2px solid #1890ff;
+  }
+
+  .project-card-title {
+    font-weight: 700;
+  }
+
+  .metric-box {
+    border-width: 2px;
+  }
+}
+
+/* ============================================================================
+   ATTACHMENTS AND COMMENTS STYLING
+   ============================================================================ */
+
+/* Attachment Item */
+.attachment-item {
+  padding: 12px;
+  background-color: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.attachment-item:hover {
+  background-color: #f5f5f5;
+  border-color: #d9d9d9;
+}
+
+.attachment-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attachment-item-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.attachment-item-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachment-item-meta {
+  font-size: 11px;
+  color: var(--ant-color-text-secondary);
+  margin-top: 2px;
+}
+
+.attachment-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Comment Item */
+.comment-item {
+  padding: 12px;
+  background-color: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+}
+
+.comment-item:hover {
+  background-color: #f5f5f5;
+  border-color: #d9d9d9;
+}
+
+.comment-content {
+  padding: 8px 12px;
+  background-color: var(--ant-color-bg-layout);
+  border-radius: 4px;
+  word-break: break-word;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Comment Input */
+.project-card-comment-input {
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+.project-card-comment-input textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Attachments Section */
+.project-card-attachments-section {
+  margin-bottom: 16px;
+}
+
+.project-card-attachments-section .ant-list {
+  background: transparent;
+}
+
+.project-card-attachments-section .ant-list-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.project-card-attachments-section .ant-list-item:last-child {
+  border-bottom: none;
+}
+
+/* Comments Section */
+.project-card-comments-section {
+  margin-bottom: 0;
+}
+
+.project-card-comments-section .ant-list {
+  background: transparent;
+}
+
+.project-card-comments-section .ant-list-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.project-card-comments-section .ant-list-item:last-child {
+  border-bottom: none;
+}
+
+/* Dark mode support */
+[data-theme='dark'] .attachment-item {
+  background-color: #262626;
+  border-color: #434343;
+}
+
+[data-theme='dark'] .attachment-item:hover {
+  background-color: #2d2d2d;
+  border-color: #595959;
+}
+
+[data-theme='dark'] .comment-item {
+  background-color: #262626;
+  border-color: #434343;
+}
+
+[data-theme='dark'] .comment-item:hover {
+  background-color: #2d2d2d;
+  border-color: #595959;
+}
+
+[data-theme='dark'] .comment-content {
+  background-color: var(--ant-color-bg-layout);
+}
+
+/* Mobile responsive - Tablet and below */
+@media (max-width: 768px) {
+  .project-card-header {
+    gap: 8px;
+  }
+
+  .project-card-header-primary {
+    gap: 8px;
+  }
+
+  .project-card-title {
+    font-size: 14px;
+  }
+
+  .project-card-header-secondary {
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .project-card-actions {
+    gap: 4px;
+  }
+
+  .project-card-action-btn {
+    font-size: 11px;
+    height: 24px;
+    padding: 0 8px;
+  }
+
+  .project-card-metrics-descriptions .ant-descriptions-item-label {
+    font-size: 10px;
+  }
+
+  .project-card-metrics-descriptions .ant-descriptions-item-content {
+    font-size: 12px;
+  }
+
+  .section-header {
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .project-card-descriptions {
+    padding: 8px;
+  }
+
+  .project-card-descriptions .ant-descriptions-item {
+    padding-bottom: 6px;
+  }
+
+  .project-card-descriptions .ant-descriptions-item-label {
+    font-size: 11px;
+  }
+
+  .project-card-descriptions .ant-descriptions-item-content {
+    font-size: 11px;
+  }
+}
+
+/* Mobile responsive - Small phones */
+@media (max-width: 576px) {
+  .project-card-enhanced {
+    margin-bottom: 12px;
+  }
+
+  .project-card-header {
+    gap: 6px;
+  }
+
+  .project-card-header-primary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .project-card-title {
+    font-size: 13px;
+  }
+
+  .project-card-status-tag {
+    font-size: 11px;
+  }
+
+  .project-card-header-secondary {
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .project-card-client,
+  .project-card-phase {
+    white-space: normal;
+  }
+
+  .project-card-actions {
+    width: 100%;
+    gap: 4px;
+  }
+
+  .project-card-action-btn {
+    font-size: 10px;
+    height: 22px;
+    padding: 0 6px;
+    flex: 1;
+  }
+
+  .project-card-progress-section {
+    padding: 8px;
+    margin-bottom: 12px;
+  }
+
+  .progress-label {
+    font-size: 11px;
+  }
+
+  .progress-value {
+    font-size: 12px;
+  }
+
+  .project-card-metrics-section {
+    margin-bottom: 8px;
+  }
+
+  .project-card-metrics-descriptions .ant-descriptions-item {
+    padding-bottom: 2px;
+  }
+
+  .project-card-metrics-descriptions .ant-descriptions-item-label {
+    font-size: 9px;
+  }
+
+  .project-card-metrics-descriptions .ant-descriptions-item-content {
+    font-size: 11px;
+  }
+
+  .section-header {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .project-card-descriptions {
+    padding: 6px;
+  }
+
+  .project-card-descriptions .ant-descriptions-item {
+    padding-bottom: 4px;
+  }
+
+  .project-card-descriptions .ant-descriptions-item-label {
+    font-size: 10px;
+  }
+
+  .project-card-descriptions .ant-descriptions-item-content {
+    font-size: 10px;
+  }
+
+  .attachment-item {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px;
+  }
+
+  .attachment-item-actions {
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  .attachment-item-name {
+    font-size: 11px;
+  }
+
+  .attachment-item-meta {
+    font-size: 9px;
+  }
+
+  .comment-item {
+    padding: 8px 0;
+  }
+
+  .comment-content {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  .project-card-comment-input textarea {
+    min-height: 40px;
+    font-size: 11px;
+  }
+
+  .project-card-comments-section .ant-list-item {
+    padding: 8px 0;
+  }
+}
+

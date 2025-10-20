@@ -110,36 +110,73 @@ class ChangeRequestsService {
 // Authentication service
 class AuthService {
   async getCurrentUser() {
-    if (API_CONFIG.features.useMockData) {
+    // Check if user has valid session cookies first
+    const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=')
+      acc[key] = value
+      return acc
+    }, {})
+
+    // If no session cookies (sid or user_id), user is not logged in
+    if (!cookies.sid && !cookies.user_id) {
+      return {
+        success: false,
+        data: null,
+        message: 'No active session found'
+      }
+    }
+
+    // If frappe session data is available in window, use it
+    if (window.frappe?.session?.user && window.frappe.session.user !== 'Guest') {
       return {
         success: true,
         data: {
-          name: 'Administrator',
-          email: 'admin@example.com',
-          full_name: 'System Administrator',
-          user_image: null
+          name: window.frappe.session.user,
+          email: window.frappe.session.user,
+          full_name: window.frappe.session.user_fullname || window.frappe.session.user,
+          user_image: window.frappe.session.user_image || null
         }
       }
     }
-    
-    // Real API implementation would go here
-    // For now, return the existing user info from cookies or session
-    return {
-      success: true,
-      data: {
-        name: window.frappe?.session?.user || 'Guest',
-        email: window.frappe?.session?.user || 'guest@example.com',
-        full_name: window.frappe?.session?.user_fullname || 'Guest User',
-        user_image: window.frappe?.session?.user_image || null
+
+    // Try to fetch current user from Frappe API
+    try {
+      const { createApiClient } = await import('./config.js')
+      const client = await createApiClient()
+      const response = await client.get(API_CONFIG.endpoints.auth.session)
+
+      if (response.data && response.data !== 'Guest') {
+        return {
+          success: true,
+          data: {
+            name: response.data,
+            email: response.data,
+            full_name: response.data,
+            user_image: null
+          }
+        }
+      } else {
+        // User is Guest, not authenticated
+        return {
+          success: false,
+          data: null,
+          message: 'User is not authenticated (Guest user)'
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        message: error.message || 'Failed to fetch user session'
       }
     }
   }
-  
+
   async login(credentials) {
     // This would integrate with Frappe's login system
     throw new Error('Login should be handled by Frappe\'s authentication system')
   }
-  
+
   async logout() {
     // This would integrate with Frappe's logout system
     window.location.href = '/logout'

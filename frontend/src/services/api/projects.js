@@ -85,12 +85,6 @@ class ProjectsService {
       return result
 
     } catch (error) {
-      console.error('[ProjectsService] Error fetching from ERPNext:', error)
-      console.error('[ProjectsService] Error details:', {
-        message: error.message,
-        stack: error.stack
-      })
-
       // Return empty groups on error
       return {
         success: false,
@@ -123,7 +117,6 @@ class ProjectsService {
       return result
 
     } catch (error) {
-      console.error('[ProjectsService] Error fetching tasks by type from ERPNext:', error)
       return {
         success: false,
         error: error.message,

@@ -40,7 +40,6 @@ export const getRedirectUrlFromParams = () => {
     try {
       return decodeURIComponent(redirectParam)
     } catch (error) {
-      console.error('Failed to decode redirect URL:', error)
       return null
     }
   }

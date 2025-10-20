@@ -10,6 +10,8 @@ License: MIT
 
 import frappe
 import requests
+import base64
+import json as json_lib
 from typing import Dict, List, Optional, Any
 
 
@@ -19,6 +21,15 @@ ZENHUB_GRAPHQL_ENDPOINT = "https://api.zenhub.com/public/graphql"
 # Cache key for Zenhub token
 ZENHUB_TOKEN_CACHE_KEY = "zenhub_api_token"
 ZENHUB_TOKEN_CACHE_TTL = 3600  # 1 hour
+
+
+# Cache key for GitHub user data
+GITHUB_USER_CACHE_KEY_PREFIX = "github_user_"
+GITHUB_USER_CACHE_TTL = 86400  # 24 hours (usernames rarely change)
+
+# Cache key for sprint data responses
+SPRINT_DATA_CACHE_KEY_PREFIX = "zenhub_sprint_data_"
+SPRINT_DATA_CACHE_TTL = 300  # 5 minutes
 
 
 def get_zenhub_token() -> Optional[str]:
@@ -78,6 +89,142 @@ def get_zenhub_token() -> Optional[str]:
             message=f"Failed to retrieve Zenhub token: {str(e)}"
         )
         raise
+
+
+def decode_zenhub_user_id(zenhub_user_id: str) -> Optional[int]:
+    """
+    Decode a Zenhub user ID to extract the GitHub user ID.
+
+    Zenhub user IDs are base64-encoded strings in the format:
+    "Z2lkOi8vcmFwdG9yL1VzZXIvMzkzNjk4NDcw" -> "gid://raptor/User/393698470"
+
+    Args:
+        zenhub_user_id: The Zenhub user ID (base64 encoded)
+
+    Returns:
+        int: The GitHub user ID, or None if decoding fails
+    """
+    try:
+        decoded = base64.b64decode(zenhub_user_id).decode('utf-8')
+        # Format: gid://raptor/User/{github_user_id}
+        if '/User/' in decoded:
+            github_id = decoded.split('/User/')[-1]
+            return int(github_id)
+    except Exception:
+        pass
+    return None
+
+
+def fetch_github_user(github_user_id: int) -> Optional[Dict[str, str]]:
+    """
+    Fetch GitHub user information from the GitHub REST API.
+
+    Uses the public GitHub API (no authentication required) to fetch user data.
+    Results are cached for 24 hours to minimize API calls. Includes rate limit handling.
+
+    Args:
+        github_user_id: The numeric GitHub user ID
+
+    Returns:
+        dict: User data with 'login' and 'name' fields, or None if fetch fails
+    """
+    cache_key = f"{GITHUB_USER_CACHE_KEY_PREFIX}{github_user_id}"
+
+    # Check cache first
+    cached_user = frappe.cache().get_value(cache_key)
+    if cached_user:
+        try:
+            return json_lib.loads(cached_user)
+        except Exception:
+            pass
+
+    try:
+        # GitHub REST API endpoint for user by ID
+        url = f"https://api.github.com/user/{github_user_id}"
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "Frappe-DevSecOps-Dashboard"
+        }
+
+        response = requests.get(url, headers=headers, timeout=10)
+
+        # Check rate limit headers
+        rate_limit_remaining = response.headers.get('X-RateLimit-Remaining')
+        rate_limit_reset = response.headers.get('X-RateLimit-Reset')
+
+        if rate_limit_remaining:
+            remaining = int(rate_limit_remaining)
+            if remaining < 10:
+                frappe.log_error(
+                    title="GitHub Rate Limit Warning",
+                    message=f"Only {remaining} GitHub API requests remaining. Resets at {rate_limit_reset}"
+                )
+
+        if response.status_code == 200:
+            data = response.json()
+            user_data = {
+                "login": data.get("login"),
+                "name": data.get("name") or data.get("login")
+            }
+            # Cache for 24 hours
+            frappe.cache().set_value(cache_key, json_lib.dumps(user_data), expires_in_sec=GITHUB_USER_CACHE_TTL)
+            return user_data
+        elif response.status_code == 404:
+            # User not found - cache negative result for 1 hour
+            frappe.cache().set_value(cache_key, json_lib.dumps(None), expires_in_sec=3600)
+        elif response.status_code == 403:
+            # Check if rate limited
+            if 'rate limit' in response.text.lower():
+                frappe.log_error(
+                    title="GitHub Rate Limit Exceeded",
+                    message=f"GitHub API rate limit exceeded for user {github_user_id}. Resets at {rate_limit_reset}"
+                )
+                # Cache None for 1 hour to avoid hammering the API
+                frappe.cache().set_value(cache_key, json_lib.dumps(None), expires_in_sec=3600)
+    except Exception as e:
+        frappe.log_error(
+            title="GitHub User Fetch Error",
+            message=f"Failed to fetch GitHub user {github_user_id}: {str(e)}"
+        )
+
+    return None
+
+
+def process_assignees_from_zenhub(assignees: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Process assignee data from Zenhub GraphQL response.
+
+    Uses the login and name fields directly from Zenhub's API.
+    No GitHub API calls - all data comes from Zenhub.
+
+    Args:
+        assignees: List of assignee dicts with 'id', 'login', 'name' fields from Zenhub
+
+    Returns:
+        List[Dict]: Processed assignee list with human-friendly names
+    """
+    processed = []
+
+    for assignee in assignees:
+        if not isinstance(assignee, dict):
+            continue
+
+        zenhub_id = assignee.get("id")
+        if not zenhub_id:
+            continue
+
+        # Get login (GitHub username) and name from Zenhub response
+        login = assignee.get("login")
+        name = assignee.get("name")
+
+        # Use login as the primary username, name as display name
+        processed.append({
+            "id": zenhub_id,
+            "username": login or "unknown",
+            "name": name or login or "Unknown User"
+        })
+
+    return processed
 
 
 def execute_graphql_query(query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
@@ -181,9 +328,9 @@ def get_workspace_sprints_query() -> str:
     Get a compatible GraphQL query for fetching workspace sprints.
 
     Notes:
-    - Keep the query minimal to maximize compatibility across Zenhub schema versions
-    - Removed unsupported arguments/fields (states, startDate, endDate, username, blockedBy)
-    - Fetch only id, name, state for sprints
+    - Fetch assignees with GitHub login and name
+    - Get epic and blockedBy information
+    - Use Zenhub's actual field names (login, not username)
 
     Returns:
         str: The GraphQL query string
@@ -204,7 +351,25 @@ def get_workspace_sprints_query() -> str:
                 title
                 state
                 estimate { value }
-                assignees { nodes { id name } }
+                assignees {
+                  nodes {
+                    id
+                    login
+                    name
+                  }
+                }
+                epic {
+                  issue {
+                    id
+                    title
+                  }
+                }
+                blockedBy {
+                  nodes {
+                    id
+                    title
+                  }
+                }
               }
             }
           }
@@ -239,12 +404,28 @@ def get_workspace_sprints_query_enhanced() -> str:
                 title
                 state
                 estimate { value }
-                assignees { nodes { id name username } }
+                assignees {
+                  nodes {
+                    id
+                    login
+                    name
+                  }
+                }
                 # Optional fields (may not be present in some schemas)
                 pipeline { id name }
                 pipelineIssue { position pipeline { id name position } }
-                epic { id title }
-                blockedBy { nodes { id } }
+                epic {
+                  issue {
+                    id
+                    title
+                  }
+                }
+                blockedBy {
+                  nodes {
+                    id
+                    title
+                  }
+                }
               }
             }
           }
@@ -277,11 +458,27 @@ def get_workspace_sprints_query_enhanced_alt() -> str:
                 title
                 state
                 estimate { value }
-                assignees { nodes { id name username } }
+                assignees {
+                  nodes {
+                    id
+                    login
+                    name
+                  }
+                }
                 pipeline { id name }
                 pipelineIssue { position pipeline { id name position } }
-                epic { id title }
-                blockedBy { nodes { id } }
+                epic {
+                  issue {
+                    id
+                    title
+                  }
+                }
+                blockedBy {
+                  nodes {
+                    id
+                    title
+                  }
+                }
               }
             }
           }
@@ -294,12 +491,61 @@ def get_workspace_sprints_query_enhanced_alt() -> str:
 
 def get_workspace_issues_query() -> str:
     """
-    GraphQL query to fetch issues directly from a workspace (not via sprints).
+    GraphQL query to fetch ALL issues directly from a workspace (not via sprints).
 
-    Uses a minimal field set to maximize schema compatibility.
+    This is the primary query to use when you want all workspace issues
+    regardless of sprint assignment.
+
+    Uses only fields confirmed to exist in Zenhub's GraphQL schema.
     """
     return """
-    query GetWorkspaceIssues($workspaceId: ID!, $first: Int!) {
+    query GetWorkspaceIssues($workspaceId: ID!) {
+      workspace(id: $workspaceId) {
+        id
+        name
+        issues(first: 100) {
+          totalCount
+          nodes {
+            id
+            title
+            state
+            htmlUrl
+            number
+            repository {
+              id
+              ghId
+              name
+            }
+            estimate { value }
+            assignees {
+              nodes {
+                id
+                login
+                name
+              }
+            }
+            epic {
+              issue {
+                id
+                title
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+
+
+
+
+def get_workspace_issues_query_edges() -> str:
+    """
+    Alternative GraphQL query variant that requests assignees via edges { node { ... } }.
+    Some Zenhub schemas expose assignees through edges rather than nodes.
+    """
+    return """
+    query GetWorkspaceIssuesEdges($workspaceId: ID!, $first: Int!) {
       workspace(id: $workspaceId) {
         id
         name
@@ -310,13 +556,12 @@ def get_workspace_issues_query() -> str:
             title
             state
             estimate { value }
-            assignees { nodes { id name } }
+            assignees { edges { node { id name username } } }
           }
         }
       }
     }
     """
-
 
 def calculate_sprint_metrics(sprint_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -337,6 +582,16 @@ def calculate_sprint_metrics(sprint_data: Dict[str, Any]) -> Dict[str, Any]:
     issues = sprint_data.get("issues", {}).get("nodes", [])
     sprint_id_ctx = sprint_data.get("id")
     sprint_name_ctx = sprint_data.get("name")
+
+    # Log ONLY if there are zero issues - this could indicate a problem
+    if len(issues) == 0:
+        try:
+            frappe.log_error(
+                title="Zenhub Sprint Has Zero Issues",
+                message=f"Sprint '{sprint_name_ctx}' ({sprint_id_ctx}) returned 0 issues. Issues container: {json_lib.dumps(sprint_data.get('issues'))}"
+            )
+        except Exception:
+            pass
 
     total_story_points = 0
     completed_story_points = 0
@@ -388,40 +643,65 @@ def calculate_sprint_metrics(sprint_data: Dict[str, Any]) -> Dict[str, Any]:
         estimate = issue.get("estimate") or {}
         points = estimate.get("value", 0) if isinstance(estimate, dict) else 0
         state = (issue.get("state") or "").lower()
-        pipeline_name = ((issue.get("pipeline") or {}).get("name") if isinstance(issue.get("pipeline"), dict) else None)
-        # Try alternative path via pipelineIssue if present
-        pipeline_issue = issue.get("pipelineIssue") if isinstance(issue.get("pipelineIssue"), dict) else {}
-        if not pipeline_name:
-            pipeline_name = ((pipeline_issue.get("pipeline") or {}).get("name") if isinstance(pipeline_issue.get("pipeline"), dict) else None)
-        pipeline_position = pipeline_issue.get("position") if isinstance(pipeline_issue, dict) else None
-        status_bucket = map_pipeline_to_status(pipeline_name) or map_state_to_status(state)
+
+        # Map state to status bucket (no pipeline data available)
+        status_bucket = map_state_to_status(state) or "To Do"
 
         # Build issue object for output (blocked_by unsupported in schema we use)
         assignees_container = issue.get("assignees") or {}
         assignees_nodes = assignees_container.get("nodes")
+
+        # Handle both nodes and edges patterns for assignees
         if not isinstance(assignees_nodes, list):
             edges = assignees_container.get("edges")
             if isinstance(edges, list):
                 assignees_nodes = [e.get("node") for e in edges if isinstance(e, dict) and isinstance(e.get("node"), dict)]
             else:
                 assignees_nodes = []
-        assignees_list = [{"id": a.get("id"), "name": a.get("name"), "username": a.get("username")} for a in assignees_nodes]
-        # blockedBy may exist in enhanced schema; default to []
-        blocked_nodes = ((issue.get("blockedBy") or {}).get("nodes", []) if isinstance(issue.get("blockedBy"), dict) else [])
-        blocked_by_ids: List[str] = [b.get("id") for b in blocked_nodes if isinstance(b, dict) and b.get("id")]
+
+        # Extract raw assignees from Zenhub response
+        raw_assignees = []
+        if assignees_nodes:
+            for a in assignees_nodes:
+                if isinstance(a, dict) and a.get("id"):
+                    raw_assignees.append({
+                        "id": a.get("id"),
+                        "login": a.get("login"),
+                        "name": a.get("name")
+                    })
+
+        assignees_list = process_assignees_from_zenhub(raw_assignees) if raw_assignees else []
+
+        # Process epic with human-friendly data
+        epic_data = issue.get("epic")
+        epic_info = None
+        if isinstance(epic_data, dict):
+            # Epic might be nested as epic.issue or directly
+            epic_issue = epic_data.get("issue") if epic_data.get("issue") else epic_data
+            if isinstance(epic_issue, dict):
+                epic_info = {
+                    "id": epic_issue.get("id"),
+                    "title": epic_issue.get("title") or "Unnamed Epic"
+                }
+
+        # Get GitHub repository and issue number
+        repo_data = issue.get("repository") or {}
+        repo_name = repo_data.get("name") if isinstance(repo_data, dict) else None
+        github_number = issue.get("number")
+        html_url = issue.get("htmlUrl")
 
         issues_array.append({
             "issue_id": issue.get("id"),
+            "github_number": github_number,
+            "github_url": html_url,
+            "repository": repo_name,
             "title": issue.get("title"),
             "status": status_bucket,
             "state": state,
             "story_points": points,
             "assignees": assignees_list,
-            "blocked_by": blocked_by_ids,
-            # Optional fields based on availability
-            "pipeline_name": pipeline_name,
-            "pipeline_position": pipeline_position,
-            "epic": (lambda e: {"id": e.get("id"), "title": e.get("title")} if isinstance(e, dict) else None)(issue.get("epic")),
+            "blocked_by": [],  # Not available in current Zenhub schema
+            "epic": epic_info,
             "sprint": {"id": sprint_id_ctx, "name": sprint_name_ctx},
         })
 
@@ -433,14 +713,7 @@ def calculate_sprint_metrics(sprint_data: Dict[str, Any]) -> Dict[str, Any]:
         elif state in ["in_progress", "in progress", "working"]:
             issue_counts["in_progress"] += 1
 
-        # If blocked_by were available, we would track blockers count here.
-        if blocked_by_ids:
-            issue_counts["blocked"] += 1
-            blockers.append({
-                "issue_id": issue.get("id"),
-                "title": issue.get("title"),
-                "blocked_by": blocked_by_ids,
-            })
+        # Note: blocked_by field not available in current Zenhub GraphQL schema
 
         # Collect team members and per-member points
         for assignee in assignees_nodes:
@@ -531,17 +804,18 @@ def transform_sprint_data(sprint: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
-def get_sprint_data(project_id: str, sprint_states: Optional[str] = None) -> Dict[str, Any]:
+def get_sprint_data(project_id: str, sprint_states: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
     """
     Fetch sprint data from Zenhub for a given project.
 
     This is the main API endpoint that retrieves sprint information from Zenhub
-    based on the project's configured workspace ID.
+    based on the project's configured workspace ID. Results are cached for 5 minutes.
 
     Args:
         project_id (str): The Frappe Project doctype name/ID
         sprint_states (str, optional): Comma-separated sprint states (e.g., "ACTIVE,CLOSED")
                                        Defaults to "ACTIVE,CLOSED"
+        force_refresh (bool, optional): Force refresh from API, bypass cache. Defaults to False
 
     Returns:
         dict: JSON response containing sprint data or error information
@@ -550,6 +824,23 @@ def get_sprint_data(project_id: str, sprint_states: Optional[str] = None) -> Dic
         GET /api/method/frappe_devsecops_dashboard.api.zenhub.get_sprint_data?project_id=PROJ-001
     """
     try:
+        # Generate cache key
+        states_key = sprint_states or "ACTIVE,CLOSED"
+        cache_key = f"{SPRINT_DATA_CACHE_KEY_PREFIX}{project_id}_{states_key}"
+
+        # Try to get from cache first (unless force_refresh)
+        if not force_refresh:
+            cached_data = frappe.cache().get_value(cache_key)
+            if cached_data:
+                try:
+                    result = json_lib.loads(cached_data)
+                    # Add cache indicator
+                    result["_cached"] = True
+                    result["_cache_time"] = frappe.cache().ttl(cache_key)
+                    return result
+                except Exception:
+                    # Cache corrupted, continue to fetch fresh
+                    pass
         # Validate project_id
         if not project_id:
             return {
@@ -558,14 +849,28 @@ def get_sprint_data(project_id: str, sprint_states: Optional[str] = None) -> Dic
                 "error_type": "validation_error"
             }
 
-        # Fetch the Project document
+        # Fetch the Project document with permission check
         try:
             project = frappe.get_doc("Project", project_id)
+
+            # Check read permission on the project
+            if not project.has_permission('read'):
+                return {
+                    "success": False,
+                    "error": f"You do not have permission to access project '{project_id}'",
+                    "error_type": "permission_error"
+                }
         except frappe.DoesNotExistError:
             return {
                 "success": False,
                 "error": f"Project '{project_id}' not found",
                 "error_type": "validation_error"
+            }
+        except frappe.PermissionError:
+            return {
+                "success": False,
+                "error": f"You do not have permission to access project '{project_id}'",
+                "error_type": "permission_error"
             }
 
         # Get workspace ID from project
@@ -583,79 +888,88 @@ def get_sprint_data(project_id: str, sprint_states: Optional[str] = None) -> Dic
         else:
             states = ["ACTIVE", "CLOSED"]
 
-        # Try enhanced query first; if it fails (schema/complexity), fall back to minimal query
+        # Fetch ALL workspace issues directly (not just sprint issues)
+        # This ensures we get all issues regardless of sprint assignment
         variables = {"workspaceId": workspace_id}
+        response_data = None
+        query_used = "workspace_issues"
+
         try:
-            query = get_workspace_sprints_query_enhanced()
+            query = get_workspace_issues_query()
             response_data = execute_graphql_query(query, variables)
-        except Exception as _enhanced_err:
-            # Try alternative enhanced query using workspace.board.pipelines
-            try:
-                query = get_workspace_sprints_query_enhanced_alt()
-                response_data = execute_graphql_query(query, variables)
-            except Exception as _enhanced_err_alt:
-                frappe.log_error(
-                    title="Zenhub Enhanced Query Failed - Falling back",
-                    message=f"Enhanced query failed: {str(_enhanced_err)} | Alt failed: {str(_enhanced_err_alt)}"
-                )
-                query = get_workspace_sprints_query()
-                response_data = execute_graphql_query(query, variables)
+        except Exception as e:
+            frappe.log_error(
+                title="Zenhub Workspace Issues Query Failed",
+                message=f"Failed to fetch workspace issues: {str(e)}"
+            )
+            raise
 
-        # Extract workspace, pipelines and sprints
+        # Extract workspace and issues
         workspace = response_data.get("workspace", {})
-        pipelines_nodes = (
-            ((workspace.get("pipelines") or {}).get("nodes", []))
-            or (((workspace.get("board") or {}).get("pipelines") or {}).get("nodes", []))
-        )
+
+        # Log diagnostic info about the workspace response
+        try:
+            issues_count = len(workspace.get("issues", {}).get("nodes", []))
+            frappe.log_error(
+                title="Zenhub Workspace Response Debug",
+                message=f"Workspace ID: {workspace.get('id')}, Name: {workspace.get('name')}, Issues count: {issues_count}, Query used: {query_used}"
+            )
+        except Exception:
+            pass
+
+        # No pipelines in this simplified query
         pipelines_list = []
-        for idx, p in enumerate(pipelines_nodes or []):
-            if isinstance(p, dict):
-                pos = p.get("position")
-                if pos is None:
-                    pos = p.get("index") if isinstance(p.get("index"), int) else idx
-                pipelines_list.append({
-                    "id": p.get("id"),
-                    "name": p.get("name"),
-                    "position": pos,
-                })
 
-        sprints_data = workspace.get("sprints", {}).get("nodes", [])
+        # Get all workspace issues
+        issues_container = workspace.get("issues", {})
+        all_issues = issues_container.get("nodes", [])
+        total_count = issues_container.get("totalCount", len(all_issues))
 
-        # Filter sprints by state if provided
-        if states:
-            sprints_data = [s for s in sprints_data if (s.get("state") or "").upper() in states]
+        # Log issues count
+        try:
+            frappe.log_error(
+                title="Zenhub Workspace Issues Count",
+                message=f"Found {len(all_issues)} issues in workspace (total: {total_count})"
+            )
+        except Exception:
+            pass
 
-        # Transform sprint data
-        transformed_sprints = [transform_sprint_data(sprint) for sprint in sprints_data]
+        # Create a single "All Issues" pseudo-sprint with all workspace issues
+        pseudo_sprint = {
+            "id": f"workspace_{workspace_id}_all_issues",
+            "name": "All Workspace Issues",
+            "state": "ACTIVE",
+            "issues": {"nodes": all_issues}
+        }
 
-        # Fallback: if no sprints exist/returned, surface workspace issues as a pseudo sprint "Backlog"
-        if not transformed_sprints:
-            try:
-                issues_query = get_workspace_issues_query()
-                issues_vars = {"workspaceId": workspace_id, "first": 100}
-                issues_response = execute_graphql_query(issues_query, issues_vars)
-                ws = issues_response.get("workspace", {})
-                issues_nodes = (ws.get("issues", {}) or {}).get("nodes", [])
-                pseudo_sprint = {
-                    "id": f"workspace-{workspace_id}-backlog",
-                    "name": "Backlog",
-                    "state": "backlog",
-                    "issues": {"nodes": issues_nodes},
-                }
-                transformed_sprints = [transform_sprint_data(pseudo_sprint)]
-            except Exception as e:
-                frappe.log_error(
-                    title="Zenhub Sprint Fallback Error",
-                    message=f"Failed to fetch workspace issues for fallback: {str(e)}",
-                )
+        # Transform sprint data (just our pseudo-sprint)
+        transformed_sprints = [transform_sprint_data(pseudo_sprint)]
 
-        return {
+        result = {
             "success": True,
             "workspace_id": workspace_id,
             "workspace_name": workspace.get("name"),
             "pipelines": pipelines_list,
             "sprints": transformed_sprints,
+            "_cached": False,
+            "_fetched_at": frappe.utils.now()
         }
+
+        # Cache the successful result
+        try:
+            frappe.cache().set_value(
+                cache_key,
+                json_lib.dumps(result),
+                expires_in_sec=SPRINT_DATA_CACHE_TTL
+            )
+        except Exception as cache_error:
+            # Don't fail if caching fails
+            frappe.log_error(
+                title="Zenhub Cache Error",
+                message=f"Failed to cache sprint data: {str(cache_error)}"
+            )
+
+        return result
 
     except frappe.AuthenticationError as e:
         return {"success": False, "error": str(e), "error_type": "authentication_error"}
@@ -689,14 +1003,28 @@ def get_workspace_issues(project_id: str, page_size: int = 100) -> Dict[str, Any
                 "error_type": "validation_error",
             }
 
-        # Fetch the Project document
+        # Fetch the Project document with permission check
         try:
             project = frappe.get_doc("Project", project_id)
+
+            # Check read permission on the project
+            if not project.has_permission('read'):
+                return {
+                    "success": False,
+                    "error": f"You do not have permission to access project '{project_id}'",
+                    "error_type": "permission_error"
+                }
         except frappe.DoesNotExistError:
             return {
                 "success": False,
                 "error": f"Project '{project_id}' not found",
                 "error_type": "validation_error",
+            }
+        except frappe.PermissionError:
+            return {
+                "success": False,
+                "error": f"You do not have permission to access project '{project_id}'",
+                "error_type": "permission_error"
             }
 
         # Get workspace ID from project

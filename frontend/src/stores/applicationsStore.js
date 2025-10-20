@@ -71,7 +71,6 @@ const useApplicationsStore = create(
             throw new Error(response.message || 'Failed to fetch applications')
           }
         } catch (error) {
-          console.error('Error fetching applications:', error)
           set({
             error: error.message || 'Failed to fetch applications',
             loading: false
@@ -98,7 +97,6 @@ const useApplicationsStore = create(
             throw new Error(response.message || 'Failed to fetch application')
           }
         } catch (error) {
-          console.error('Error fetching application:', error)
           set({
             error: error.message || 'Failed to fetch application',
             loading: false
@@ -126,7 +124,6 @@ const useApplicationsStore = create(
             throw new Error(response.message || 'Failed to create application')
           }
         } catch (error) {
-          console.error('Error creating application:', error)
           set({
             error: error.message || 'Failed to create application',
             loading: false
@@ -168,7 +165,6 @@ const useApplicationsStore = create(
             throw new Error(response.message || 'Failed to update application')
           }
         } catch (error) {
-          console.error('Error updating application:', error)
           set({
             error: error.message || 'Failed to update application',
             loading: false
@@ -208,7 +204,6 @@ const useApplicationsStore = create(
             throw new Error(response.message || 'Failed to delete application')
           }
         } catch (error) {
-          console.error('Error deleting application:', error)
           set({
             error: error.message || 'Failed to delete application',
             loading: false

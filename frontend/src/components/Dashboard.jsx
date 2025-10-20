@@ -48,6 +48,7 @@ import api from '../services/api'
 import { getDashboardData, getProjectDetails, getProjectsWithTasks } from '../utils/erpnextApiUtils'
 import ProjectDetail from './ProjectDetail'
 import TaskTypeTasksModal from './TaskTypeTasksModal'
+import ProjectCard from './ProjectCard'
 import SprintReportDialog from './SprintReportDialog'
 
 const { Title, Text } = Typography
@@ -277,7 +278,6 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
   const handleCommentSubmit = (projectId) => {
     const comment = projectComments[projectId]
     if (comment?.trim()) {
-      console.log('Comment submitted for project', projectId, ':', comment)
       setProjectComments(prev => ({
         ...prev,
         [projectId]: ''
@@ -302,7 +302,7 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
         })
       }
     } catch (e) {
-      console.error('[Dashboard] Failed to load task type summary for', projectId, ':', e)
+
     }
   }
 
@@ -313,7 +313,7 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
       const res = await api.projects.getTasksByType(project.id, group.taskType || group.name)
       setTasksModal(prev => ({ ...prev, loading: false, tasks: res?.data || [] }))
     } catch (e) {
-      console.error('Failed to load tasks by type', e)
+
       setTasksModal(prev => ({ ...prev, loading: false }))
     }
   }
@@ -415,7 +415,7 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
           initializeProjectCollapsedState(response.projects)
         }
       } catch (err) {
-        console.error('Failed to fetch dashboard data:', err)
+
         setError(err.message)
 
         // Fallback to old API
@@ -548,7 +548,7 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
         activityItems.sort((a,b) => (b.date||0) - (a.date||0))
         setActivity(activityItems.slice(0, 10))
       } catch (e) {
-        console.error('Metrics load failed', e)
+
       }
     }
 
@@ -557,7 +557,7 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
   }, [])
 
         } catch (fallbackErr) {
-          console.error('Fallback API also failed:', fallbackErr)
+
           // Keep using mock data as final fallback
         }
       } finally {
@@ -979,195 +979,32 @@ function Dashboard({ navigateToRoute, showProjectDetail, selectedProjectId, view
               </Card>
             ) : (filteredProjects.length > 0 ? filteredProjects : (dashboardData?.projects || [])).map(project => {
               return (
-              <Card key={project.id} data-testid={`project-card-${project.name}`} className="project-card" style={{ marginBottom: 16 }}>
-                <Collapse
-                  ghost
-                  size="small"
-                  activeKey={projectCollapsed[project.id] ? [] : ['details']}
-                  onChange={() => toggleProjectCollapse(project.id)}
-                  expandIcon={({ isActive }) => isActive ? <UpOutlined /> : <DownOutlined />}
-                  items={[
-                    {
-                      key: 'details',
-                      label: (
-                        <div>
-                          {/* Project Header - Always Visible */}
-                          <div style={{ marginBottom: 16 }}>
-                            <div className="project-status">
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                                <SafetyOutlined style={{ color: token.colorPrimary }} />
-                                <Title level={5} data-testid="project-name" style={{ margin: 0, fontSize: '16px' }}>{String(project.name || 'Unnamed Project')}</Title>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Button
-                                  data-testid="view-details-button"
-                                  size="small"
-                                  type="primary"
-                                  icon={<ProjectOutlined />}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    navigateToRoute && navigateToRoute('project-detail', project.id || project.name)
-                                  }}
-                                  style={{ fontSize: '12px' }}
-                                >
-                                  View Details
-                                </Button>
-                                <Button
-                                  data-testid="sprint-report-button"
-                                  size="small"
-                                  type="text"
-                                  icon={<DashboardOutlined />}
-                                  onClick={() => handleStepClick(project, 0)}
-                                  style={{ fontSize: '12px' }}
-                                >
-                                  Sprint Report
-                                </Button>
-                                <Tag data-testid="project-status" color="green" icon={<CheckCircleOutlined />}>{String(project.project_status || project.status || 'Unknown')}</Tag>
-                              </div>
-                            </div>
-                            <Text data-testid="project-client" type="secondary" style={{ fontSize: '13px' }}>{String(project.client || 'No Client')}</Text>
-                          </div>
-
-                          {/* Progress Bar - Always Visible */}
-                          <div style={{ marginBottom: 16 }}>
-                            <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
-                              Overall Progress (<span data-testid="completion-rate">{project.progress}%</span>)
-                            </Text>
-                            <Progress
-                              percent={project.progress}
-                              showInfo={false}
-                              strokeColor={token.colorPrimary}
-                              trailColor={token.colorBgContainer}
-                              size="small"
-                            />
-                          </div>
-
-                          {/* Task Count - Always Visible */}
-                          <div style={{ marginBottom: 16 }}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              Tasks: <span data-testid="task-count">{project.task_count || project.total_tasks || 0}</span>
-                            </Text>
-                          </div>
-
-                          {/* Current Phase - Always Visible */}
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            Current Phase: <Text strong style={{ color: token.colorPrimary }}>{String(project.current_phase || project.currentPhase || 'Planning')}</Text>
-                          </Text>
-                        </div>
-                      ),
-                      children: (
-                        <div style={{ marginTop: 16 }}>
-                          {/* DevSecOps Lifecycle (Task Types) */}
-                          <div style={{ marginBottom: 24 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                              <DashboardOutlined style={{ color: token.colorPrimary }} />
-                              <Text strong style={{ fontSize: '14px' }}>DevSecOps Lifecycle</Text>
-                            </div>
-                            {(() => {
-                              const groups = taskTypeSummaryMap[project.id]
-
-                              if (!groups) {
-                                return (
-                                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                                    <Spin size="small" />
-                                    <div style={{ marginTop: 8, fontSize: 11, color: token.colorTextTertiary }}>
-                                      Loading Task Type data...
-                                    </div>
-                                  </div>
-                                )
-                              }
-                              const currentIdx = (() => {
-                                const wip = groups.findIndex(g => g.percent > 0 && g.percent < 100)
-                                if (wip >= 0) return wip
-                                const lastDone = [...groups].reverse().findIndex(g => g.percent === 100)
-                                if (lastDone >= 0) return groups.length - 1 - lastDone
-                                return 0
-                              })()
-                              return (
-                                <Steps
-                                  data-testid="task-type-steps"
-                                  direction="vertical"
-                                  size="small"
-                                  current={currentIdx}
-                                  style={{ fontSize: '10px' }}
-                                  items={groups.map((g) => ({
-                                    title: (
-                                      <div
-                                        role="button"
-                                        onClick={(e) => { e.stopPropagation(); handleTaskTypeClick(project, g) }}
-                                        style={{ cursor: 'pointer' }}
-                                      >
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                          <span style={{ fontSize: 11 }}>{g.name}</span>
-                                          <Tag color={g.color} style={{ marginLeft: 8, fontSize: 10 }}>{g.completionRate}</Tag>
-                                        </div>
-                                      </div>
-                                    ),
-                                    status: g.percent === 100 ? 'finish' : g.percent > 0 ? 'process' : 'wait',
-                                  }))}
-                                />
-                              )
-                            })()}
-                          </div>
-
-                          <Divider style={{ margin: '16px 0' }} />
-
-                          {/* Attachments Section */}
-                          <div style={{ marginBottom: 16 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                              <PaperClipOutlined style={{ color: token.colorPrimary }} />
-                              <Text strong style={{ fontSize: '12px' }}>Attachments</Text>
-                            </div>
-                            <Upload
-                              fileList={projectFiles[project.id] || []}
-                              onChange={(info) => handleUpload(project.id, info)}
-                              beforeUpload={() => false} // Prevent auto upload
-                              multiple
-                            >
-                              <Button size="small" icon={<UploadOutlined />}>
-                                Upload Files
-                              </Button>
-                            </Upload>
-                          </div>
-
-                          {/* Comments Section */}
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                              <MessageOutlined style={{ color: token.colorPrimary }} />
-                              <Text strong style={{ fontSize: '12px' }}>Comments</Text>
-                            </div>
-                            <Space.Compact style={{ width: '100%' }}>
-                              <Input.TextArea
-
-
-                                value={projectComments[project.id] || ''}
-                                onChange={(e) => setProjectComments(prev => ({
-                                  ...prev,
-                                  [project.id]: e.target.value
-                                }))}
-                                placeholder="Add a comment..."
-                                rows={2}
-                                style={{ fontSize: '11px' }}
-                              />
-                              <Button
-                                type="primary"
-                                icon={<SendOutlined />}
-                                onClick={() => handleCommentSubmit(project.id)}
-                                disabled={!projectComments[project.id]?.trim()}
-                                size="small"
-                              >
-                                Send
-                              </Button>
-                            </Space.Compact>
-                          </div>
-                        </div>
-                      )
-                    }
-                  ]}
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  onViewDetails={(proj) => {
+                    navigateToRoute && navigateToRoute('project-detail', proj.id || proj.name)
+                  }}
+                  onSprintReport={(proj) => {
+                    handleStepClick(proj, 0)
+                  }}
+                  onTaskTypeClick={handleTaskTypeClick}
+                  taskTypeSummary={taskTypeSummaryMap[project.id]}
+                  projectFiles={projectFiles[project.id] || []}
+                  projectComments={projectComments[project.id] || []}
+                  onUpload={handleUpload}
+                  onCommentSubmit={(projectId, comment) => {
+                    handleCommentSubmit(projectId)
+                    setProjectComments(prev => ({
+                      ...prev,
+                      [projectId]: ''
+                    }))
+                  }}
+                  isCollapsed={projectCollapsed[project.id]}
+                  onToggleCollapse={toggleProjectCollapse}
                 />
-              </Card>
-            )}
-            )}
+              )
+            })}
           </div>
         </div>
       </div>

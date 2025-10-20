@@ -24,6 +24,8 @@
     "dayjs": "^1.11.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-quill": "^2.0.0",
+    "sweetalert2": "^11.26.3",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

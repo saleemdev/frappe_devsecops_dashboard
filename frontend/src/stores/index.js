@@ -28,15 +28,7 @@ export const getStoreStates = () => ({
 
 // Development helpers
 export const logStoreStates = () => {
-  if (process.env.NODE_ENV === 'development') {
-    console.group('Store States')
-    console.log('Auth:', useAuthStore.getState())
-    console.log('Navigation:', useNavigationStore.getState())
-    console.log('Applications:', useApplicationsStore.getState())
-    console.log('Incidents:', useIncidentsStore.getState())
-    console.log('Swagger Collections:', useSwaggerCollectionsStore.getState())
-    console.groupEnd()
-  }
+  // Logging disabled for security purposes
 }
 
 // Export individual stores

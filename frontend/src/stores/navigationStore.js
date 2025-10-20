@@ -11,15 +11,15 @@ const useNavigationStore = create(
     (set, get) => ({
       // State
       currentRoute: 'dashboard',
-      
+
       // Project detail state
       selectedProjectId: null,
       showProjectDetail: false,
-      
+
       // Application detail state
       selectedAppId: null,
       showAppDetail: false,
-      
+
       // Incident detail state
       selectedIncidentId: null,
       showIncidentDetail: false,
@@ -27,6 +27,11 @@ const useNavigationStore = create(
       // Swagger detail state
       selectedSwaggerId: null,
       showSwaggerDetail: false,
+
+      // Change Request form/detail state
+      selectedChangeRequestId: null,
+      showChangeRequestForm: false,
+
 
       // Mobile state
       isMobile: false,
@@ -37,13 +42,13 @@ const useNavigationStore = create(
 
       // Actions
       setCurrentRoute: (route) => set({ currentRoute: route }),
-      
+
       setIsMobile: (isMobile) => set({ isMobile }),
-      
+
       setMobileMenuVisible: (visible) => set({ mobileMenuVisible: visible }),
-      
-      toggleMobileMenu: () => set((state) => ({ 
-        mobileMenuVisible: !state.mobileMenuVisible 
+
+      toggleMobileMenu: () => set((state) => ({
+        mobileMenuVisible: !state.mobileMenuVisible
       })),
 
       /**
@@ -123,9 +128,47 @@ const useNavigationStore = create(
               selectedIncidentId: null,
               showIncidentDetail: false,
               selectedSwaggerId: null,
-              showSwaggerDetail: false
+              showSwaggerDetail: false,
+              selectedChangeRequestId: null,
+              showChangeRequestForm: false
             })
             window.location.hash = 'change-requests'
+            break
+
+          case 'change-requests-new':
+            set({
+              currentRoute: 'change-requests-new',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false,
+              selectedChangeRequestId: null,
+              showChangeRequestForm: true
+            })
+            window.location.hash = 'change-requests/new'
+            break
+
+          case 'change-requests-edit':
+            if (appId) { // reuse appId param to carry change request id
+              set({
+                currentRoute: 'change-requests-edit',
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false,
+                selectedChangeRequestId: appId,
+                showChangeRequestForm: true
+              })
+              window.location.hash = 'change-requests/edit/' + appId
+            }
             break
 
           case 'incidents':
@@ -205,6 +248,21 @@ const useNavigationStore = create(
             }
             break
 
+          case 'project-edit':
+            if (projectId) {
+              set({
+                currentRoute: 'project-edit',
+                selectedProjectId: projectId,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false
+              })
+              window.location.hash = `project/${projectId}/edit`
+            }
+            break
+
           case 'app-detail':
             if (appId) {
               set({
@@ -255,9 +313,9 @@ const useNavigationStore = create(
             break
 
           default:
-            console.warn(`Unknown route: ${route}`)
+            // Unknown route
         }
-        
+
         // Close mobile menu after navigation
         if (state.mobileMenuVisible) {
           set({ mobileMenuVisible: false })
@@ -278,6 +336,35 @@ const useNavigationStore = create(
           get().navigateToRoute('project-apps')
         } else if (hash === 'change-requests') {
           get().navigateToRoute('change-requests')
+        } else if (hash === 'change-requests/new') {
+          set({
+            currentRoute: 'change-requests-new',
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false,
+            selectedChangeRequestId: null,
+            showChangeRequestForm: true
+          })
+        } else if (hash.startsWith('change-requests/edit/')) {
+          const changeId = hash.split('/')[2]
+          set({
+            currentRoute: 'change-requests-edit',
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false,
+            selectedChangeRequestId: changeId,
+            showChangeRequestForm: true
+          })
         } else if (hash === 'incidents') {
           get().navigateToRoute('incidents')
         } else if (hash === 'monitoring-dashboards') {
@@ -290,18 +377,37 @@ const useNavigationStore = create(
           get().navigateToRoute('system-test')
 
         } else if (hash.startsWith('project/')) {
-          const projectId = hash.split('/')[1]
-          set({
-            currentRoute: 'projects',
-            selectedProjectId: projectId,
-            showProjectDetail: true,
-            selectedAppId: null,
-            showAppDetail: false,
-            selectedIncidentId: null,
-            showIncidentDetail: false,
-            selectedSwaggerId: null,
-            showSwaggerDetail: false
-          })
+          const parts = hash.split('/')
+          const projectId = parts[1]
+          const action = parts[2] // 'edit' or undefined
+
+          if (action === 'edit') {
+            // Handle project edit route
+            set({
+              currentRoute: 'project-edit',
+              selectedProjectId: projectId,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          } else {
+            // Handle project detail route
+            set({
+              currentRoute: 'projects',
+              selectedProjectId: projectId,
+              showProjectDetail: true,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          }
         } else if (hash.startsWith('app/')) {
           const appId = hash.split('/')[1]
           set({
@@ -447,6 +553,12 @@ const useNavigationStore = create(
               title: getSwaggerTitle(state.selectedSwaggerId)
             }
           )
+        } else if (state.showChangeRequestForm) {
+          items.push(
+            { title: 'Ops', onClick: () => get().navigateToRoute('change-requests') },
+            { title: 'Change Requests', onClick: () => get().navigateToRoute('change-requests') },
+            { title: state.currentRoute === 'change-requests-new' ? 'New' : (state.selectedChangeRequestId || 'Edit') }
+          )
         } else {
           switch (state.currentRoute) {
             case 'projects':
@@ -515,6 +627,8 @@ const useNavigationStore = create(
         showIncidentDetail: false,
         selectedSwaggerId: null,
         showSwaggerDetail: false,
+        selectedChangeRequestId: null,
+        showChangeRequestForm: false,
         mobileMenuVisible: false,
         breadcrumbs: []
       })

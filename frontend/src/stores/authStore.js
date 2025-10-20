@@ -29,29 +29,13 @@ const useAuthStore = create(
          */
         checkAuthentication: async () => {
           set({ loading: true, error: null })
-          
+
           try {
-            // First check if we have a valid session cookie
-            const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-              const [key, value] = cookie.trim().split('=')
-              acc[key] = value
-              return acc
-            }, {})
-
-            if (!cookies.sid && !cookies.user_id) {
-              // No session cookies, user is not authenticated
-              set({
-                isAuthenticated: false,
-                user: null,
-                loading: false
-              })
-              return false
-            }
-
-            // Try to get current user info
+            // Get current user info from API service
             const response = await apiService.auth.getCurrentUser()
-            
+
             if (response.success && response.data) {
+              // User is authenticated
               set({
                 isAuthenticated: true,
                 user: response.data,
@@ -59,16 +43,18 @@ const useAuthStore = create(
               })
               return true
             } else {
-              throw new Error('Invalid session')
+              // User is not authenticated (Guest or no session)
+              set({
+                isAuthenticated: false,
+                user: null,
+                loading: false,
+                error: null
+              })
+              return false
             }
           } catch (error) {
-            console.error('Authentication check failed:', error)
-            
-            // If authentication fails, redirect to login
-            if (error.status === 401) {
-              window.location.href = '/login'
-            }
-            
+            // Don't redirect on error, just set state to unauthenticated
+            // This allows the app to show the UnauthorizedPage component
             set({
               isAuthenticated: false,
               user: null,
@@ -98,7 +84,7 @@ const useAuthStore = create(
           try {
             await apiService.auth.logout()
           } catch (error) {
-            console.error('Logout error:', error)
+            // Silently handle logout errors
           } finally {
             // Clear state regardless of API call result
             set({

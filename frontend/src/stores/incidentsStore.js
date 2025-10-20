@@ -74,7 +74,6 @@ const useIncidentsStore = create(
             throw new Error(response.message || 'Failed to fetch incidents')
           }
         } catch (error) {
-          console.error('Error fetching incidents:', error)
           set({
             error: error.message || 'Failed to fetch incidents',
             loading: false
@@ -101,7 +100,6 @@ const useIncidentsStore = create(
             throw new Error(response.message || 'Failed to fetch incident')
           }
         } catch (error) {
-          console.error('Error fetching incident:', error)
           set({
             error: error.message || 'Failed to fetch incident',
             loading: false
@@ -129,7 +127,6 @@ const useIncidentsStore = create(
             throw new Error(response.message || 'Failed to create incident')
           }
         } catch (error) {
-          console.error('Error creating incident:', error)
           set({
             error: error.message || 'Failed to create incident',
             loading: false
@@ -171,7 +168,6 @@ const useIncidentsStore = create(
             throw new Error(response.message || 'Failed to update incident')
           }
         } catch (error) {
-          console.error('Error updating incident:', error)
           set({
             error: error.message || 'Failed to update incident',
             loading: false
@@ -213,7 +209,6 @@ const useIncidentsStore = create(
             throw new Error(response.message || 'Failed to add timeline entry')
           }
         } catch (error) {
-          console.error('Error adding timeline entry:', error)
           set({
             error: error.message || 'Failed to add timeline entry',
             loading: false
@@ -236,7 +231,6 @@ const useIncidentsStore = create(
             throw new Error(response.message || 'Failed to fetch incident stats')
           }
         } catch (error) {
-          console.error('Error fetching incident stats:', error)
           set({ error: error.message || 'Failed to fetch incident stats' })
           throw error
         }

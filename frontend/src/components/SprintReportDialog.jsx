@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Modal, Typography, Space, Tag, Row, Col, Card, Statistic, Progress, Descriptions, Table, List, Alert, Empty, Spin, Button, Badge, Avatar, Tooltip, Segmented, message, Input, Tabs } from 'antd'
-import { DashboardOutlined, CheckCircleOutlined, ExclamationCircleOutlined, PauseCircleOutlined, ReloadOutlined, SyncOutlined, EyeOutlined, StopOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons'
+import { DashboardOutlined, CheckCircleOutlined, ExclamationCircleOutlined, PauseCircleOutlined, ReloadOutlined, SyncOutlined, EyeOutlined, StopOutlined, UserOutlined, WarningOutlined, DownloadOutlined } from '@ant-design/icons'
 import api from '../services/api'
 
 const { Text, Title } = Typography
+
+// Local storage cache configuration
+const CACHE_KEY_PREFIX = 'zenhub_sprint_cache_'
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 const statusTag = (state) => {
   const s = (state || '').toLowerCase()
@@ -17,16 +21,55 @@ function SprintReportDialog({ open, onClose, projectId, projectName }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [data, setData] = useState(null)
+  const [lastFetchTime, setLastFetchTime] = useState(null)
 
-  const load = async () => {
+  const load = async (forceRefresh = false) => {
     if (!projectId) return
+
+    // Try to load from localStorage first (unless force refresh)
+    if (!forceRefresh) {
+      try {
+        const cacheKey = `${CACHE_KEY_PREFIX}${projectId}`
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          const { data: cachedData, timestamp } = JSON.parse(cached)
+          if (Date.now() - timestamp < CACHE_TTL) {
+            setData(cachedData)
+            setLastFetchTime(timestamp)
+            setLoading(false)
+            return
+          }
+        }
+      } catch (e) {
+        // Cache error, continue to fetch
+      }
+    }
+
     setLoading(true)
     setError(null)
     try {
-      const res = await api.zenhub.getSprintData(projectId)
+      const res = await api.zenhub.getSprintData(projectId, forceRefresh)
       setData(res)
+      const fetchTime = Date.now()
+      setLastFetchTime(fetchTime)
+
+      // Cache in localStorage
+      try {
+        const cacheKey = `${CACHE_KEY_PREFIX}${projectId}`
+        localStorage.setItem(cacheKey, JSON.stringify({
+          data: res,
+          timestamp: fetchTime
+        }))
+      } catch (e) {
+        // Cache failure is non-critical
+      }
+
+      if (forceRefresh) {
+        message.success('Sprint data refreshed successfully')
+      }
     } catch (e) {
       setError(e?.message || 'Failed to load sprint data')
+      message.error('Failed to load sprint data')
     } finally {
       setLoading(false)
     }
@@ -119,14 +162,63 @@ function SprintReportDialog({ open, onClose, projectId, projectName }) {
   // Dev-only debug to inspect issue shape and assignees/epic presence
   useEffect(() => {
     try {
-      const sample = (derived?.issuesArray || []).slice(0, 3)
-      if ((import.meta?.env?.MODE !== 'production') && sample.length) {
-        // eslint-disable-next-line no-console
-        console.debug('[SprintReportDialog] sample issues:', sample)
-      }
+      // Debug inspection removed for security
     } catch (e) {}
   }, [derived])
 
+  // Export to CSV function
+  const exportToCSV = () => {
+    if (!sprint || !derived.issuesArray.length) {
+      message.warning('No data to export')
+      return
+    }
+
+    try {
+      const issues = derived.issuesArray
+      const csvRows = []
+
+      // Header row
+      csvRows.push([
+        'Issue ID',
+        'Title',
+        'Status',
+        'Story Points',
+        'Assignees',
+        'Pipeline',
+        'Sprint'
+      ].join(','))
+
+      // Data rows
+      issues.forEach(issue => {
+        const assignees = (issue.assignees || [])
+          .map(a => a.name || a.username || a.id)
+          .join('; ')
+
+        csvRows.push([
+          `"${issue.issue_id || ''}"`,
+          `"${(issue.title || '').replace(/"/g, '""')}"`,
+          `"${issue.status || ''}"`,
+          issue.story_points || 0,
+          `"${assignees}"`,
+          `"${issue.pipeline_name || ''}"`,
+          `"${sprint.sprint_name || ''}"`
+        ].join(','))
+      })
+
+      const csv = csvRows.join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `sprint-${sprint.sprint_name || 'report'}-${Date.now()}.csv`
+      link.click()
+      URL.revokeObjectURL(url)
+
+      message.success('Sprint data exported successfully')
+    } catch (e) {
+      message.error('Failed to export data')
+    }
+  }
 
   return (
     <Modal
@@ -141,8 +233,21 @@ function SprintReportDialog({ open, onClose, projectId, projectName }) {
       }
       width="90%"
       footer={[
-        <Button key="retry" icon={<ReloadOutlined />} onClick={load} disabled={loading}>
-          Retry
+        <Button
+          key="refresh"
+          icon={<ReloadOutlined />}
+          onClick={() => load(true)}
+          disabled={loading}
+        >
+          Refresh
+        </Button>,
+        <Button
+          key="export"
+          icon={<DownloadOutlined />}
+          onClick={exportToCSV}
+          disabled={loading || !sprint}
+        >
+          Export CSV
         </Button>,
         <Button key="close" type="primary" onClick={onClose}>
           Close

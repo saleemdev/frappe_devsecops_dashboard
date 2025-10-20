@@ -34,7 +34,6 @@ async function apiCall(endpoint, options = {}) {
     
     return data
   } catch (error) {
-    console.error('API Error:', error)
     throw error
   }
 }
@@ -47,7 +46,6 @@ export async function getDashboardData() {
     const data = await apiCall(`${API_BASE}.get_dashboard_data`)
     return data
   } catch (error) {
-    console.error('Failed to fetch dashboard data:', error)
     // Return fallback mock data if API fails
     return getFallbackData()
   }
@@ -61,7 +59,6 @@ export async function getProjectsData() {
     const projects = await apiCall(`${API_BASE}.get_projects_data`)
     return projects
   } catch (error) {
-    console.error('Failed to fetch projects data:', error)
     return []
   }
 }
@@ -74,7 +71,6 @@ export async function getDashboardMetrics() {
     const metrics = await apiCall(`${API_BASE}.get_dashboard_metrics`)
     return metrics
   } catch (error) {
-    console.error('Failed to fetch dashboard metrics:', error)
     return {
       activeProjects: 0,
       totalTasks: 0,
@@ -91,7 +87,6 @@ export async function getTeamUtilization() {
     const teamData = await apiCall(`${API_BASE}.get_team_utilization`)
     return teamData
   } catch (error) {
-    console.error('Failed to fetch team utilization:', error)
     return {
       average: 0,
       members: 0,
@@ -109,7 +104,6 @@ export async function getProjectsWithTasks() {
     const response = await apiCall('/api/method/frappe_devsecops_dashboard.api.projects.get_projects_with_tasks')
     return response
   } catch (error) {
-    console.error('Failed to fetch projects with tasks:', error)
     throw error
   }
 }
@@ -122,7 +116,6 @@ export async function getProjectDetails(projectId) {
     const details = await apiCall(`/api/method/frappe_devsecops_dashboard.api.projects.get_project_details?project_id=${projectId}`)
     return details
   } catch (error) {
-    console.error('Failed to fetch project details:', error)
     return null
   }
 }
@@ -194,7 +187,6 @@ export async function refreshDashboardData() {
     const data = await getDashboardData()
     return data
   } catch (error) {
-    console.error('Failed to refresh dashboard data:', error)
     throw error
   }
 }
@@ -207,7 +199,6 @@ export async function checkApiHealth() {
     await apiCall('/api/method/ping')
     return true
   } catch (error) {
-    console.error('API health check failed:', error)
     return false
   }
 }
@@ -222,7 +213,6 @@ export async function getDashboardPreferences() {
     const response = await apiCall('/api/method/frappe_devsecops_dashboard.api.settings.get_dashboard_preferences')
     return response
   } catch (error) {
-    console.error('Failed to fetch dashboard preferences:', error)
     throw error
   }
 }
@@ -238,7 +228,6 @@ export async function updateDashboardPreferences(preferencesData) {
     })
     return response
   } catch (error) {
-    console.error('Failed to update dashboard preferences:', error)
     throw error
   }
 }

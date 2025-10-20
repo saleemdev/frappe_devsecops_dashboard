@@ -53,7 +53,6 @@ const useSwaggerCollectionsStore = create(
             throw new Error(response.message || 'Failed to fetch swagger collections')
           }
         } catch (error) {
-          console.error('Error fetching swagger collections:', error)
           set({
             error: error.message || 'Failed to fetch swagger collections',
             loading: false
@@ -79,7 +78,6 @@ const useSwaggerCollectionsStore = create(
             throw new Error(response.message || 'Failed to fetch swagger collection')
           }
         } catch (error) {
-          console.error('Error fetching swagger collection:', error)
           set({
             error: error.message || 'Failed to fetch swagger collection',
             loading: false
@@ -105,7 +103,6 @@ const useSwaggerCollectionsStore = create(
             throw new Error(response.message || 'Failed to create swagger collection')
           }
         } catch (error) {
-          console.error('Error creating swagger collection:', error)
           set({
             error: error.message || 'Failed to create swagger collection',
             loading: false
@@ -138,7 +135,6 @@ const useSwaggerCollectionsStore = create(
             throw new Error(response.message || 'Failed to update swagger collection')
           }
         } catch (error) {
-          console.error('Error updating swagger collection:', error)
           set({
             error: error.message || 'Failed to update swagger collection',
             loading: false
@@ -172,7 +168,6 @@ const useSwaggerCollectionsStore = create(
             throw new Error(response.message || 'Failed to delete swagger collection')
           }
         } catch (error) {
-          console.error('Error deleting swagger collection:', error)
           set({
             error: error.message || 'Failed to delete swagger collection',
             loading: false
@@ -199,7 +194,6 @@ const useSwaggerCollectionsStore = create(
             throw new Error(response.message || 'Failed to import swagger collection')
           }
         } catch (error) {
-          console.error('Error importing swagger collection:', error)
           set({
             error: error.message || 'Failed to import swagger collection',
             loading: false
@@ -224,7 +218,6 @@ const useSwaggerCollectionsStore = create(
             throw new Error(response.message || 'Failed to export swagger collection')
           }
         } catch (error) {
-          console.error('Error exporting swagger collection:', error)
           set({
             error: error.message || 'Failed to export swagger collection',
             loading: false

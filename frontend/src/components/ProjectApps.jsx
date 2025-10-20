@@ -34,9 +34,9 @@ const ProjectApps = ({ navigateToRoute, showAppDetail, selectedAppId }) => {
   const [loading, setLoading] = useState(false)
 
   // Show app detail view if selectedAppId is provided
-  console.log('ProjectApps render - showAppDetail:', showAppDetail, 'selectedAppId:', selectedAppId)
+
   if (showAppDetail && selectedAppId) {
-    console.log('Rendering ProjectAppDetail for appId:', selectedAppId)
+
     return <ProjectAppDetail appId={selectedAppId} navigateToRoute={navigateToRoute} />
   }
 
@@ -218,12 +218,12 @@ const ProjectApps = ({ navigateToRoute, showAppDetail, selectedAppId }) => {
               <Card
                 hoverable
                 onClick={() => {
-                  console.log('Card clicked, navigateToRoute:', navigateToRoute, 'appId:', app.id)
-                  console.log('Current showAppDetail:', showAppDetail, 'selectedAppId:', selectedAppId)
+
+
                   if (navigateToRoute) {
                     navigateToRoute('app-detail', null, app.id)
                   } else {
-                    console.error('navigateToRoute function is not available')
+
                   }
                 }}
                 style={{ cursor: 'pointer' }}
@@ -231,7 +231,6 @@ const ProjectApps = ({ navigateToRoute, showAppDetail, selectedAppId }) => {
                   <Tooltip title="Edit App">
                     <EditOutlined onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Edit button clicked, navigating to app detail:', app.id);
                       if (navigateToRoute) {
                         navigateToRoute('app-detail', null, app.id);
                       }

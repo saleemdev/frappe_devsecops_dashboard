@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Table,
   Button,
@@ -6,9 +6,6 @@ import {
   Select,
   Space,
   Card,
-  Modal,
-  Form,
-  DatePicker,
   Tag,
   Typography,
   Row,
@@ -16,7 +13,8 @@ import {
   Drawer,
   message,
   Popconfirm,
-  Tooltip
+  Tooltip,
+  Tabs
 } from 'antd'
 import {
   PlusOutlined,
@@ -24,100 +22,123 @@ import {
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
-  FilterOutlined,
   ReloadOutlined
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
-const { TextArea } = Input
 const { Option } = Select
+const { TabPane } = Tabs
 
 const ChangeRequests = () => {
   const [changeRequests, setChangeRequests] = useState([])
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [priorityFilter, setPriorityFilter] = useState('all')
-  const [isModalVisible, setIsModalVisible] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [isViewDrawerVisible, setIsViewDrawerVisible] = useState(false)
-  const [editingRecord, setEditingRecord] = useState(null)
   const [viewingRecord, setViewingRecord] = useState(null)
-  const [form] = Form.useForm()
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [total, setTotal] = useState(0)
 
-  // Mock data for demonstration
-  const mockData = [
-    {
-      id: 'CR-001',
-      title: 'Update Authentication System',
-      description: 'Implement OAuth 2.0 authentication to replace current basic auth',
-      project: 'ePrescription',
-      requestedBy: 'John Doe',
-      status: 'pending',
-      priority: 'high',
-      requestDate: '2025-01-15',
-      targetDate: '2025-02-15',
-      category: 'security',
-      impact: 'high'
-    },
-    {
-      id: 'CR-002',
-      title: 'Database Performance Optimization',
-      description: 'Optimize database queries and add proper indexing',
-      project: 'Patient Management',
-      requestedBy: 'Jane Smith',
-      status: 'approved',
-      priority: 'medium',
-      requestDate: '2025-01-10',
-      targetDate: '2025-01-30',
-      category: 'performance',
-      impact: 'medium'
-    },
-    {
-      id: 'CR-003',
-      title: 'Mobile App UI Enhancement',
-      description: 'Improve mobile app user interface for better accessibility',
-      project: 'Mobile Health App',
-      requestedBy: 'Mike Johnson',
-      status: 'in-progress',
-      priority: 'low',
-      requestDate: '2025-01-05',
-      targetDate: '2025-02-28',
-      category: 'ui/ux',
-      impact: 'low'
+  // Build whitelisted API call parameters
+  const buildApiParams = () => {
+    const fields = [
+      'name','title','cr_number','prepared_for','submission_date','system_affected','originator_name',
+      'originator_organization','originators_manager','change_category','downtime_expected',
+      'detailed_description','release_notes','implementation_date','implementation_time','testing_plan',
+      'rollback_plan','approval_status','workflow_state','project'
+    ]
+
+    // Server-side filters for status/category
+    const filters = []
+    if (statusFilter !== 'all') {
+      filters.push(['Change Request','approval_status','=','' + statusFilter])
     }
-  ]
+    if (categoryFilter !== 'all') {
+      filters.push(['Change Request','change_category','=','' + categoryFilter])
+    }
+
+    // Pagination
+    const start = (page - 1) * pageSize
+
+    return {
+      fields: JSON.stringify(fields),
+      filters: filters.length ? JSON.stringify(filters) : undefined,
+      limit_start: start,
+      limit_page_length: pageSize,
+      order_by: 'modified desc'
+    }
+  }
 
   useEffect(() => {
     loadChangeRequests()
-  }, [])
+  // re-fetch when filters/pagination/search change, and on mount
+  }, [statusFilter, categoryFilter, page, pageSize, searchText])
 
   const loadChangeRequests = async () => {
     setLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setChangeRequests(mockData)
+      const params = buildApiParams()
+      const urlParams = new URLSearchParams()
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) urlParams.set(key, value)
+      })
+
+      const res = await fetch(`/api/method/frappe_devsecops_dashboard.api.change_request.get_change_requests?${urlParams.toString()}`, {
+        credentials: 'include'
+      })
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) message.error('Unauthorized to read Change Requests')
+        else message.error('Failed to load change requests')
+
+        return
+      }
+
+      const response = await res.json()
+      const data = response.message || response
+
+      if (!data.success) {
+        message.error(data.error || 'Failed to load change requests')
+
+        return
+      }
+
+      const list = Array.isArray(data.data) ? data.data : []
+
+      // Client-side search across key fields
+      const st = searchText.trim().toLowerCase()
+      const filtered = st
+        ? list.filter(item =>
+            (item.title || '').toLowerCase().includes(st) ||
+            (item.system_affected || '').toLowerCase().includes(st) ||
+            (item.cr_number || '').toLowerCase().includes(st) ||
+            (item.name || '').toLowerCase().includes(st)
+          )
+        : list
+
+      setChangeRequests(filtered)
+      // Frappe list API doesn’t include total; approximate with filtered length
+      setTotal(filtered.length)
     } catch (error) {
-      message.error('Failed to load change requests')
+      message.error('Unable to connect to server')
+
     } finally {
       setLoading(false)
     }
   }
 
+
   const handleCreate = () => {
-    setEditingRecord(null)
-    form.resetFields()
-    setIsModalVisible(true)
+    window.location.hash = 'change-requests/new'
   }
 
   const handleEdit = (record) => {
-    setEditingRecord(record)
-    form.setFieldsValue({
-      ...record,
-      requestDate: record.requestDate ? new Date(record.requestDate) : null,
-      targetDate: record.targetDate ? new Date(record.targetDate) : null
-    })
-    setIsModalVisible(true)
+    if (record?.name) {
+      window.location.hash = `change-requests/edit/${record.name}`
+    } else {
+      message.error('Invalid Change Request record')
+    }
   }
 
   const handleView = (record) => {
@@ -127,87 +148,96 @@ const ChangeRequests = () => {
 
   const handleDelete = async (id) => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500))
-      setChangeRequests(prev => prev.filter(item => item.id !== id))
-      message.success('Change request deleted successfully')
-    } catch (error) {
-      message.error('Failed to delete change request')
-    }
-  }
+      // Frappe expects form data, not JSON body
+      const formData = new URLSearchParams()
+      formData.append('name', id)
 
-  const handleSubmit = async (values) => {
-    try {
-      setLoading(true)
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      if (editingRecord) {
-        // Update existing record
-        setChangeRequests(prev => 
-          prev.map(item => 
-            item.id === editingRecord.id 
-              ? { ...item, ...values }
-              : item
-          )
-        )
-        message.success('Change request updated successfully')
-      } else {
-        // Create new record
-        const newRecord = {
-          id: `CR-${String(changeRequests.length + 1).padStart(3, '0')}`,
-          ...values,
-          requestDate: new Date().toISOString().split('T')[0]
-        }
-        setChangeRequests(prev => [newRecord, ...prev])
-        message.success('Change request created successfully')
+      const res = await fetch('/api/method/frappe_devsecops_dashboard.api.change_request.delete_change_request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include',
+        body: formData.toString()
+      })
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) message.error('Permission denied')
+        else if (res.status === 404) message.error('Change Request not found')
+        else message.error('Failed to delete change request')
+
+        return
       }
-      
-      setIsModalVisible(false)
-      form.resetFields()
+
+      const response = await res.json()
+      const data = response.message || response
+
+      if (!data.success) {
+        message.error(data.error || 'Failed to delete change request')
+
+        return
+      }
+
+      setChangeRequests(prev => prev.filter(item => item.name !== id))
+      message.success(data.message || 'Change request deleted')
     } catch (error) {
-      message.error('Failed to save change request')
-    } finally {
-      setLoading(false)
+      message.error('Unable to connect to server')
+
     }
   }
 
-  const getStatusColor = (status) => {
+
+  const getApprovalStatusColor = (status) => {
     const colors = {
-      pending: 'orange',
-      approved: 'green',
-      'in-progress': 'blue',
-      completed: 'purple',
-      rejected: 'red'
+      'Pending Review': 'orange',
+      'Approved for Implementation': 'green',
+      'Rework': 'blue',
+      'Not Accepted': 'red',
+      'Withdrawn': 'gray',
+      'Deferred': 'purple'
     }
     return colors[status] || 'default'
   }
 
-  const getPriorityColor = (priority) => {
+  const getWorkflowStateColor = (state) => {
     const colors = {
-      high: 'red',
-      medium: 'orange',
-      low: 'green'
+      'Draft': 'default',
+      'Pending Approval': 'orange',
+      'Approved': 'green',
+      'Rejected': 'red',
+      'Implemented': 'blue',
+      'Closed': 'purple'
     }
-    return colors[priority] || 'default'
+    return colors[state] || 'default'
+  }
+
+  const getCategoryColor = (category) => {
+    const colors = {
+      'Major Change': 'red',
+      'Minor Change': 'orange',
+      'Standard Change': 'blue',
+      'Emergency Change': 'magenta'
+    }
+    return colors[category] || 'default'
   }
 
   const filteredData = changeRequests.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchText.toLowerCase()) ||
-                         item.description.toLowerCase().includes(searchText.toLowerCase()) ||
-                         item.project.toLowerCase().includes(searchText.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || item.status === statusFilter
-    const matchesPriority = priorityFilter === 'all' || item.priority === priorityFilter
-    
-    return matchesSearch && matchesStatus && matchesPriority
+    const matchesSearch = item.title?.toLowerCase().includes(searchText.toLowerCase()) ||
+                         item.system_affected?.toLowerCase().includes(searchText.toLowerCase()) ||
+                         item.cr_number?.toLowerCase().includes(searchText.toLowerCase())
+    const matchesStatus = statusFilter === 'all' || item.approval_status === statusFilter
+    const matchesCategory = categoryFilter === 'all' || item.change_category === categoryFilter
+
+    return matchesSearch && matchesStatus && matchesCategory
   })
 
   const columns = [
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 100,
+      title: 'CR Number',
+      dataIndex: 'cr_number',
+      key: 'cr_number',
+      width: 130,
       fixed: 'left'
     },
     {
@@ -218,50 +248,67 @@ const ChangeRequests = () => {
       ellipsis: true
     },
     {
-      title: 'Project',
-      dataIndex: 'project',
-      key: 'project',
-      width: 150
+      title: 'System Affected',
+      dataIndex: 'system_affected',
+      key: 'system_affected',
+      width: 180,
+      ellipsis: true
     },
     {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 120,
+      title: 'Category',
+      dataIndex: 'change_category',
+      key: 'change_category',
+      width: 150,
+      render: (category) => (
+        <Tag color={getCategoryColor(category)}>
+          {category}
+        </Tag>
+      )
+    },
+    {
+      title: 'Approval Status',
+      dataIndex: 'approval_status',
+      key: 'approval_status',
+      width: 180,
       render: (status) => (
-        <Tag color={getStatusColor(status)}>
-          {status.toUpperCase()}
+        <Tag color={getApprovalStatusColor(status)}>
+          {status}
         </Tag>
       )
     },
     {
-      title: 'Priority',
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 100,
-      render: (priority) => (
-        <Tag color={getPriorityColor(priority)}>
-          {priority.toUpperCase()}
+      title: 'Workflow State',
+      dataIndex: 'workflow_state',
+      key: 'workflow_state',
+      width: 140,
+      render: (state) => (
+        <Tag color={getWorkflowStateColor(state)}>
+          {state}
         </Tag>
       )
     },
     {
-      title: 'Requested By',
-      dataIndex: 'requestedBy',
-      key: 'requestedBy',
+      title: 'Submission Date',
+      dataIndex: 'submission_date',
+      key: 'submission_date',
+      width: 130
+    },
+    {
+      title: 'Implementation Date',
+      dataIndex: 'implementation_date',
+      key: 'implementation_date',
       width: 150
     },
     {
-      title: 'Request Date',
-      dataIndex: 'requestDate',
-      key: 'requestDate',
-      width: 120
-    },
-    {
-      title: 'Target Date',
-      dataIndex: 'targetDate',
-      key: 'targetDate',
-      width: 120
+      title: 'Downtime',
+      dataIndex: 'downtime_expected',
+      key: 'downtime_expected',
+      width: 100,
+      render: (downtime) => (
+        <Tag color={downtime ? 'red' : 'green'}>
+          {downtime ? 'Yes' : 'No'}
+        </Tag>
+      )
     },
     {
       title: 'Actions',
@@ -286,7 +333,7 @@ const ChangeRequests = () => {
           </Tooltip>
           <Popconfirm
             title="Are you sure you want to delete this change request?"
-            onConfirm={() => handleDelete(record.id)}
+            onConfirm={() => handleDelete(record.name)}
             okText="Yes"
             cancelText="No"
           >
@@ -340,39 +387,41 @@ const ChangeRequests = () => {
           <Row gutter={16} style={{ marginBottom: '16px' }}>
             <Col xs={24} sm={12} md={8} lg={6}>
               <Input
-                placeholder="Search change requests..."
+                placeholder="Search by title, CR number, or system..."
                 prefix={<SearchOutlined />}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 allowClear
               />
             </Col>
-            <Col xs={12} sm={6} md={4} lg={3}>
+            <Col xs={12} sm={6} md={5} lg={4}>
               <Select
-                placeholder="Status"
+                placeholder="Approval Status"
                 value={statusFilter}
                 onChange={setStatusFilter}
                 style={{ width: '100%' }}
               >
                 <Option value="all">All Status</Option>
-                <Option value="pending">Pending</Option>
-                <Option value="approved">Approved</Option>
-                <Option value="in-progress">In Progress</Option>
-                <Option value="completed">Completed</Option>
-                <Option value="rejected">Rejected</Option>
+                <Option value="Pending Review">Pending Review</Option>
+                <Option value="Rework">Rework</Option>
+                <Option value="Not Accepted">Not Accepted</Option>
+                <Option value="Withdrawn">Withdrawn</Option>
+                <Option value="Deferred">Deferred</Option>
+                <Option value="Approved for Implementation">Approved for Implementation</Option>
               </Select>
             </Col>
-            <Col xs={12} sm={6} md={4} lg={3}>
+            <Col xs={12} sm={6} md={5} lg={4}>
               <Select
-                placeholder="Priority"
-                value={priorityFilter}
-                onChange={setPriorityFilter}
+                placeholder="Category"
+                value={categoryFilter}
+                onChange={setCategoryFilter}
                 style={{ width: '100%' }}
               >
-                <Option value="all">All Priority</Option>
-                <Option value="high">High</Option>
-                <Option value="medium">Medium</Option>
-                <Option value="low">Low</Option>
+                <Option value="all">All Categories</Option>
+                <Option value="Major Change">Major Change</Option>
+                <Option value="Minor Change">Minor Change</Option>
+                <Option value="Standard Change">Standard Change</Option>
+                <Option value="Emergency Change">Emergency Change</Option>
               </Select>
             </Col>
           </Row>
@@ -381,145 +430,21 @@ const ChangeRequests = () => {
         <Table
           columns={columns}
           dataSource={filteredData}
-          rowKey="id"
+          rowKey="name"
           loading={loading}
           scroll={{ x: 1200 }}
           pagination={{
-            pageSize: 10,
+            current: page,
+            pageSize,
+            total,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => 
-              `${range[0]}-${range[1]} of ${total} items`
+            onChange: (p, ps) => { setPage(p); setPageSize(ps) },
+            showTotal: (t, range) => `${range[0]}-${range[1]} of ${t} items`
           }}
         />
       </Card>
 
-      {/* Create/Edit Modal */}
-      <Modal
-        title={editingRecord ? 'Edit Change Request' : 'Create Change Request'}
-        open={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
-        footer={null}
-        width={800}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="title"
-                label="Title"
-                rules={[{ required: true, message: 'Please enter title' }]}
-              >
-                <Input placeholder="Enter change request title" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="project"
-                label="Project"
-                rules={[{ required: true, message: 'Please select project' }]}
-              >
-                <Select placeholder="Select project">
-                  <Option value="ePrescription">ePrescription</Option>
-                  <Option value="Patient Management">Patient Management</Option>
-                  <Option value="Mobile Health App">Mobile Health App</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="description"
-            label="Description"
-            rules={[{ required: true, message: 'Please enter description' }]}
-          >
-            <TextArea
-              rows={4}
-              placeholder="Describe the change request in detail"
-            />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="priority"
-                label="Priority"
-                rules={[{ required: true, message: 'Please select priority' }]}
-              >
-                <Select placeholder="Select priority">
-                  <Option value="high">High</Option>
-                  <Option value="medium">Medium</Option>
-                  <Option value="low">Low</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="category"
-                label="Category"
-                rules={[{ required: true, message: 'Please select category' }]}
-              >
-                <Select placeholder="Select category">
-                  <Option value="security">Security</Option>
-                  <Option value="performance">Performance</Option>
-                  <Option value="ui/ux">UI/UX</Option>
-                  <Option value="feature">Feature</Option>
-                  <Option value="bug-fix">Bug Fix</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="impact"
-                label="Impact"
-                rules={[{ required: true, message: 'Please select impact' }]}
-              >
-                <Select placeholder="Select impact">
-                  <Option value="high">High</Option>
-                  <Option value="medium">Medium</Option>
-                  <Option value="low">Low</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="requestedBy"
-                label="Requested By"
-                rules={[{ required: true, message: 'Please enter requester name' }]}
-              >
-                <Input placeholder="Enter requester name" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="targetDate"
-                label="Target Date"
-                rules={[{ required: true, message: 'Please select target date' }]}
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={loading}>
-                {editingRecord ? 'Update' : 'Create'}
-              </Button>
-              <Button onClick={() => setIsModalVisible(false)}>
-                Cancel
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
 
       {/* View Details Drawer */}
       <Drawer
@@ -527,59 +452,125 @@ const ChangeRequests = () => {
         placement="right"
         onClose={() => setIsViewDrawerVisible(false)}
         open={isViewDrawerVisible}
-        width={600}
+        width={700}
       >
         {viewingRecord && (
           <div>
             <Title level={4}>{viewingRecord.title}</Title>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <div>
-                <Text strong>ID: </Text>
-                <Text>{viewingRecord.id}</Text>
-              </div>
-              <div>
-                <Text strong>Project: </Text>
-                <Text>{viewingRecord.project}</Text>
-              </div>
-              <div>
-                <Text strong>Status: </Text>
-                <Tag color={getStatusColor(viewingRecord.status)}>
-                  {viewingRecord.status.toUpperCase()}
-                </Tag>
-              </div>
-              <div>
-                <Text strong>Priority: </Text>
-                <Tag color={getPriorityColor(viewingRecord.priority)}>
-                  {viewingRecord.priority.toUpperCase()}
-                </Tag>
-              </div>
-              <div>
-                <Text strong>Description: </Text>
-                <div style={{ marginTop: '8px' }}>
-                  <Text>{viewingRecord.description}</Text>
-                </div>
-              </div>
-              <div>
-                <Text strong>Requested By: </Text>
-                <Text>{viewingRecord.requestedBy}</Text>
-              </div>
-              <div>
-                <Text strong>Request Date: </Text>
-                <Text>{viewingRecord.requestDate}</Text>
-              </div>
-              <div>
-                <Text strong>Target Date: </Text>
-                <Text>{viewingRecord.targetDate}</Text>
-              </div>
-              <div>
-                <Text strong>Category: </Text>
-                <Text>{viewingRecord.category}</Text>
-              </div>
-              <div>
-                <Text strong>Impact: </Text>
-                <Text>{viewingRecord.impact}</Text>
-              </div>
-            </Space>
+
+            <Tabs defaultActiveKey="1">
+              <TabPane tab="Basic Info" key="1">
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text strong>CR Number: </Text>
+                    <Text>{viewingRecord.cr_number}</Text>
+                  </div>
+                  <div>
+                    <Text strong>Prepared For: </Text>
+                    <Text>{viewingRecord.prepared_for || 'N/A'}</Text>
+                  </div>
+                  <div>
+                    <Text strong>Submission Date: </Text>
+                    <Text>{viewingRecord.submission_date}</Text>
+                  </div>
+                  <div>
+                    <Text strong>Project: </Text>
+                    <Text>{viewingRecord.project || 'N/A'}</Text>
+                  </div>
+                  <div>
+                    <Text strong>System Affected: </Text>
+                    <Text>{viewingRecord.system_affected}</Text>
+                  </div>
+                  <div>
+                    <Text strong>Originator Name: </Text>
+                    <Text>{viewingRecord.originator_name}</Text>
+                  </div>
+                  <div>
+                    <Text strong>Originator Organization: </Text>
+                    <Text>{viewingRecord.originator_organization || 'N/A'}</Text>
+                  </div>
+                  <div>
+                    <Text strong>Originator's Manager: </Text>
+                    <Text>{viewingRecord.originators_manager || 'N/A'}</Text>
+                  </div>
+                </Space>
+              </TabPane>
+
+              <TabPane tab="Change Details" key="2">
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text strong>Category: </Text>
+                    <Tag color={getCategoryColor(viewingRecord.change_category)}>
+                      {viewingRecord.change_category}
+                    </Tag>
+                  </div>
+                  <div>
+                    <Text strong>Downtime Expected: </Text>
+                    <Tag color={viewingRecord.downtime_expected ? 'red' : 'green'}>
+                      {viewingRecord.downtime_expected ? 'Yes' : 'No'}
+                    </Tag>
+                  </div>
+                  <div>
+                    <Text strong>Detailed Description: </Text>
+                    <div
+                      style={{ marginTop: '8px', padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}
+                      dangerouslySetInnerHTML={{ __html: viewingRecord.detailed_description || 'N/A' }}
+                    />
+                  </div>
+                  <div>
+                    <Text strong>Release Notes: </Text>
+                    <div
+                      style={{ marginTop: '8px', padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}
+                      dangerouslySetInnerHTML={{ __html: viewingRecord.release_notes || 'N/A' }}
+                    />
+                  </div>
+                </Space>
+              </TabPane>
+
+              <TabPane tab="Implementation" key="3">
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text strong>Implementation Date: </Text>
+                    <Text>{viewingRecord.implementation_date || 'Not set'}</Text>
+                  </div>
+                  <div>
+                    <Text strong>Implementation Time: </Text>
+                    <Text>{viewingRecord.implementation_time || 'Not set'}</Text>
+                  </div>
+                  <div>
+                    <Text strong>Testing Plan: </Text>
+                    <div
+                      style={{ marginTop: '8px', padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}
+                      dangerouslySetInnerHTML={{ __html: viewingRecord.testing_plan || 'N/A' }}
+                    />
+                  </div>
+                  <div>
+                    <Text strong>Rollback Plan: </Text>
+                    <div
+                      style={{ marginTop: '8px', padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}
+                      dangerouslySetInnerHTML={{ __html: viewingRecord.rollback_plan || 'N/A' }}
+                    />
+                  </div>
+                </Space>
+              </TabPane>
+
+              <TabPane tab="Approval" key="4">
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text strong>Approval Status: </Text>
+                    <Tag color={getApprovalStatusColor(viewingRecord.approval_status)}>
+                      {viewingRecord.approval_status}
+                    </Tag>
+                  </div>
+                  <div>
+                    <Text strong>Workflow State: </Text>
+                    <Tag color={getWorkflowStateColor(viewingRecord.workflow_state)}>
+                      {viewingRecord.workflow_state || 'Not set'}
+                    </Tag>
+                  </div>
+                </Space>
+              </TabPane>
+            </Tabs>
           </div>
         )}
       </Drawer>

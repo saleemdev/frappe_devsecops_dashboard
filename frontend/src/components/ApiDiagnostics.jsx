@@ -20,14 +20,10 @@ export default function ApiDiagnostics() {
     const results = {}
 
     // 1. Check API service availability
-    console.log('[ApiDiagnostics] Checking API service availability...')
     results.apiServiceExists = !!api
     results.projectsServiceExists = !!(api && api.projects)
     results.getTaskTypeSummaryExists = !!(api && api.projects && typeof api.projects.getTaskTypeSummary === 'function')
     results.getTasksByTypeExists = !!(api && api.projects && typeof api.projects.getTasksByType === 'function')
-
-    console.log('[ApiDiagnostics] API service:', api)
-    console.log('[ApiDiagnostics] Projects service:', api?.projects)
 
     // 2. Check configuration
     results.mockDataConfig = API_CONFIG.features?.useMockData
@@ -35,15 +31,13 @@ export default function ApiDiagnostics() {
 
     // 3. Test API call
     try {
-      console.log('[ApiDiagnostics] Testing getTaskTypeSummary with proj-001...')
       const response = await api.projects.getTaskTypeSummary('proj-001')
-      console.log('[ApiDiagnostics] Response:', response)
       results.apiCallSuccess = response?.success === true
       results.apiCallData = response?.data
       results.apiCallDataLength = response?.data?.length || 0
       results.apiCallError = null
     } catch (error) {
-      console.error('[ApiDiagnostics] API call failed:', error)
+
       results.apiCallSuccess = false
       results.apiCallData = null
       results.apiCallDataLength = 0
@@ -52,15 +46,13 @@ export default function ApiDiagnostics() {
 
     // 4. Test getTasksByType
     try {
-      console.log('[ApiDiagnostics] Testing getTasksByType with proj-001, Development...')
       const response = await api.projects.getTasksByType('proj-001', 'Development')
-      console.log('[ApiDiagnostics] Response:', response)
       results.getTasksByTypeSuccess = response?.success === true
       results.getTasksByTypeData = response?.data
       results.getTasksByTypeDataLength = response?.data?.length || 0
       results.getTasksByTypeError = null
     } catch (error) {
-      console.error('[ApiDiagnostics] getTasksByType call failed:', error)
+
       results.getTasksByTypeSuccess = false
       results.getTasksByTypeData = null
       results.getTasksByTypeDataLength = 0
@@ -76,11 +68,10 @@ export default function ApiDiagnostics() {
       results.mockTasksByProjectKeys = Object.keys(mockTasksByProject || {})
       results.mockProj001TasksLength = mockTasksByProject?.['proj-001']?.length || 0
     } catch (error) {
-      console.error('[ApiDiagnostics] Failed to load mock data:', error)
+
       results.mockDataLoadError = error.message
     }
 
-    console.log('[ApiDiagnostics] Final results:', results)
     setDiagnostics(results)
     setLoading(false)
   }

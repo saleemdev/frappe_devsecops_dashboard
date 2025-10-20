@@ -74,7 +74,7 @@ const MentionDropdown = ({
     <div
       className="mention-dropdown"
       style={{
-        position: 'absolute',
+        position: 'fixed',
         top: position?.top || 0,
         left: position?.left || 0,
         zIndex: 1000,

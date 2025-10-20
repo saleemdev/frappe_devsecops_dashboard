@@ -19,7 +19,8 @@ import {
   Input,
   Select,
   DatePicker,
-  Tooltip
+  Tooltip,
+  Checkbox
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -234,11 +235,14 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
     }
     try {
       const results = await searchUsers(searchValue)
-      if (results && results.length > 0) {
-        setUserSearchResults(results)
+      if (results && results.users && results.users.length > 0) {
+        setUserSearchResults(results.users)
+      } else {
+        setUserSearchResults([])
       }
     } catch (error) {
-
+      console.error('Error searching users:', error)
+      setUserSearchResults([])
     }
   }
 
@@ -253,6 +257,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           <p><strong>Status:</strong> ${values.status || 'Open'}</p>
           ${values.task_type ? `<p><strong>Type:</strong> ${values.task_type}</p>` : ''}
           ${values.exp_end_date ? `<p><strong>Due Date:</strong> ${values.exp_end_date.format('YYYY-MM-DD')}</p>` : ''}
+          ${values.is_milestone ? `<p><strong>Milestone:</strong> Yes</p>` : ''}
         </div>
       `,
       icon: 'question',
@@ -990,8 +995,10 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               >
                 <Select
                   placeholder="Search and select user"
+                  showSearch
                   onSearch={handleUserSearch}
                   filterOption={false}
+                  notFoundContent={null}
                   options={userSearchResults.map(user => ({
                     label: user.full_name || user.name,
                     value: user.name
@@ -1019,6 +1026,15 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               </Form.Item>
             </Col>
           </Row>
+
+          <Form.Item
+            label="Is Milestone"
+            name="is_milestone"
+            valuePropName="checked"
+            initialValue={false}
+          >
+            <Checkbox>Mark this task as a milestone</Checkbox>
+          </Form.Item>
 
           <Form.Item
             label="Description"

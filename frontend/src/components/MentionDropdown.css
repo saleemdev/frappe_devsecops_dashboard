@@ -1,6 +1,7 @@
 /* Mention Dropdown Styling */
 
 .mention-dropdown {
+  position: fixed;
   background-color: var(--ant-color-bg-elevated);
   border: 1px solid var(--ant-color-border);
   border-radius: 6px;

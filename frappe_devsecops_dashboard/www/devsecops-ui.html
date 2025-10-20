@@ -34,8 +34,73 @@
     <link rel="manifest" href="/assets/frappe_devsecops_dashboard/frontend/manifest.json" />
 
     <title>DOD DevSecOps Dashboard</title>
-    <script type="module" crossorigin src="/assets/frappe_devsecops_dashboard/frontend/assets/index-BQGNgDQm.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/frappe_devsecops_dashboard/frontend/assets/index-CObWFwD6.css">
+    <script>
+      // Dynamically load frontend assets based on Vite manifest
+      (function() {
+        // Fallback hashes in case API fails (for initial deployments)
+        const FALLBACK_JS = 'index-BspaFfE8.js';
+        const FALLBACK_CSS = 'index-ey4ZYeUq.css';
+        const BASE_PATH = '/assets/frappe_devsecops_dashboard/frontend/assets/';
+
+        async function loadAssets() {
+          try {
+            // Try to fetch the manifest from the API endpoint
+            const response = await fetch('/api/method/frappe_devsecops_dashboard.api.dashboard.get_frontend_assets');
+            const data = await response.json();
+
+            let jsFile = FALLBACK_JS;
+            let cssFile = FALLBACK_CSS;
+
+            // Use API response if successful
+            if (data.message && data.message.success && data.message.js_file) {
+              jsFile = data.message.js_file;
+              if (data.message.css_file) {
+                cssFile = data.message.css_file;
+              }
+            }
+
+            // Load CSS
+            if (cssFile) {
+              const link = document.createElement('link');
+              link.rel = 'stylesheet';
+              link.crossOrigin = 'anonymous';
+              link.href = BASE_PATH + cssFile;
+              document.head.appendChild(link);
+            }
+
+            // Load JavaScript
+            if (jsFile) {
+              const script = document.createElement('script');
+              script.type = 'module';
+              script.crossOrigin = 'anonymous';
+              script.src = BASE_PATH + jsFile;
+              document.head.appendChild(script);
+            }
+          } catch (error) {
+            console.error('Failed to load frontend assets:', error);
+            // Fallback: load with hardcoded hashes
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.crossOrigin = 'anonymous';
+            link.href = BASE_PATH + FALLBACK_CSS;
+            document.head.appendChild(link);
+
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.crossOrigin = 'anonymous';
+            script.src = BASE_PATH + FALLBACK_JS;
+            document.head.appendChild(script);
+          }
+        }
+
+        // Load assets when DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', loadAssets);
+        } else {
+          loadAssets();
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -8,6 +8,7 @@ export default defineConfig({
   build: {
     outDir: '../frappe_devsecops_dashboard/public/frontend',
     emptyOutDir: true,
+    manifest: true,
     rollupOptions: {
       output: {
         manualChunks: undefined,

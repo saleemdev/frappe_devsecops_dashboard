@@ -4,7 +4,6 @@ import {
   BulbOutlined,
   BulbFilled,
   SafetyOutlined,
-  UserOutlined,
   LogoutOutlined,
   DesktopOutlined,
   SettingOutlined,
@@ -21,6 +20,7 @@ import UnauthorizedPage from './components/UnauthorizedPage'
 
 import ChangeRequests from './components/ChangeRequests'
 import ChangeRequestForm from './components/ChangeRequestForm'
+import ChangeRequestsDashboard from './components/ChangeRequestsDashboard'
 import ProjectApps from './components/ProjectApps'
 import ProjectAppDetail from './components/ProjectAppDetail'
 import ProjectEdit from './components/ProjectEdit'
@@ -28,6 +28,7 @@ import DevOpsConfig from './components/DevOpsConfig'
 import MonitoringDashboards from './components/MonitoringDashboards'
 import Incidents from './components/Incidents'
 import IncidentDetail from './components/IncidentDetail'
+import IncidentsDashboard from './components/IncidentsDashboard'
 import TeamUtilization from './components/TeamUtilization'
 import SwaggerCollections from './components/SwaggerCollections'
 import SwaggerCollectionDetail from './components/SwaggerCollectionDetail'
@@ -138,6 +139,18 @@ function App() {
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode)
+  }
+
+  // Function to get user initials (first 2 letters)
+  const getUserInitials = (fullName, userName) => {
+    let name = fullName || userName || 'U'
+    // Handle null/undefined by using 'U'
+    if (!name || typeof name !== 'string') {
+      return 'U'
+    }
+    // Remove spaces and get first 2 characters
+    const initials = name.replace(/\s+/g, '').substring(0, 2).toUpperCase()
+    return initials || 'U'
   }
 
   // Logout is now handled by the auth store
@@ -252,6 +265,7 @@ function App() {
         mobileMenuVisible={mobileMenuVisible}
         setIsMobile={setIsMobile}
         toggleMobileMenu={toggleMobileMenu}
+        getUserInitials={getUserInitials}
       />
     </ConfigProvider>
   )
@@ -278,7 +292,8 @@ function AppContent({
   setIsMobile,
   toggleMobileMenu,
   selectedChangeRequestId,
-  showChangeRequestForm
+  showChangeRequestForm,
+  getUserInitials
 }) {
   const { token } = theme.useToken()
 
@@ -320,6 +335,8 @@ function AppContent({
         )
       case 'change-requests':
         return <ChangeRequests />
+      case 'change-requests-dashboard':
+        return <ChangeRequestsDashboard />
       case 'change-requests-new':
         return <ChangeRequestForm mode="create" />
       case 'change-requests-edit':
@@ -330,6 +347,8 @@ function AppContent({
           showIncidentDetail={showIncidentDetail}
           selectedIncidentId={selectedIncidentId}
         />
+      case 'incidents-dashboard':
+        return <IncidentsDashboard />
       case 'monitoring-dashboards':
         return <MonitoringDashboards />
       case 'swagger-collections':
@@ -412,8 +431,16 @@ function AppContent({
           label: 'Change Requests'
         },
         {
+          key: 'change-requests-dashboard',
+          label: 'CR Dashboard'
+        },
+        {
           key: 'incidents',
           label: 'Incidents'
+        },
+        {
+          key: 'incidents-dashboard',
+          label: 'Incidents Dashboard'
         },
         {
           key: 'monitoring-dashboards',
@@ -687,9 +714,10 @@ function AppContent({
               }}>
                 <Avatar
                   size={32}
-                  icon={<UserOutlined />}
-                  style={{ backgroundColor: token.colorPrimary }}
-                />
+                  style={{ backgroundColor: token.colorPrimary, color: '#ffffff', fontWeight: 600 }}
+                >
+                  {getUserInitials(userInfo?.full_name, userInfo?.name)}
+                </Avatar>
                 <div style={{ display: window.innerWidth > 768 ? 'block' : 'none' }}>
                   <div style={{
                     color: token.colorText,
@@ -697,14 +725,7 @@ function AppContent({
                     fontWeight: 500,
                     lineHeight: 1.2
                   }}>
-                    {userInfo?.fullName || userInfo?.username || 'User'}
-                  </div>
-                  <div style={{
-                    color: token.colorTextSecondary,
-                    fontSize: '12px',
-                    lineHeight: 1.2
-                  }}>
-                    Administrator
+                    {userInfo?.full_name || userInfo?.name}
                   </div>
                 </div>
               </div>
@@ -806,7 +827,7 @@ function AppContent({
             <Text type="secondary" style={{ fontSize: isMobile ? '10px' : '12px' }}>
               Powered by <Text strong style={{ color: token.colorPrimary }}>DOD DevSecOps</Text>
               {isMobile ? <br /> : ' | '}
-              tiberbu HealthNet Initiative
+              tiBERbu HealthNet Initiative
             </Text>
           </div>
         </div>

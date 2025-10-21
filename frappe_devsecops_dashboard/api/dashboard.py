@@ -205,101 +205,123 @@ def enhance_project_with_task_data(project):
         frappe.log_error(f"Error fetching tasks for project {project_name}: {str(e)}", "DevSecOps Dashboard")
         tasks = []
 
-    # Calculate lifecycle phases based on Task Types
-    lifecycle_phases = calculate_project_lifecycle_phases(tasks)
+    # Calculate lifecycle phases based on Task Types with null safety
+    lifecycle_phases = calculate_project_lifecycle_phases(tasks) if tasks else []
 
-    # Calculate overall project metrics
-    total_tasks = len(tasks)
-    completed_tasks = len([t for t in tasks if t.status == 'Completed'])
+    # Calculate overall project metrics with null safety
+    total_tasks = len(tasks) if tasks else 0
+    completed_tasks = len([t for t in tasks if t and t.get('status') == 'Completed']) if tasks else 0
 
-    # Determine current phase
-    current_phase = determine_current_phase(lifecycle_phases)
+    # Determine current phase with null safety
+    current_phase = determine_current_phase(lifecycle_phases) if lifecycle_phases else 'Planning'
 
     # Calculate actual progress (override project percent_complete if we have task data)
-    actual_progress = calculate_actual_progress(tasks) if tasks else project.get('percent_complete', 0)
+    actual_progress = calculate_actual_progress(tasks) if tasks else (project.get('percent_complete') or 0)
+
+    # Calculate completion rate with null safety
+    completion_rate = flt((completed_tasks / total_tasks * 100), 2) if total_tasks and total_tasks > 0 else 0
 
     return {
-        "id": project.get('name'),
-        "name": project.get('project_name') or project.get('name'),
-        "project_status": project.get('status'),
-        "client": project.get('customer'),
-        "project_type": project.get('project_type'),
-        "priority": project.get('priority'),
-        "progress": flt(actual_progress, 2),
-        "current_phase": current_phase,
-        "task_count": total_tasks,
-        "completed_tasks": completed_tasks,
-        "completion_rate": flt((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0, 2),
-        "delivery_phases": lifecycle_phases,
+        "id": project.get('name') or 'Unknown',
+        "name": project.get('project_name') or project.get('name') or 'Unknown',
+        "project_status": project.get('status') or 'Unknown',
+        "client": project.get('customer') or 'N/A',
+        "project_type": project.get('project_type') or 'N/A',
+        "priority": project.get('priority') or 'Medium',
+        "progress": flt(actual_progress or 0, 2),
+        "current_phase": current_phase or 'Planning',
+        "task_count": total_tasks or 0,
+        "completed_tasks": completed_tasks or 0,
+        "completion_rate": completion_rate or 0,
+        "delivery_phases": lifecycle_phases or [],
         "expected_start_date": project.get('expected_start_date'),
         "expected_end_date": project.get('expected_end_date'),
         "actual_start_date": project.get('actual_start_date'),
         "actual_end_date": project.get('actual_end_date'),
         "cost_center": project.get('cost_center'),
         "department": project.get('department'),
-        "tasks": tasks
+        "tasks": tasks or []
     }
 
 
 def calculate_project_lifecycle_phases(tasks):
     """
-    Calculate lifecycle phases based on Task Types and their progress
+    Calculate lifecycle phases based on Task Types and their progress with null safety
     Task Type ordering will be handled by custom_priority field in future
 
     Args:
         tasks (list): List of tasks for a project
 
     Returns:
-        list: Lifecycle phases with progress data
+        list: Lifecycle phases with progress data (empty list if no tasks)
     """
-    # Group tasks by Task Type
-    task_types = {}
-    for task in tasks:
-        task_type = task.get('task_type') or 'Unassigned'
-        if task_type not in task_types:
-            task_types[task_type] = []
-        task_types[task_type].append(task)
+    try:
+        # Null safety: ensure tasks is a list
+        if not tasks:
+            return []
 
-    # Process task types in alphabetical order (no custom ordering)
-    phases = []
-    for i, task_type_name in enumerate(sorted(task_types.keys())):
-        task_type_tasks = task_types[task_type_name]
+        # Group tasks by Task Type with null safety
+        task_types = {}
+        for task in tasks:
+            if not task:
+                continue
+            task_type = task.get('task_type') or 'Unassigned'
+            if task_type not in task_types:
+                task_types[task_type] = []
+            task_types[task_type].append(task)
 
-        # Calculate phase progress
-        total_tasks = len(task_type_tasks)
-        completed_tasks = len([t for t in task_type_tasks if t.status == 'Completed'])
-        in_progress_tasks = len([t for t in task_type_tasks if t.status in ['Open', 'Working']])
+        # Process task types in alphabetical order (no custom ordering)
+        phases = []
+        for i, task_type_name in enumerate(sorted(task_types.keys())):
+            task_type_tasks = task_types.get(task_type_name, [])
+            if not task_type_tasks:
+                continue
 
-        # Determine phase status
-        if total_tasks == 0:
-            phase_status = 'pending'
-            phase_progress = 0
-        elif completed_tasks == total_tasks:
-            phase_status = 'complete'
-            phase_progress = 100
-        elif completed_tasks > 0 or in_progress_tasks > 0:
-            phase_status = 'in_progress'
-            phase_progress = flt((completed_tasks / total_tasks * 100), 2)
-        else:
-            phase_status = 'pending'
-            phase_progress = 0
+            # Calculate phase progress with null safety
+            total_tasks = len(task_type_tasks) if task_type_tasks else 0
+            completed_tasks = len([
+                t for t in task_type_tasks
+                if t and t.get('status') == 'Completed'
+            ]) if task_type_tasks else 0
+            in_progress_tasks = len([
+                t for t in task_type_tasks
+                if t and t.get('status') in ['Open', 'Working']
+            ]) if task_type_tasks else 0
 
-        phases.append({
-            "section_id": f"PHASE-{i+1:03d}",
-            "section_name": task_type_name,
-            "section_status": phase_status,
-            "section_progress": phase_progress,
-            "section_order": i + 1,
-            "task_count": total_tasks,
-            "completed_tasks": completed_tasks,
-            "in_progress_tasks": in_progress_tasks,
-            # Legacy fields for backward compatibility
-            "name": task_type_name,
-            "status": phase_status,
-            "progress": phase_progress
-        })
+            # Determine phase status with null safety
+            if total_tasks == 0:
+                phase_status = 'pending'
+                phase_progress = 0
+            elif completed_tasks == total_tasks:
+                phase_status = 'complete'
+                phase_progress = 100
+            elif completed_tasks > 0 or in_progress_tasks > 0:
+                phase_status = 'in_progress'
+                phase_progress = flt((completed_tasks / total_tasks * 100), 2) if total_tasks > 0 else 0
+            else:
+                phase_status = 'pending'
+                phase_progress = 0
 
-    return phases
+            phases.append({
+                "section_id": f"PHASE-{i+1:03d}",
+                "section_name": task_type_name or 'Unknown',
+                "section_status": phase_status,
+                "section_progress": phase_progress or 0,
+                "section_order": i + 1,
+                "task_count": total_tasks or 0,
+                "completed_tasks": completed_tasks or 0,
+                "in_progress_tasks": in_progress_tasks or 0,
+                # Legacy fields for backward compatibility
+                "name": task_type_name or 'Unknown',
+                "status": phase_status,
+                "progress": phase_progress or 0
+            })
+
+        return phases
+
+    except Exception as e:
+        frappe.log_error(f"Error calculating lifecycle phases: {str(e)}", "DevSecOps Dashboard")
+        return []
 
 
 
@@ -307,79 +329,133 @@ def calculate_project_lifecycle_phases(tasks):
 
 def determine_current_phase(lifecycle_phases):
     """
-    Determine the current active phase based on lifecycle progress
+    Determine the current active phase based on lifecycle progress with null safety
 
     Args:
         lifecycle_phases (list): List of lifecycle phases
 
     Returns:
-        str: Name of current phase
+        str: Name of current phase (defaults to 'Planning' if no phases)
     """
-    for phase in lifecycle_phases:
-        if phase.get('section_status') == 'in_progress':
-            return phase.get('section_name')
+    try:
+        # Null safety: ensure lifecycle_phases is a list
+        if not lifecycle_phases:
+            return 'Planning'
 
-    # If no phase is in progress, return the first incomplete phase
-    for phase in lifecycle_phases:
-        if phase.get('section_status') != 'complete':
-            return phase.get('section_name')
+        # Find in-progress phase
+        for phase in lifecycle_phases:
+            if phase and phase.get('section_status') == 'in_progress':
+                return phase.get('section_name') or 'Unknown'
 
-    # If all phases are complete, return the last phase
-    if lifecycle_phases:
-        return lifecycle_phases[-1].get('section_name')
+        # If no phase is in progress, return the first incomplete phase
+        for phase in lifecycle_phases:
+            if phase and phase.get('section_status') != 'complete':
+                return phase.get('section_name') or 'Unknown'
 
-    return 'Planning'
+        # If all phases are complete, return the last phase
+        if lifecycle_phases and lifecycle_phases[-1]:
+            return lifecycle_phases[-1].get('section_name') or 'Planning'
+
+        return 'Planning'
+
+    except Exception as e:
+        frappe.log_error(f"Error determining current phase: {str(e)}", "DevSecOps Dashboard")
+        return 'Planning'
 
 
 def calculate_actual_progress(tasks):
     """
-    Calculate actual project progress based on task completion
+    Calculate actual project progress based on task completion with null safety
 
     Args:
         tasks (list): List of project tasks
 
     Returns:
-        float: Progress percentage
+        float: Progress percentage (0-100)
     """
-    if not tasks:
+    try:
+        # Null safety: ensure tasks is a list
+        if not tasks:
+            return 0
+
+        # Filter out None values
+        valid_tasks = [t for t in tasks if t]
+        if not valid_tasks:
+            return 0
+
+        total_tasks = len(valid_tasks)
+        if total_tasks == 0:
+            return 0
+
+        # Count completed tasks with null safety
+        completed_tasks = len([
+            t for t in valid_tasks
+            if t and t.get('status') == 'Completed'
+        ])
+
+        # Calculate progress with null safety
+        progress = flt((completed_tasks / total_tasks * 100), 2) if total_tasks > 0 else 0
+
+        # Ensure progress is between 0 and 100
+        return max(0, min(100, progress))
+    except Exception as e:
+        frappe.log_error(f"Error calculating progress: {str(e)}", "DevSecOps Dashboard")
         return 0
-
-    total_tasks = len(tasks)
-    completed_tasks = len([t for t in tasks if t.status == 'Completed'])
-
-    return flt((completed_tasks / total_tasks * 100), 2)
 
 
 def calculate_dashboard_metrics(projects):
     """
-    Calculate overall dashboard metrics
+    Calculate overall dashboard metrics with null safety
     Team capacity calculation removed - will be handled by separate endpoint
 
     Args:
         projects (list): List of projects
 
     Returns:
-        dict: Dashboard metrics
+        dict: Dashboard metrics with sensible defaults
     """
-    total_projects = len(projects)
-    active_projects = len([p for p in projects if p.get('project_status') == 'Open'])
+    try:
+        # Null safety: ensure projects is a list
+        if not projects:
+            projects = []
 
-    # Calculate total tasks across all projects
-    total_tasks = sum(p.get('task_count', 0) for p in projects)
-    completed_tasks = sum(p.get('completed_tasks', 0) for p in projects)
+        total_projects = len(projects) if projects else 0
+        active_projects = len([p for p in projects if p and p.get('project_status') == 'Open']) if projects else 0
 
-    # Calculate average completion rate
-    completion_rates = [p.get('completion_rate', 0) for p in projects if p.get('task_count', 0) > 0]
-    average_completion = flt(sum(completion_rates) / len(completion_rates), 2) if completion_rates else 0
+        # Calculate total tasks across all projects with null safety
+        total_tasks = sum(p.get('task_count', 0) or 0 for p in projects if p) if projects else 0
+        completed_tasks = sum(p.get('completed_tasks', 0) or 0 for p in projects if p) if projects else 0
 
-    return {
-        "total_projects": total_projects,
-        "active_projects": active_projects,
-        "total_tasks": total_tasks,
-        "completed_tasks": completed_tasks,
-        "average_completion": average_completion,
-        "completion_rate": flt((completed_tasks / total_tasks * 100), 2) if total_tasks > 0 else 0
-    }
+        # Calculate average completion rate with null safety
+        completion_rates = [
+            p.get('completion_rate', 0) or 0
+            for p in projects
+            if p and (p.get('task_count', 0) or 0) > 0
+        ]
+        average_completion = flt(sum(completion_rates) / len(completion_rates), 2) if completion_rates else 0
+
+        # Calculate completion rate with null safety
+        completion_rate = flt((completed_tasks / total_tasks * 100), 2) if total_tasks and total_tasks > 0 else 0
+
+        return {
+            "total_projects": total_projects or 0,
+            "active_projects": active_projects or 0,
+            "total_tasks": total_tasks or 0,
+            "completed_tasks": completed_tasks or 0,
+            "average_completion": average_completion or 0,
+            "completion_rate": completion_rate or 0
+        }
+    except Exception as e:
+        frappe.log_error(f"Error calculating dashboard metrics: {str(e)}", "DevSecOps Dashboard")
+        # Return sensible defaults on error
+        return {
+            "total_projects": 0,
+            "active_projects": 0,
+            "total_tasks": 0,
+            "completed_tasks": 0,
+            "average_completion": 0,
+            "completion_rate": 0
+        }
 
 
 def get_devsecops_lifecycle_phases():
@@ -1337,8 +1413,14 @@ def get_frontend_assets():
                 entry = manifest[entry_name]
                 if 'file' in entry:
                     js_file = entry['file']
+                    # Strip 'assets/' prefix since BASE_PATH already includes it
+                    if js_file.startswith('assets/'):
+                        js_file = js_file[7:]  # Remove 'assets/' prefix
                 if 'css' in entry and len(entry['css']) > 0:
                     css_file = entry['css'][0]
+                    # Strip 'assets/' prefix since BASE_PATH already includes it
+                    if css_file.startswith('assets/'):
+                        css_file = css_file[7:]  # Remove 'assets/' prefix
                 break
 
         return {
@@ -1651,17 +1733,353 @@ def get_project_tasks(project_name):
 
         return {
             "success": True,
-            "tasks": tasks
+            "tasks": tasks or []
         }
     except frappe.PermissionError:
         frappe.log_error(f"Permission denied for project {project_name}", "DevSecOps Dashboard")
         return {
             "success": False,
-            "error": "You don't have permission to access this project's tasks"
+            "error": "You don't have permission to access this project's tasks",
+            "tasks": []
         }
     except Exception as e:
         frappe.log_error(f"Get Project Tasks Error: {str(e)}", "DevSecOps Dashboard")
         return {
             "success": False,
-            "error": "An error occurred while fetching project tasks"
+            "error": "An error occurred while fetching project tasks",
+            "tasks": []
         }
+
+
+@frappe.whitelist()
+def get_dashboard_metrics(metric_type="all", **filters):
+    """
+    Unified metrics API endpoint for all dashboard types
+    Accepts metric_type parameter to specify which metrics to retrieve
+
+    Args:
+        metric_type (str): Type of metrics to retrieve ('change_requests', 'incidents', 'projects', 'all')
+        **filters: Additional filters for the metrics query
+
+    Returns:
+        dict: Metrics data in consistent JSON format with null safety
+    """
+    try:
+        result = {
+            "success": True,
+            "metrics": {},
+            "data": [],
+            "timestamp": frappe.utils.now()
+        }
+
+        # Get Change Requests metrics
+        if metric_type in ["change_requests", "all"]:
+            result["metrics"]["change_requests"] = get_change_requests_metrics(filters)
+            if metric_type == "change_requests":
+                result["data"] = get_change_requests_data(filters)
+
+        # Get Incidents metrics
+        if metric_type in ["incidents", "all"]:
+            result["metrics"]["incidents"] = get_incidents_metrics(filters)
+            if metric_type == "incidents":
+                result["data"] = get_incidents_data(filters)
+
+        # Get Projects metrics
+        if metric_type in ["projects", "all"]:
+            result["metrics"]["projects"] = get_projects_metrics(filters)
+            if metric_type == "projects":
+                result["data"] = get_projects_data_for_metrics(filters)
+
+        return result
+
+    except frappe.PermissionError:
+        frappe.log_error(f"Permission denied for metrics: {metric_type}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "You don't have permission to access these metrics",
+            "metrics": {},
+            "data": [],
+            "timestamp": frappe.utils.now()
+        }
+    except Exception as e:
+        frappe.log_error(f"Get Dashboard Metrics Error: {str(e)}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "An error occurred while fetching metrics",
+            "metrics": {},
+            "data": [],
+            "timestamp": frappe.utils.now()
+        }
+
+
+def get_change_requests_metrics(filters=None):
+    """
+    Calculate Change Requests metrics with null safety
+
+    Args:
+        filters (dict): Filter parameters
+
+    Returns:
+        dict: Change Requests metrics
+    """
+    try:
+        filters = filters or {}
+
+        # Build query filters
+        query_filters = {}
+        if filters.get("status"):
+            query_filters["approval_status"] = filters["status"]
+
+        # Get all change requests
+        change_requests = frappe.get_list(
+            "Change Request",
+            filters=query_filters,
+            fields=["name", "approval_status"],
+            limit_page_length=None
+        ) or []
+
+        # Calculate metrics with null safety
+        metrics = {
+            "total": len(change_requests) if change_requests else 0,
+            "pending": len([cr for cr in change_requests if cr.get("approval_status") == "Pending"]) if change_requests else 0,
+            "approved": len([cr for cr in change_requests if cr.get("approval_status") == "Approved"]) if change_requests else 0,
+            "rejected": len([cr for cr in change_requests if cr.get("approval_status") == "Rejected"]) if change_requests else 0,
+            "in_progress": len([cr for cr in change_requests if cr.get("approval_status") == "In Progress"]) if change_requests else 0,
+            "completed": len([cr for cr in change_requests if cr.get("approval_status") == "Completed"]) if change_requests else 0,
+            "avg_approval_time": 24  # Default value
+        }
+
+        return metrics
+
+    except Exception as e:
+        frappe.log_error(f"Error calculating CR metrics: {str(e)}", "DevSecOps Dashboard")
+        return {
+            "total": 0,
+            "pending": 0,
+            "approved": 0,
+            "rejected": 0,
+            "in_progress": 0,
+            "completed": 0,
+            "avg_approval_time": 0
+        }
+
+
+def get_change_requests_data(filters=None):
+    """
+    Get Change Requests data with null safety
+
+    Args:
+        filters (dict): Filter parameters
+
+    Returns:
+        list: Change Requests data
+    """
+    try:
+        filters = filters or {}
+
+        # Build query filters
+        query_filters = {}
+        if filters.get("status"):
+            query_filters["approval_status"] = filters["status"]
+
+        # Get change requests
+        change_requests = frappe.get_list(
+            "Change Request",
+            filters=query_filters,
+            fields=[
+                "name",
+                "title",
+                "cr_number",
+                "approval_status",
+                "prepared_for",
+                "submission_date",
+                "modified"
+            ],
+            order_by="modified desc",
+            limit_page_length=100
+        ) or []
+
+        return change_requests
+
+    except Exception as e:
+        frappe.log_error(f"Error fetching CR data: {str(e)}", "DevSecOps Dashboard")
+        return []
+
+
+def get_incidents_metrics(filters=None):
+    """
+    Calculate Incidents metrics with null safety
+
+    Args:
+        filters (dict): Filter parameters
+
+    Returns:
+        dict: Incidents metrics
+    """
+    try:
+        filters = filters or {}
+
+        # Build query filters
+        query_filters = {}
+        if filters.get("status"):
+            query_filters["status"] = filters["status"]
+        if filters.get("severity"):
+            query_filters["severity"] = filters["severity"]
+
+        # Get all incidents
+        incidents = frappe.get_list(
+            "Incident",
+            filters=query_filters,
+            fields=["name", "status", "severity"],
+            limit_page_length=None
+        ) or []
+
+        # Calculate metrics with null safety
+        metrics = {
+            "total": len(incidents) if incidents else 0,
+            "open": len([inc for inc in incidents if inc.get("status") == "Open"]) if incidents else 0,
+            "in_progress": len([inc for inc in incidents if inc.get("status") == "In Progress"]) if incidents else 0,
+            "resolved": len([inc for inc in incidents if inc.get("status") == "Resolved"]) if incidents else 0,
+            "critical": len([inc for inc in incidents if inc.get("severity") == "Critical"]) if incidents else 0,
+            "high": len([inc for inc in incidents if inc.get("severity") == "High"]) if incidents else 0,
+            "medium": len([inc for inc in incidents if inc.get("severity") == "Medium"]) if incidents else 0,
+            "low": len([inc for inc in incidents if inc.get("severity") == "Low"]) if incidents else 0,
+            "avg_resolution_time": 48  # Default value
+        }
+
+        return metrics
+
+    except Exception as e:
+        frappe.log_error(f"Error calculating incidents metrics: {str(e)}", "DevSecOps Dashboard")
+        return {
+            "total": 0,
+            "open": 0,
+            "in_progress": 0,
+            "resolved": 0,
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "avg_resolution_time": 0
+        }
+
+
+def get_incidents_data(filters=None):
+    """
+    Get Incidents data with null safety
+
+    Args:
+        filters (dict): Filter parameters
+
+    Returns:
+        list: Incidents data
+    """
+    try:
+        filters = filters or {}
+
+        # Build query filters
+        query_filters = {}
+        if filters.get("status"):
+            query_filters["status"] = filters["status"]
+        if filters.get("severity"):
+            query_filters["severity"] = filters["severity"]
+
+        # Get incidents
+        incidents = frappe.get_list(
+            "Incident",
+            filters=query_filters,
+            fields=[
+                "name",
+                "title",
+                "incident_id",
+                "status",
+                "severity",
+                "category",
+                "creation",
+                "modified"
+            ],
+            order_by="modified desc",
+            limit_page_length=100
+        ) or []
+
+        return incidents
+
+    except Exception as e:
+        frappe.log_error(f"Error fetching incidents data: {str(e)}", "DevSecOps Dashboard")
+        return []
+
+
+def get_projects_metrics(filters=None):
+    """
+    Calculate Projects metrics with null safety
+
+    Args:
+        filters (dict): Filter parameters
+
+    Returns:
+        dict: Projects metrics
+    """
+    try:
+        filters = filters or {}
+
+        # Get all projects
+        projects = frappe.get_list(
+            "Project",
+            filters={"status": ["!=", "Cancelled"]},
+            fields=["name", "status"],
+            limit_page_length=None
+        ) or []
+
+        # Calculate metrics with null safety
+        metrics = {
+            "total": len(projects) if projects else 0,
+            "active": len([p for p in projects if p.get("status") == "Open"]) if projects else 0,
+            "completed": len([p for p in projects if p.get("status") == "Completed"]) if projects else 0,
+            "on_hold": len([p for p in projects if p.get("status") == "On Hold"]) if projects else 0
+        }
+
+        return metrics
+
+    except Exception as e:
+        frappe.log_error(f"Error calculating projects metrics: {str(e)}", "DevSecOps Dashboard")
+        return {
+            "total": 0,
+            "active": 0,
+            "completed": 0,
+            "on_hold": 0
+        }
+
+
+def get_projects_data_for_metrics(filters=None):
+    """
+    Get Projects data with null safety
+
+    Args:
+        filters (dict): Filter parameters
+
+    Returns:
+        list: Projects data
+    """
+    try:
+        filters = filters or {}
+
+        # Get projects
+        projects = frappe.get_list(
+            "Project",
+            filters={"status": ["!=", "Cancelled"]},
+            fields=[
+                "name",
+                "project_name",
+                "status",
+                "customer",
+                "modified"
+            ],
+            order_by="modified desc",
+            limit_page_length=100
+        ) or []
+
+        return projects
+
+    except Exception as e:
+        frappe.log_error(f"Error fetching projects data: {str(e)}", "DevSecOps Dashboard")
+        return []

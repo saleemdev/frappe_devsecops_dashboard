@@ -235,7 +235,10 @@ export const parseMentions = (content) => {
  * Create mention markup for a user
  */
 export const createMention = (userName, fullName) => {
-  return `@[${fullName}](user:${userName})`
+  // Add null/undefined safety checks
+  const safeUserName = userName || 'unknown'
+  const safeFullName = fullName || userName || 'Unknown User'
+  return `@[${safeFullName}](user:${safeUserName})`
 }
 
 /**

@@ -41,13 +41,10 @@ def build_frontend_assets():
         if not os.path.exists("node_modules"):
             print("Installing frontend dependencies...")
             subprocess.run(["npm", "install"], check=True)
-        
-        # Build the frontend
-        print("Building frontend with Vite...")
-        subprocess.run([
-            "npx", "vite", "build", 
-            "--base=/assets/frappe_devsecops_dashboard/frontend/"
-        ], check=True)
+
+        # Build the frontend using npm run build
+        print("Building frontend with npm run build...")
+        subprocess.run(["npm", "run", "build"], check=True)
         
         # Copy the built index.html to www directory
         copy_html_to_www()
@@ -131,22 +128,6 @@ def verify_build_assets():
             raise Exception(f"Referenced CSS file not found: {css_file}")
     
     print("Build verification completed successfully")
-
-def get_frontend_build_command():
-    """Get the appropriate build command for the frontend"""
-    app_path = frappe.get_app_path("frappe_devsecops_dashboard")
-    frontend_path = os.path.join(app_path, "frontend")
-    package_json = os.path.join(frontend_path, "package.json")
-    
-    if os.path.exists(package_json):
-        # Check if yarn.lock exists (prefer yarn over npm)
-        if os.path.exists(os.path.join(frontend_path, "yarn.lock")):
-            return ["yarn", "build"]
-        else:
-            return ["npm", "run", "build"]
-    
-    # Fallback to direct vite command
-    return ["npx", "vite", "build", "--base=/assets/frappe_devsecops_dashboard/frontend/"]
 
 def clean_build_artifacts():
     """Clean up build artifacts"""

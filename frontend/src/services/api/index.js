@@ -41,6 +41,110 @@ class DashboardService {
     const { getDashboardData } = await import('../../utils/erpnextApiUtils.js')
     return getDashboardData()
   }
+
+  /**
+   * Get Change Requests metrics
+   */
+  async getChangeRequestsMetrics(filters = {}) {
+    if (isMockEnabled('changeRequests')) {
+      const { mockChangeRequests, simulateDelay } = await import('./mockData.js')
+      await simulateDelay(500)
+
+      // Calculate metrics with null safety
+      const metrics = {
+        total: mockChangeRequests?.length || 0,
+        pending: mockChangeRequests?.filter(cr => cr.approval_status === 'Pending')?.length || 0,
+        approved: mockChangeRequests?.filter(cr => cr.approval_status === 'Approved')?.length || 0,
+        rejected: mockChangeRequests?.filter(cr => cr.approval_status === 'Rejected')?.length || 0,
+        in_progress: mockChangeRequests?.filter(cr => cr.approval_status === 'In Progress')?.length || 0,
+        completed: mockChangeRequests?.filter(cr => cr.approval_status === 'Completed')?.length || 0,
+        avg_approval_time: 24
+      }
+
+      return {
+        success: true,
+        metrics,
+        data: mockChangeRequests || [],
+        timestamp: new Date().toISOString()
+      }
+    }
+
+    // Real API call
+    try {
+      const { createApiClient } = await import('./config.js')
+      const client = await createApiClient()
+      const response = await client.get('/api/method/frappe_devsecops_dashboard.api.dashboard.get_dashboard_metrics', {
+        params: { metric_type: 'change_requests', ...filters }
+      })
+
+      return response.data?.message || {
+        success: false,
+        metrics: {},
+        data: [],
+        error: 'Failed to fetch metrics'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        metrics: {},
+        data: [],
+        error: error.message || 'An error occurred'
+      }
+    }
+  }
+
+  /**
+   * Get Incidents metrics
+   */
+  async getIncidentsMetrics(filters = {}) {
+    if (isMockEnabled('incidents')) {
+      const { mockIncidents, simulateDelay } = await import('./mockData.js')
+      await simulateDelay(500)
+
+      // Calculate metrics with null safety
+      const metrics = {
+        total: mockIncidents?.length || 0,
+        open: mockIncidents?.filter(inc => inc.status === 'Open')?.length || 0,
+        in_progress: mockIncidents?.filter(inc => inc.status === 'In Progress')?.length || 0,
+        resolved: mockIncidents?.filter(inc => inc.status === 'Resolved')?.length || 0,
+        critical: mockIncidents?.filter(inc => inc.severity === 'Critical')?.length || 0,
+        high: mockIncidents?.filter(inc => inc.severity === 'High')?.length || 0,
+        medium: mockIncidents?.filter(inc => inc.severity === 'Medium')?.length || 0,
+        low: mockIncidents?.filter(inc => inc.severity === 'Low')?.length || 0,
+        avg_resolution_time: 48
+      }
+
+      return {
+        success: true,
+        metrics,
+        data: mockIncidents || [],
+        timestamp: new Date().toISOString()
+      }
+    }
+
+    // Real API call
+    try {
+      const { createApiClient } = await import('./config.js')
+      const client = await createApiClient()
+      const response = await client.get('/api/method/frappe_devsecops_dashboard.api.dashboard.get_dashboard_metrics', {
+        params: { metric_type: 'incidents', ...filters }
+      })
+
+      return response.data?.message || {
+        success: false,
+        metrics: {},
+        data: [],
+        error: 'Failed to fetch metrics'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        metrics: {},
+        data: [],
+        error: error.message || 'An error occurred'
+      }
+    }
+  }
 }
 
 // Change Requests service (placeholder)

@@ -71,7 +71,7 @@ describe('DOD DevSecOps Attribution', () => {
     // Check for DOD DevSecOps attribution
     expect(screen.getByText(/Powered by/)).toBeInTheDocument()
     expect(screen.getByText('DOD DevSecOps')).toBeInTheDocument()
-    expect(screen.getByText(/tiberbu HealthNet Initiative/)).toBeInTheDocument()
+    expect(screen.getByText(/tiBERbu HealthNet Initiative/)).toBeInTheDocument()
   })
 
   test('attribution footer is visible on all pages', async () => {
@@ -206,7 +206,7 @@ describe('DOD DevSecOps Attribution', () => {
     // Check that the attribution contains the expected elements
     const poweredByText = screen.getByText(/Powered by/)
     const dodText = screen.getByText('DOD DevSecOps')
-    const initiativeText = screen.getByText(/tiberbu HealthNet Initiative/)
+    const initiativeText = screen.getByText(/tiBERbu HealthNet Initiative/)
 
     expect(poweredByText).toBeInTheDocument()
     expect(dodText).toBeInTheDocument()

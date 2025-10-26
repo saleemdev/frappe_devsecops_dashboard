@@ -250,12 +250,16 @@ export const replaceMentions = (content) => {
 
 /**
  * Get project details
+ * Note: Includes cache-busting parameter to ensure fresh data on each load
  */
 export const getProjectDetails = async (projectName) => {
   try {
     const api = await getApiClient()
     const response = await api.get('/api/method/frappe_devsecops_dashboard.api.dashboard.get_project_details', {
-      params: { project_name: projectName }
+      params: {
+        project_name: projectName,
+        _t: Date.now()  // Cache-busting parameter to force fresh data
+      }
     })
     return response.data
   } catch (error) {
@@ -265,12 +269,16 @@ export const getProjectDetails = async (projectName) => {
 
 /**
  * Get project users (manager and team members)
+ * Note: Includes cache-busting parameter to ensure fresh data
  */
 export const getProjectUsers = async (projectName) => {
   try {
     const api = await getApiClient()
     const response = await api.get('/api/method/frappe_devsecops_dashboard.api.dashboard.get_project_users', {
-      params: { project_name: projectName }
+      params: {
+        project_name: projectName,
+        _t: Date.now()  // Cache-busting parameter
+      }
     })
     return response.data
   } catch (error) {
@@ -280,12 +288,17 @@ export const getProjectUsers = async (projectName) => {
 
 /**
  * Get project recent activity (comments)
+ * Note: Includes cache-busting parameter to ensure fresh data
  */
 export const getProjectRecentActivity = async (projectName, limit = 10) => {
   try {
     const api = await getApiClient()
     const response = await api.get('/api/method/frappe_devsecops_dashboard.api.dashboard.get_project_recent_activity', {
-      params: { project_name: projectName, limit }
+      params: {
+        project_name: projectName,
+        limit,
+        _t: Date.now()  // Cache-busting parameter
+      }
     })
     return response.data
   } catch (error) {
@@ -295,12 +308,16 @@ export const getProjectRecentActivity = async (projectName, limit = 10) => {
 
 /**
  * Get project milestones
+ * Note: Includes cache-busting parameter to ensure fresh data
  */
 export const getProjectMilestones = async (projectName) => {
   try {
     const api = await getApiClient()
     const response = await api.get('/api/method/frappe_devsecops_dashboard.api.dashboard.get_project_milestones', {
-      params: { project_name: projectName }
+      params: {
+        project_name: projectName,
+        _t: Date.now()  // Cache-busting parameter
+      }
     })
     return response.data
   } catch (error) {
@@ -356,12 +373,31 @@ export const updateProject = async (projectName, projectData) => {
 /**
  * Add a user to a project
  */
-export const addProjectUser = async (projectName, userId) => {
+export const addProjectUser = async (projectName, userId, userFields = null) => {
   try {
     const api = await getApiClient()
-    const response = await api.post('/api/method/frappe_devsecops_dashboard.api.dashboard.add_project_user', {
+    const payload = {
       project_name: projectName,
       user_id: userId
+    }
+    if (userFields && typeof userFields === 'object') {
+      // Send as JSON string to be explicit; backend can also accept dict
+      payload.user_fields = JSON.stringify(userFields)
+    }
+    const response = await api.post('/api/method/frappe_devsecops_dashboard.api.dashboard.add_project_user', payload)
+    return response.data
+  } catch (error) {
+    throw error
+  }
+}
+
+export const updateProjectUser = async (projectName, userId, userFields) => {
+  try {
+    const api = await getApiClient()
+    const response = await api.post('/api/method/frappe_devsecops_dashboard.api.dashboard.update_project_user', {
+      project_name: projectName,
+      user_id: userId,
+      user_fields: typeof userFields === 'object' ? JSON.stringify(userFields) : userFields
     })
     return response.data
   } catch (error) {
@@ -376,6 +412,22 @@ export const removeProjectUser = async (projectName, userId) => {
   try {
     const api = await getApiClient()
     const response = await api.post('/api/method/frappe_devsecops_dashboard.api.dashboard.remove_project_user', {
+      project_name: projectName,
+      user_id: userId
+    })
+    return response.data
+  } catch (error) {
+    throw error
+  }
+}
+
+/**
+ * Update the project manager for a project
+ */
+export const updateProjectManager = async (projectName, userId) => {
+  try {
+    const api = await getApiClient()
+    const response = await api.post('/api/method/frappe_devsecops_dashboard.api.dashboard.update_project_manager', {
       project_name: projectName,
       user_id: userId
     })

@@ -1,11 +1,32 @@
 {
   "index.html": {
-    "file": "assets/index-DbFU-iuC.js",
+    "file": "assets/index-DaLh_DBz.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
+    "dynamicImports": [
+      "node_modules/axios/index.js",
+      "src/utils/erpnextApiUtils.js",
+      "src/utils/erpnextApiUtils.js",
+      "node_modules/axios/index.js"
+    ],
     "css": [
-      "assets/index-ey4ZYeUq.css"
+      "assets/index-BwEIo6un.css"
+    ]
+  },
+  "node_modules/axios/index.js": {
+    "file": "assets/index-B0yp3bM1.js",
+    "name": "index",
+    "src": "node_modules/axios/index.js",
+    "isDynamicEntry": true
+  },
+  "src/utils/erpnextApiUtils.js": {
+    "file": "assets/erpnextApiUtils-CmgYK-B3.js",
+    "name": "erpnextApiUtils",
+    "src": "src/utils/erpnextApiUtils.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/axios/index.js"
     ]
   }
 }

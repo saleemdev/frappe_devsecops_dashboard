@@ -1,5 +1,5 @@
 {
-  "build_command": "cd frontend && python build.py",
+  "build_command": "python build_app.py",
   "watch": [
     "frontend/src/**/*.js",
     "frontend/src/**/*.jsx",

@@ -229,3 +229,10 @@ build_hooks = {
 	"before_build": "frappe_devsecops_dashboard.build.before_build",
 	"after_build": "frappe_devsecops_dashboard.build.after_build"
 }
+
+# Migration hooks
+# ---------------
+# Run frontend build after migrations to ensure assets are always up-to-date
+after_migrate = [
+	"frappe_devsecops_dashboard.build.run_frontend_build"
+]

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Swal from 'sweetalert2'
 import {
   Card,
@@ -12,17 +12,24 @@ import {
   Spin,
   Empty,
   Avatar,
-  Divider
+  Divider,
+  Select,
+  DatePicker,
+  Tooltip,
+  Modal,
+  Tag
 } from 'antd'
 import {
   ArrowLeftOutlined,
   SaveOutlined,
   DeleteOutlined,
   PlusOutlined,
-  UserOutlined
+  UserOutlined,
+  EditOutlined,
+  BarChartOutlined
 } from '@ant-design/icons'
-import ReactQuill from 'react-quill'
-import 'react-quill/dist/quill.snow.css'
+import RichTextEditor from './RichTextEditor'
+import SprintReportDialog from './SprintReportDialog'
 import dayjs from 'dayjs'
 import {
   getProjectDetails,
@@ -30,10 +37,34 @@ import {
   updateProject,
   addProjectUser,
   removeProjectUser,
-  searchUsers
+  searchUsers,
+  updateProjectManager,
+  updateProjectUser
 } from '../utils/projectAttachmentsApi'
 
 const { Title, Text } = Typography
+
+/**
+ * Debounce utility function
+ * Delays function execution until after the specified delay has passed without new calls
+ * @param {Function} func - Function to debounce
+ * @param {number} delay - Delay in milliseconds (default: 400ms)
+ * @returns {Function} Debounced function
+ */
+const createDebounce = (func, delay = 400) => {
+  let timeoutId = null
+
+  return (...args) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+
+    timeoutId = setTimeout(() => {
+      func(...args)
+      timeoutId = null
+    }, delay)
+  }
+}
 
 const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const [loading, setLoading] = useState(true)
@@ -44,8 +75,39 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const [form] = Form.useForm()
   const [userSearchResults, setUserSearchResults] = useState([])
   const [selectedUserToAdd, setSelectedUserToAdd] = useState(null)
+  const [businessFunctionToAdd, setBusinessFunctionToAdd] = useState(null)
   const [addingUser, setAddingUser] = useState(false)
   const [notesContent, setNotesContent] = useState('')
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [showChangeManagerModal, setShowChangeManagerModal] = useState(false)
+  const [showSprintReport, setShowSprintReport] = useState(false)
+  const [managerSearchResults, setManagerSearchResults] = useState([])
+  const [selectedNewManager, setSelectedNewManager] = useState(null)
+  const [changingManager, setChangingManager] = useState(false)
+  const [isDebouncing, setIsDebouncing] = useState(false)
+  const [isManagerDebouncing, setIsManagerDebouncing] = useState(false)
+
+  // Edit Team Member modal state
+  const [showEditMemberModal, setShowEditMemberModal] = useState(false)
+  const [memberBeingEdited, setMemberBeingEdited] = useState(null)
+  const [editBusinessFunction, setEditBusinessFunction] = useState(null)
+  const [savingMemberEdit, setSavingMemberEdit] = useState(false)
+
+  // Refs for debounce timeouts
+  const userSearchTimeoutRef = useRef(null)
+  const managerSearchTimeoutRef = useRef(null)
+
+  // Cleanup debounce timeouts on component unmount
+  useEffect(() => {
+    return () => {
+      if (userSearchTimeoutRef.current) {
+        clearTimeout(userSearchTimeoutRef.current)
+      }
+      if (managerSearchTimeoutRef.current) {
+        clearTimeout(managerSearchTimeoutRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (projectId) {
@@ -56,12 +118,17 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const loadProjectData = async () => {
     setLoading(true)
     try {
+      console.log('[ProjectEdit] Loading project data for:', projectId)
+
       // Fetch project details
       const projectResponse = await getProjectDetails(projectId)
+      console.log('[ProjectEdit] Project response:', projectResponse)
+
       if (projectResponse.success && projectResponse.project) {
         setProjectData(projectResponse.project)
         const notesValue = projectResponse.project.notes || ''
         setNotesContent(notesValue)
+
         // Populate form with project data
         form.setFieldsValue({
           project_name: projectResponse.project.project_name || projectResponse.project.name,
@@ -70,27 +137,21 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
           expected_start_date: projectResponse.project.expected_start_date ? dayjs(projectResponse.project.expected_start_date) : null,
           expected_end_date: projectResponse.project.expected_end_date ? dayjs(projectResponse.project.expected_end_date) : null
         })
+        console.log('[ProjectEdit] Form populated successfully')
       } else {
         throw new Error(projectResponse.error || 'Failed to load project')
       }
 
       // Fetch project users
       const usersResponse = await getProjectUsers(projectId)
+      console.log('[ProjectEdit] Users response:', usersResponse)
+
       if (usersResponse.success) {
         setProjectManager(usersResponse.project_manager)
         setTeamMembers(usersResponse.team_members || [])
       }
-
-      // Fetch project tasks - temporarily disabled to debug
-      // try {
-      //   const tasksResponse = await getProjectTasks(projectId)
-      //   if (tasksResponse.success) {
-      //     setTasks(tasksResponse.tasks || [])
-      //   }
-      // } catch (err) {
-      //   console.error('Failed to load project tasks:', err)
-      // }
     } catch (error) {
+      console.error('[ProjectEdit] Error loading project:', error)
 
       await Swal.fire({
         icon: 'error',
@@ -107,6 +168,8 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const handleSaveProject = async (values) => {
     setSaving(true)
     try {
+      console.log('[ProjectEdit] Saving project with values:', values)
+
       const updateData = {
         project_name: values.project_name,
         status: values.status,
@@ -116,7 +179,9 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         notes: notesContent || ''
       }
 
+      console.log('[ProjectEdit] Update data:', updateData)
       const response = await updateProject(projectId, updateData)
+      console.log('[ProjectEdit] Update response:', response)
 
       if (response.success) {
         await Swal.fire({
@@ -140,6 +205,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         })
       }
     } catch (error) {
+      console.error('[ProjectEdit] Error saving project:', error)
 
       await Swal.fire({
         icon: 'error',
@@ -155,27 +221,70 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
     }
   }
 
-  const handleUserSearch = async (searchValue) => {
-    if (!searchValue) {
+  const handleUserSearch = useCallback((searchValue) => {
+    // Clear previous timeout
+    if (userSearchTimeoutRef.current) {
+      clearTimeout(userSearchTimeoutRef.current)
+    }
+
+    // Clear results if input is empty
+    if (!searchValue || searchValue.trim().length === 0) {
       setUserSearchResults([])
+      setIsDebouncing(false)
       return
     }
-    try {
-      const results = await searchUsers(searchValue)
-      if (results && results.length > 0) {
-        setUserSearchResults(results)
-      }
-    } catch (error) {
 
+    // Don't search if input is too short (less than 2 characters)
+    if (searchValue.trim().length < 2) {
+      setUserSearchResults([])
+      setIsDebouncing(true)
+      return
     }
-  }
+
+    // Show debouncing state
+    setIsDebouncing(true)
+    console.log('[ProjectEdit] Debouncing user search for:', searchValue)
+
+    // Set timeout for debounced search
+    userSearchTimeoutRef.current = setTimeout(async () => {
+      try {
+        console.log('[ProjectEdit] Executing debounced search for:', searchValue)
+        setSearchLoading(true)
+        const response = await searchUsers(searchValue)
+        console.log('[ProjectEdit] Search response:', response)
+
+        // Extract users from response - API returns {success: true, users: [...]}
+        const users = response.message?.users || response.users || []
+        console.log('[ProjectEdit] Extracted users:', users)
+
+        if (users && users.length > 0) {
+          setUserSearchResults(users)
+        } else {
+          setUserSearchResults([])
+        }
+      } catch (error) {
+        console.error('[ProjectEdit] Error searching users:', error)
+        setUserSearchResults([])
+      } finally {
+        setSearchLoading(false)
+        setIsDebouncing(false)
+      }
+    }, 400) // 400ms debounce delay
+  }, [])
 
   const handleAddUser = async () => {
     if (!selectedUserToAdd) return
 
     setAddingUser(true)
     try {
-      const response = await addProjectUser(projectId, selectedUserToAdd)
+      console.log('[ProjectEdit] Adding user:', selectedUserToAdd, 'role:', businessFunctionToAdd)
+      const response = await addProjectUser(
+        projectId,
+        selectedUserToAdd,
+        businessFunctionToAdd ? { business_function: businessFunctionToAdd } : null
+      )
+      console.log('[ProjectEdit] Add user response:', response)
+
       if (response.success) {
         await Swal.fire({
           icon: 'success',
@@ -186,6 +295,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
           timer: 3000
         })
         setSelectedUserToAdd(null)
+        setBusinessFunctionToAdd(null)
         setUserSearchResults([])
         loadProjectData()
       } else {
@@ -199,6 +309,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         })
       }
     } catch (error) {
+      console.error('[ProjectEdit] Error adding user:', error)
 
       await Swal.fire({
         icon: 'error',
@@ -210,6 +321,116 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
       })
     } finally {
       setAddingUser(false)
+    }
+  }
+
+  const handleManagerSearch = useCallback((searchValue) => {
+    // Clear previous timeout
+    if (managerSearchTimeoutRef.current) {
+      clearTimeout(managerSearchTimeoutRef.current)
+    }
+
+    // Clear results if input is empty
+    if (!searchValue || searchValue.trim().length === 0) {
+      setManagerSearchResults([])
+      setIsManagerDebouncing(false)
+      return
+    }
+
+    // Don't search if input is too short (less than 2 characters)
+    if (searchValue.trim().length < 2) {
+      setManagerSearchResults([])
+      setIsManagerDebouncing(true)
+      return
+    }
+
+    // Show debouncing state
+    setIsManagerDebouncing(true)
+    console.log('[ProjectEdit] Debouncing manager search for:', searchValue)
+
+    // Set timeout for debounced search
+    managerSearchTimeoutRef.current = setTimeout(async () => {
+      try {
+        console.log('[ProjectEdit] Executing debounced manager search for:', searchValue)
+        setSearchLoading(true)
+        const response = await searchUsers(searchValue)
+        console.log('[ProjectEdit] Manager search response:', response)
+
+        // Extract users from response
+        const users = response.message?.users || response.users || []
+        console.log('[ProjectEdit] Extracted manager candidates:', users)
+
+        if (users && users.length > 0) {
+          setManagerSearchResults(users)
+        } else {
+          setManagerSearchResults([])
+        }
+      } catch (error) {
+        console.error('[ProjectEdit] Error searching for manager:', error)
+        setManagerSearchResults([])
+      } finally {
+        setSearchLoading(false)
+        setIsManagerDebouncing(false)
+      }
+    }, 400) // 400ms debounce delay
+  }, [])
+
+  const handleChangeProjectManager = async () => {
+    if (!selectedNewManager) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Please select a user',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      })
+      return
+    }
+
+    setChangingManager(true)
+    try {
+      console.log('[ProjectEdit] Changing project manager to:', selectedNewManager)
+      const response = await updateProjectManager(projectId, selectedNewManager)
+      console.log('[ProjectEdit] Change manager response:', response)
+
+      if (response.success) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Project Manager updated successfully',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000
+        })
+        setShowChangeManagerModal(false)
+        setSelectedNewManager(null)
+        setManagerSearchResults([])
+        loadProjectData()
+      } else {
+        await Swal.fire({
+          icon: 'error',
+          title: response.error || 'Failed to update project manager',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000
+        })
+      }
+    } catch (error) {
+      console.error('[ProjectEdit] Error changing project manager:', error)
+
+      await Swal.fire({
+        icon: 'error',
+        title: 'Failed to update project manager',
+        text: error.message || 'An error occurred while updating the project manager',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      })
+    } finally {
+      setChangingManager(false)
     }
   }
 
@@ -227,7 +448,10 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
     if (!result.isConfirmed) return
 
     try {
+      console.log('[ProjectEdit] Removing user:', userId)
       const response = await removeProjectUser(projectId, userId)
+      console.log('[ProjectEdit] Remove user response:', response)
+
       if (response.success) {
         await Swal.fire({
           icon: 'success',
@@ -249,6 +473,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         })
       }
     } catch (error) {
+      console.error('[ProjectEdit] Error removing user:', error)
 
       await Swal.fire({
         icon: 'error',
@@ -286,8 +511,8 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         <Row justify="space-between" align="middle">
           <Col>
             <Space direction="vertical" size="small">
-              <Button 
-                type="text" 
+              <Button
+                type="text"
                 icon={<ArrowLeftOutlined />}
                 onClick={() => navigateToRoute('project-detail', projectId)}
               >
@@ -297,6 +522,15 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                 Edit Project: {projectData?.project_name || projectData?.name}
               </Title>
             </Space>
+          </Col>
+          <Col>
+            <Button
+              type="default"
+              icon={<BarChartOutlined />}
+              onClick={() => setShowSprintReport(true)}
+            >
+              Sprint Report
+            </Button>
           </Col>
         </Row>
       </Card>
@@ -314,7 +548,10 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
               <Form.Item
                 label="Project Name"
                 name="project_name"
-                rules={[{ required: true, message: 'Please enter project name' }]}
+                rules={[
+                  { required: true, message: 'Please enter project name' },
+                  { min: 3, message: 'Project name must be at least 3 characters' }
+                ]}
               >
                 <Input placeholder="Enter project name" />
               </Form.Item>
@@ -326,7 +563,16 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                     name="status"
                     rules={[{ required: true, message: 'Please select status' }]}
                   >
-                    <Input placeholder="Select status (Open, Completed, Cancelled)" />
+                    <Select
+                      placeholder="Select status"
+                      options={[
+                        { label: 'Open', value: 'Open' },
+                        { label: 'Working', value: 'Working' },
+                        { label: 'Completed', value: 'Completed' },
+                        { label: 'Cancelled', value: 'Cancelled' },
+                        { label: 'On Hold', value: 'On Hold' }
+                      ]}
+                    />
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
@@ -335,7 +581,15 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                     name="priority"
                     rules={[{ required: true, message: 'Please select priority' }]}
                   >
-                    <Input placeholder="Select priority (Low, Medium, High)" />
+                    <Select
+                      placeholder="Select priority"
+                      options={[
+                        { label: 'Low', value: 'Low' },
+                        { label: 'Medium', value: 'Medium' },
+                        { label: 'High', value: 'High' },
+                        { label: 'Urgent', value: 'Urgent' }
+                      ]}
+                    />
                   </Form.Item>
                 </Col>
               </Row>
@@ -346,7 +600,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                     label="Expected Start Date"
                     name="expected_start_date"
                   >
-                    <Input type="date" />
+                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
@@ -354,27 +608,23 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                     label="Expected End Date"
                     name="expected_end_date"
                   >
-                    <Input type="date" />
+                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
               </Row>
 
               <Form.Item label="Notes">
-                <div style={{ marginBottom: '16px' }}>
-                  <ReactQuill
-                    theme="snow"
-                    value={notesContent}
-                    onChange={setNotesContent}
-                    placeholder="Enter project notes..."
-                    style={{ height: '200px' }}
-                  />
-                </div>
+                <RichTextEditor
+                  value={notesContent}
+                  onChange={setNotesContent}
+                  placeholder="Enter project notes..."
+                />
               </Form.Item>
 
               <Row gutter={16} style={{ marginTop: '24px' }}>
                 <Col>
-                  <Button 
-                    type="primary" 
+                  <Button
+                    type="primary"
                     icon={<SaveOutlined />}
                     loading={saving}
                     onClick={() => form.submit()}
@@ -383,7 +633,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                   </Button>
                 </Col>
                 <Col>
-                  <Button 
+                  <Button
                     onClick={() => navigateToRoute('project-detail', projectId)}
                   >
                     Cancel
@@ -400,12 +650,22 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         <Col xs={24} lg={8}>
           <Card style={{ borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <Title level={4}>Team Members</Title>
-            
+
             {/* Project Manager */}
             {projectManager && (
               <>
                 <div style={{ marginBottom: '16px' }}>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>PROJECT MANAGER</Text>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>PROJECT MANAGER</Text>
+                    <Tooltip title="Change Project Manager">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => setShowChangeManagerModal(true)}
+                      />
+                    </Tooltip>
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
                     <Avatar src={projectManager.image} icon={<UserOutlined />} />
                     <div>
@@ -434,9 +694,9 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                           <Text type="secondary" style={{ fontSize: '11px' }}>{member.email}</Text>
                         </div>
                       </div>
-                      <Button 
-                        type="text" 
-                        danger 
+                      <Button
+                        type="text"
+                        danger
                         size="small"
                         icon={<DeleteOutlined />}
                         onClick={() => handleRemoveUser(member.name)}
@@ -456,11 +716,17 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
               <Text type="secondary" style={{ fontSize: '12px' }}>ADD USER</Text>
               <div style={{ marginTop: '12px' }}>
                 <Input
-                  placeholder="Search user by name or email..."
+                  placeholder="Search user by name or email (min 2 characters)..."
                   onChange={(e) => handleUserSearch(e.target.value)}
                   style={{ marginBottom: '8px' }}
                 />
-                {userSearchResults.length > 0 && (
+                {isDebouncing && (
+                  <div style={{ textAlign: 'center', padding: '12px', color: '#8c8c8c', fontSize: '12px' }}>
+                    <Spin size="small" style={{ marginRight: '8px' }} />
+                    Searching...
+                  </div>
+                )}
+                {!isDebouncing && userSearchResults.length > 0 && (
                   <div style={{
                     border: '1px solid #d9d9d9',
                     borderRadius: '4px',
@@ -487,6 +753,19 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                     ))}
                   </div>
                 )}
+                {!isDebouncing && userSearchResults.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '12px', color: '#8c8c8c', fontSize: '12px' }}>
+                    <Text type="secondary">Type to search for users...</Text>
+                  </div>
+                )}
+                <Select
+                  allowClear
+                  placeholder="Business function (optional)"
+                  value={businessFunctionToAdd}
+                  onChange={setBusinessFunctionToAdd}
+                  style={{ width: '100%', marginBottom: '8px' }}
+                  options={BUSINESS_FUNCTION_OPTIONS.map(opt => ({ label: opt, value: opt }))}
+                />
                 <Button
                   type="primary"
                   block
@@ -497,11 +776,120 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                 >
                   Add User
                 </Button>
+
               </div>
             </div>
           </Card>
         </Col>
       </Row>
+
+      {/* Change Project Manager Modal */}
+      <Modal
+        title="Change Project Manager"
+        open={showChangeManagerModal}
+        onCancel={() => {
+          setShowChangeManagerModal(false)
+          setSelectedNewManager(null)
+          setManagerSearchResults([])
+          if (managerSearchTimeoutRef.current) {
+            clearTimeout(managerSearchTimeoutRef.current)
+          }
+        }}
+        footer={[
+          <Button key="cancel" onClick={() => {
+            setShowChangeManagerModal(false)
+            setSelectedNewManager(null)
+            setManagerSearchResults([])
+            if (managerSearchTimeoutRef.current) {
+              clearTimeout(managerSearchTimeoutRef.current)
+            }
+          }}>
+            Cancel
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={changingManager}
+            disabled={!selectedNewManager}
+            onClick={handleChangeProjectManager}
+          >
+            Change Manager
+          </Button>
+        ]}
+      >
+        <div style={{ marginBottom: '16px' }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>SEARCH FOR NEW PROJECT MANAGER</Text>
+          <Input
+            placeholder="Search user by name or email (min 2 characters)..."
+            onChange={(e) => handleManagerSearch(e.target.value)}
+            style={{ marginTop: '8px', marginBottom: '8px' }}
+            disabled={searchLoading}
+          />
+          {isManagerDebouncing && (
+            <div style={{ textAlign: 'center', padding: '16px', color: '#8c8c8c' }}>
+              <Spin size="small" style={{ marginRight: '8px' }} />
+              <Text type="secondary">Searching...</Text>
+            </div>
+          )}
+          {!isManagerDebouncing && managerSearchResults.length > 0 && (
+            <div style={{
+              border: '1px solid #d9d9d9',
+              borderRadius: '4px',
+              maxHeight: '250px',
+              overflowY: 'auto'
+            }}>
+              {managerSearchResults.map(user => (
+                <div
+                  key={user.name}
+                  onClick={() => setSelectedNewManager(user.name)}
+                  style={{
+                    padding: '12px',
+                    cursor: 'pointer',
+                    backgroundColor: selectedNewManager === user.name ? '#e6f7ff' : 'transparent',
+                    borderBottom: '1px solid #f0f0f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedNewManager !== user.name) {
+                      e.currentTarget.style.backgroundColor = '#f5f5f5'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedNewManager !== user.name) {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }
+                  }}
+                >
+                  <Avatar src={user.user_image} icon={<UserOutlined />} size="small" />
+                  <div>
+                    <Text strong>{user.full_name}</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '12px' }}>{user.email}</Text>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {!isManagerDebouncing && managerSearchResults.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '16px', color: '#8c8c8c', fontSize: '12px' }}>
+              <Text type="secondary">Type to search for users...</Text>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Sprint Report Dialog */}
+      {showSprintReport && (
+        <SprintReportDialog
+          open={showSprintReport}
+          onClose={() => setShowSprintReport(false)}
+          projectId={projectId}
+          projectName={projectData?.project_name || projectData?.name}
+        />
+      )}
     </div>
   )
 }

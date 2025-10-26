@@ -158,7 +158,7 @@ def enhance_project_with_task_data(project):
                 "name",
                 "subject",
                 "status",
-                "task_type",
+                "type",
                 "progress",
                 "priority",
                 "exp_start_date",
@@ -166,12 +166,15 @@ def enhance_project_with_task_data(project):
                 "act_start_date",
                 "act_end_date",
                 "completed_on",
+                "is_milestone",
+                "owner",
+                "description",
                 "idx"
             ],
             filters={
                 "project": project_name
             },
-            order_by="task_type, idx",
+            order_by="type, idx",
             limit_page_length=None  # Get all tasks user has access to
         )
 
@@ -179,9 +182,9 @@ def enhance_project_with_task_data(project):
         enhanced_tasks = []
         for task in tasks:
             try:
-                # Get task type description if task_type exists
-                if task.get('task_type'):
-                    task_type_doc = frappe.get_doc("Task Type", task.get('task_type'))
+                # Get task type description if type exists
+                if task.get('type'):
+                    task_type_doc = frappe.get_doc("Task Type", task.get('type'))
                     task['task_type_description'] = task_type_doc.get('description', '')
                 else:
                     task['task_type_description'] = ''
@@ -240,6 +243,7 @@ def enhance_project_with_task_data(project):
         "actual_end_date": project.get('actual_end_date'),
         "cost_center": project.get('cost_center'),
         "department": project.get('department'),
+        "zenhub_id": project.get('zenhub_id'),
         "tasks": tasks or []
     }
 
@@ -265,7 +269,7 @@ def calculate_project_lifecycle_phases(tasks):
         for task in tasks:
             if not task:
                 continue
-            task_type = task.get('task_type') or 'Unassigned'
+            task_type = task.get('type') or 'Unassigned'
             if task_type not in task_types:
                 task_types[task_type] = []
             task_types[task_type].append(task)
@@ -524,7 +528,8 @@ def get_project_details(project_name):
             "actual_start_date": project.actual_start_date,
             "actual_end_date": project.actual_end_date,
             "cost_center": project.cost_center,
-            "department": project.department
+            "department": project.department,
+            "zenhub_id": project.get("custom_zenhub_workspace_id", "")
         }
 
         enhanced_project = enhance_project_with_task_data(project_data)
@@ -1028,6 +1033,8 @@ def get_project_users(project_name):
         dict: Project manager and team members
     """
     try:
+        frappe.logger().info(f"[get_project_users] Fetching users for project {project_name}")
+
         # Get the project document
         project = frappe.get_doc("Project", project_name)
 
@@ -1036,20 +1043,30 @@ def get_project_users(project_name):
 
         # Process project users
         if project.users:
+            frappe.logger().info(f"[get_project_users] Found {len(project.users)} users in project")
+
             for user_record in project.users:
                 user_data = {
                     "name": user_record.user,
                     "full_name": user_record.full_name,
                     "email": user_record.email,
                     "image": user_record.image,
-                    "business_function": user_record.get("custom_business_function", "")
+                    "business_function": user_record.get("custom_business_function", ""),
+                    "view_attachments": int(user_record.get("view_attachments") or 0)
                 }
+
+                frappe.logger().info(f"[get_project_users] User: {user_record.user}, full_name={user_record.full_name}, email={user_record.email}, image={user_record.image}, business_function={user_record.get('custom_business_function', '')}")
 
                 # Check if this is the project manager
                 if user_record.get("custom_business_function") == "Project Manager":
+                    frappe.logger().info(f"[get_project_users] Found project manager: {user_record.user}")
                     project_manager = user_data
                 else:
                     team_members.append(user_data)
+        else:
+            frappe.logger().info(f"[get_project_users] No users found in project")
+
+        frappe.logger().info(f"[get_project_users] Returning: project_manager={project_manager}, team_members count={len(team_members)}")
 
         return {
             "success": True,
@@ -1495,26 +1512,70 @@ def update_project(project_name, project_data):
 
 @frappe.whitelist()
 def add_project_user(project_name, user_id):
-    """Add a user to a project"""
+    """Add a user to a project with all required fields populated"""
     try:
+        frappe.logger().info(f"[add_project_user] Adding user {user_id} to project {project_name}")
+
         # Get project document
         project = frappe.get_doc("Project", project_name)
 
         # Check if user already exists in project
         existing_user = next((u for u in project.users if u.user == user_id), None)
         if existing_user:
+            frappe.logger().warning(f"[add_project_user] User {user_id} already exists in project {project_name}")
             return {
                 "success": False,
                 "error": "User is already assigned to this project"
             }
 
-        # Add user to project
+        # Get user document to fetch user details
+        user_doc = frappe.get_doc("User", user_id)
+        frappe.logger().info(f"[add_project_user] User details: email={user_doc.email}, full_name={user_doc.full_name}, image={user_doc.user_image}")
+
+        # Add user to project with all fields populated
+        # Note: Frappe will auto-populate email, image, full_name via fetch_from
+        # But we explicitly set them here for robustness
         project.append("users", {
-            "user": user_id
+            "user": user_id,
+            "email": user_doc.email,
+            "full_name": user_doc.full_name,
+            "image": user_doc.user_image
         })
+
+        # Optional: set additional fields if provided in payload
+        try:
+            user_fields_raw = frappe.form_dict.get("user_fields")
+            if user_fields_raw:
+                # Accept both JSON string and dict payloads
+                if isinstance(user_fields_raw, str):
+                    import json
+                    user_fields = json.loads(user_fields_raw)
+                else:
+                    user_fields = user_fields_raw
+
+                # Map common alias to custom field if needed
+                if "business_function" in user_fields and "custom_business_function" not in user_fields:
+                    user_fields["custom_business_function"] = user_fields["business_function"]
+
+                # Apply allowed fields to the new child row only if they exist on the doctype
+                new_row = project.users[-1]
+                for field, value in (user_fields or {}).items():
+                    try:
+                        df = new_row.meta.get_field(field) if hasattr(new_row, "meta") else None
+                        if df:
+                            # Coerce Check values to 0/1
+                            if df.fieldtype == "Check":
+                                value = 1 if (value in (1, True, "1", "true", "True", "on")) else 0
+                            new_row.set(field, value)
+                    except Exception:
+                        # Ignore invalid fields silently
+                        pass
+        except Exception as e:
+            frappe.logger().warning(f"[add_project_user] Ignored user_fields due to parse/set error: {e}")
 
         # Save project
         project.save()
+        frappe.logger().info(f"[add_project_user] User {user_id} added successfully to project {project_name}")
 
         return {
             "success": True,
@@ -1587,6 +1648,80 @@ def remove_project_user(project_name, user_id):
 
 
 @frappe.whitelist()
+def update_project_manager(project_name, user_id):
+    """Update the project manager for a project with all required fields populated"""
+    try:
+        frappe.logger().info(f"[update_project_manager] Updating project manager for {project_name} to {user_id}")
+
+        # Get project document
+        project = frappe.get_doc("Project", project_name)
+
+        # Check if user is already assigned to the project
+        user_exists = False
+        for user_record in project.users:
+            if user_record.user == user_id:
+                user_exists = True
+                break
+
+        # If user is not in the project, add them first
+        if not user_exists:
+            frappe.logger().info(f"[update_project_manager] User {user_id} not in project, adding them first")
+
+            # Get user document to fetch user details
+            user_doc = frappe.get_doc("User", user_id)
+            frappe.logger().info(f"[update_project_manager] User details: email={user_doc.email}, full_name={user_doc.full_name}, image={user_doc.user_image}")
+
+            # Add user with all fields populated
+            project.append("users", {
+                "user": user_id,
+                "email": user_doc.email,
+                "full_name": user_doc.full_name,
+                "image": user_doc.user_image
+            })
+
+        # Clear previous project manager designation
+        for user_record in project.users:
+            if user_record.get("custom_business_function") == "Project Manager":
+                frappe.logger().info(f"[update_project_manager] Clearing Project Manager designation from {user_record.user}")
+                user_record.custom_business_function = ""
+
+        # Set the new project manager
+
+
+        for user_record in project.users:
+            if user_record.user == user_id:
+                frappe.logger().info(f"[update_project_manager] Setting {user_id} as Project Manager")
+                user_record.custom_business_function = "Project Manager"
+                break
+
+        # Save project
+        project.save()
+        frappe.logger().info(f"[update_project_manager] Project manager updated successfully for {project_name}")
+
+        return {
+            "success": True,
+            "message": "Project manager updated successfully"
+        }
+    except frappe.PermissionError:
+        frappe.log_error(f"Permission denied for project {project_name}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "You don't have permission to modify this project"
+        }
+    except frappe.DoesNotExistError:
+        return {
+            "success": False,
+            "error": f"Project '{project_name}' does not exist"
+        }
+    except Exception as e:
+        frappe.log_error(f"Update Project Manager Error: {str(e)}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "An error occurred while updating the project manager"
+        }
+
+
+@frappe.whitelist()
 def get_project_metrics(project_name):
     """Get project task metrics"""
     try:
@@ -1654,9 +1789,9 @@ def update_task_status(task_name, status):
         task_name (str): Name of the task
         status (str): New status (e.g., 'Completed', 'Open', 'Working')
 
-    Returns:
-        dict: Success/error response
     """
+
+
     try:
         # Get task document
         task = frappe.get_doc("Task", task_name)
@@ -1749,6 +1884,77 @@ def get_project_tasks(project_name):
             "error": "An error occurred while fetching project tasks",
             "tasks": []
         }
+
+@frappe.whitelist()
+def update_project_user(project_name, user_id, user_fields=None):
+    """Update fields for an existing user in a project"""
+    try:
+        frappe.logger().info(f"[update_project_user] Updating user {user_id} in project {project_name}")
+        project = frappe.get_doc("Project", project_name)
+
+        # Find the target child row
+        target = next((u for u in project.users if u.user == user_id), None)
+        if not target:
+            return {
+                "success": False,
+                "error": "User is not assigned to this project"
+            }
+
+        # Parse user_fields from argument or form_dict
+        if isinstance(user_fields, str):
+            import json
+            user_fields = json.loads(user_fields)
+        elif user_fields is None:
+            raw = frappe.form_dict.get("user_fields")
+            if raw:
+                if isinstance(raw, str):
+                    import json
+                    user_fields = json.loads(raw)
+                else:
+                    user_fields = raw
+            else:
+                user_fields = {}
+
+        # Map common alias to custom field if needed
+        if "business_function" in user_fields and "custom_business_function" not in user_fields:
+            user_fields["custom_business_function"] = user_fields["business_function"]
+
+        # Apply only fields that exist on child doctype
+        for field, value in (user_fields or {}).items():
+            try:
+                df = target.meta.get_field(field) if hasattr(target, "meta") else None
+                if df:
+                    if df.fieldtype == "Check":
+                        value = 1 if (value in (1, True, "1", "true", "True", "on")) else 0
+                    target.set(field, value)
+            except Exception:
+                # Ignore invalid fields silently
+                pass
+
+        project.save()
+        frappe.logger().info(f"[update_project_user] Updated user {user_id} in project {project_name}")
+        return {
+            "success": True,
+            "message": "Project user updated successfully"
+        }
+    except frappe.PermissionError:
+        frappe.log_error(f"Permission denied for project {project_name}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "You don't have permission to modify this project"
+        }
+    except frappe.DoesNotExistError:
+        return {
+            "success": False,
+            "error": f"Project '{project_name}' does not exist"
+        }
+    except Exception as e:
+        frappe.log_error(f"Update Project User Error: {str(e)}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "An error occurred while updating the user"
+        }
+
 
 
 @frappe.whitelist()
@@ -2083,3 +2289,196 @@ def get_projects_data_for_metrics(filters=None):
     except Exception as e:
         frappe.log_error(f"Error fetching projects data: {str(e)}", "DevSecOps Dashboard")
         return []
+
+
+@frappe.whitelist()
+def create_project(project_name, project_type, expected_start_date, expected_end_date,
+                   team_members=None, notes=None, priority=None, department=None):
+    """
+    Create a new project with team members.
+
+    Args:
+        project_name (str): Name of the project (required, must be unique)
+        project_type (str): Type of project (required)
+        expected_start_date (str): Expected start date in YYYY-MM-DD format (required)
+        expected_end_date (str): Expected end date in YYYY-MM-DD format (required)
+        team_members (list): List of team member objects with 'user' field (optional)
+        notes (str): Project notes/description (optional)
+        priority (str): Project priority - Low, Medium, High (optional, defaults to Medium)
+        department (str): Department link (optional)
+
+    Returns:
+        dict: JSON response with success status and project details or error information
+
+    Example:
+        POST /api/method/frappe_devsecops_dashboard.api.dashboard.create_project
+        {
+            "project_name": "New Project",
+            "project_type": "Internal",
+            "expected_start_date": "2024-01-01",
+            "expected_end_date": "2024-12-31",
+            "team_members": [{"user": "user1@example.com"}, {"user": "user2@example.com"}],
+            "notes": "Project description",
+            "priority": "High"
+        }
+    """
+    try:
+        # Validate required fields
+        if not project_name or not project_name.strip():
+            return {
+                "success": False,
+                "error": "Project name is required",
+                "error_type": "validation_error"
+            }
+
+        if not project_type or not project_type.strip():
+            return {
+                "success": False,
+                "error": "Project type is required",
+                "error_type": "validation_error"
+            }
+
+        if not expected_start_date:
+            return {
+                "success": False,
+                "error": "Expected start date is required",
+                "error_type": "validation_error"
+            }
+
+        if not expected_end_date:
+            return {
+                "success": False,
+                "error": "Expected end date is required",
+                "error_type": "validation_error"
+            }
+
+        # Validate date range
+        try:
+            start_date = getdate(expected_start_date)
+            end_date = getdate(expected_end_date)
+
+            if end_date < start_date:
+                return {
+                    "success": False,
+                    "error": "Expected end date must be after expected start date",
+                    "error_type": "validation_error"
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Invalid date format: {str(e)}",
+                "error_type": "validation_error"
+            }
+
+        # Check if project name already exists
+        existing_project = frappe.db.exists("Project", project_name)
+        if existing_project:
+            return {
+                "success": False,
+                "error": f"Project '{project_name}' already exists",
+                "error_type": "validation_error"
+            }
+
+        # Check permission to create projects
+        if not frappe.has_permission("Project", ptype="create"):
+            return {
+                "success": False,
+                "error": "You don't have permission to create projects",
+                "error_type": "permission_error"
+            }
+
+        # Create new project document
+        project = frappe.new_doc("Project")
+        project.project_name = project_name.strip()
+        project.project_type = project_type
+        project.expected_start_date = start_date
+        project.expected_end_date = end_date
+        project.status = "Open"
+        project.is_active = "Yes"
+
+        # Set optional fields
+        if priority:
+            project.priority = priority
+        else:
+            project.priority = "Medium"
+
+        if department:
+            project.department = department
+
+        if notes:
+            project.notes = notes
+
+        # Add team members if provided
+        if team_members and isinstance(team_members, list):
+            for member in team_members:
+                if isinstance(member, dict) and member.get("user"):
+                    user_id = member.get("user")
+
+                    # Validate user exists
+                    if not frappe.db.exists("User", user_id):
+                        frappe.log_error(
+                            f"User '{user_id}' does not exist",
+                            "Create Project - Invalid User"
+                        )
+                        continue
+
+                    # Get user details
+                    try:
+                        user_doc = frappe.get_doc("User", user_id)
+                        project.append("users", {
+                            "user": user_id,
+                            "email": user_doc.email,
+                            "full_name": user_doc.full_name,
+                            "image": user_doc.user_image
+                        })
+                    except Exception as e:
+                        frappe.log_error(
+                            f"Error adding user {user_id}: {str(e)}",
+                            "Create Project - Add User Error"
+                        )
+                        continue
+
+        # Save the project
+        project.insert(ignore_permissions=False)
+        frappe.db.commit()
+
+        frappe.logger().info(f"Project '{project_name}' created successfully")
+
+        return {
+            "success": True,
+            "message": "Project created successfully",
+            "project_id": project.name,
+            "project_name": project.project_name,
+            "project": {
+                "name": project.name,
+                "project_name": project.project_name,
+                "project_type": project.project_type,
+                "status": project.status,
+                "expected_start_date": str(project.expected_start_date),
+                "expected_end_date": str(project.expected_end_date),
+                "priority": project.priority,
+                "team_members_count": len(project.users)
+            }
+        }
+
+    except frappe.PermissionError as e:
+        frappe.log_error(f"Permission denied: {str(e)}", "Create Project - Permission Error")
+        return {
+            "success": False,
+            "error": "You don't have permission to create projects",
+            "error_type": "permission_error"
+        }
+    except frappe.ValidationError as e:
+        frappe.log_error(f"Validation error: {str(e)}", "Create Project - Validation Error")
+        return {
+            "success": False,
+            "error": str(e),
+            "error_type": "validation_error"
+        }
+    except Exception as e:
+        frappe.log_error(f"Unexpected error creating project: {str(e)}", "Create Project - Error")
+        return {
+            "success": False,
+            "error": f"An unexpected error occurred: {str(e)}",
+            "error_type": "api_error"
+        }

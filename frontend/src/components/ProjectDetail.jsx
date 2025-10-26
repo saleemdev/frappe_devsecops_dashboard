@@ -20,7 +20,9 @@ import {
   Select,
   DatePicker,
   Tooltip,
-  Checkbox
+  Checkbox,
+  message,
+  Steps
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -46,6 +48,7 @@ import {
   searchUsers,
   getProjectMetrics
 } from '../utils/projectAttachmentsApi'
+import SprintReportDialog from './SprintReportDialog'
 
 const { Title, Text } = Typography
 
@@ -63,6 +66,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [form] = Form.useForm()
   const [taskTypeOptions, setTaskTypeOptions] = useState([])
   const [userSearchResults, setUserSearchResults] = useState([])
+  const [showSprintReport, setShowSprintReport] = useState(false)
 
   // Fetch task types when modal opens
   useEffect(() => {
@@ -143,11 +147,16 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
     try {
       // Fetch project details
       const projectResponse = await getProjectDetails(projectId)
+      console.log('[ProjectDetail] Project response:', projectResponse)
+
       if (projectResponse.success && projectResponse.project) {
+        console.log('[ProjectDetail] Setting project data with tasks:', projectResponse.project.tasks?.length || 0)
         setProjectData(projectResponse.project)
       } else {
-        setError(projectResponse.error || 'Failed to load project details')
-        message.error(projectResponse.error || 'Failed to load project details')
+        const errorMsg = projectResponse.error || 'Failed to load project details'
+        console.error('[ProjectDetail] Project fetch failed:', errorMsg)
+        setError(errorMsg)
+        message.error(errorMsg)
       }
 
       // Fetch project users
@@ -158,7 +167,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           setTeamMembers(usersResponse.team_members || [])
         }
       } catch (err) {
-
+        console.error('[ProjectDetail] Error fetching users:', err)
       }
 
       // Fetch recent activity
@@ -168,7 +177,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           setRecentActivity(activityResponse.recent_activity || [])
         }
       } catch (err) {
-
+        console.error('[ProjectDetail] Error fetching activity:', err)
       }
 
       // Fetch milestones
@@ -178,7 +187,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           setMilestones(milestonesResponse.milestones || [])
         }
       } catch (err) {
-
+        console.error('[ProjectDetail] Error fetching milestones:', err)
       }
 
       // Fetch project metrics
@@ -188,10 +197,10 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           setMetrics(metricsResponse.metrics)
         }
       } catch (err) {
-
+        console.error('[ProjectDetail] Error fetching metrics:', err)
       }
     } catch (error) {
-
+      console.error('[ProjectDetail] Unexpected error loading project data:', error)
       setError('Failed to load project data')
       message.error('Failed to load project data')
     } finally {
@@ -215,6 +224,74 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       case 'medium': return 'orange'
       case 'low': return 'green'
       default: return 'blue'
+    }
+  }
+
+  // Helper function to determine milestone status for Steps component
+  const getMilestoneStepStatus = (milestone) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const expEndDate = milestone.exp_end_date ? new Date(milestone.exp_end_date) : null
+    if (expEndDate) {
+      expEndDate.setHours(0, 0, 0, 0)
+    }
+
+    const status = milestone.status?.toLowerCase() || 'open'
+
+    // Completed status takes priority
+    if (status === 'completed') {
+      return 'finish'
+    }
+
+    // Check if overdue (exp_end_date < today AND not completed)
+    if (expEndDate && expEndDate < today && status !== 'completed') {
+      return 'error'
+    }
+
+    // Cancelled status
+    if (status === 'cancelled') {
+      return 'error'
+    }
+
+    // In progress status
+    if (status === 'working' || status === 'in progress' || status === 'in-progress') {
+      return 'process'
+    }
+
+    // Default to wait (pending/open)
+    return 'wait'
+  }
+
+  // Helper function to get milestone icon based on status
+  const getMilestoneIcon = (milestone) => {
+    const status = getMilestoneStepStatus(milestone)
+
+    switch (status) {
+      case 'finish':
+        return <CheckCircleOutlined />
+      case 'process':
+        return <ClockCircleOutlined />
+      case 'error':
+        return <ExclamationCircleOutlined />
+      case 'wait':
+      default:
+        return <CalendarOutlined />
+    }
+  }
+
+  // Helper function to format date for display
+  const formatMilestoneDate = (dateString) => {
+    if (!dateString) return 'N/A'
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    } catch {
+      return 'Invalid date'
     }
   }
 
@@ -471,18 +548,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             <Button
               type="default"
               icon={<BarChartOutlined />}
-              onClick={() => {
-                // Sprint Report functionality to be implemented
-                Swal.fire({
-                  icon: 'info',
-                  title: 'Sprint Report',
-                  text: 'Sprint Report feature coming soon',
-                  toast: true,
-                  position: 'top-end',
-                  showConfirmButton: false,
-                  timer: 3000
-                })
-              }}
+              onClick={() => setShowSprintReport(true)}
             >
               Sprint Report
             </Button>
@@ -759,7 +825,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             )}
           </Card>
 
-          {/* Milestones Timeline */}
+          {/* Milestones Steps */}
           <Card
             title="Project Milestones"
             style={{
@@ -769,41 +835,60 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             }}
           >
             {milestones && milestones.length > 0 ? (
-              <Timeline>
-                {milestones.map((milestone) => (
-                  <Timeline.Item
-                    key={milestone.name}
-                    dot={
-                      milestone.status === 'Completed' ? (
-                        <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                      ) : milestone.status === 'In Progress' ? (
-                        <ClockCircleOutlined style={{ color: '#1890ff' }} />
-                      ) : (
-                        <ExclamationCircleOutlined style={{ color: '#faad14' }} />
-                      )
-                    }
-                    color={
-                      milestone.status === 'Completed' ? 'green' :
-                      milestone.status === 'In Progress' ? 'blue' : 'gray'
-                    }
-                  >
-                    <div>
-                      <Text strong>{milestone.subject}</Text>
-                      <br />
-                      <Text type="secondary">{milestone.exp_end_date || 'N/A'}</Text>
-                      <br />
-                      <Tag color={getStatusColor(milestone.status)}>{milestone.status}</Tag>
-                      <Progress
-                        percent={milestone.progress || 0}
-                        size="small"
-                        style={{ marginTop: '8px', width: '200px' }}
-                      />
+              <Steps
+                direction="vertical"
+                current={-1}
+                items={milestones.map((milestone, index) => ({
+                  title: (
+                    <div style={{ marginBottom: '8px' }}>
+                      <Text strong style={{ fontSize: '14px' }}>
+                        {milestone.subject}
+                      </Text>
                     </div>
-                  </Timeline.Item>
-                ))}
-              </Timeline>
+                  ),
+                  status: getMilestoneStepStatus(milestone),
+                  icon: getMilestoneIcon(milestone),
+                  description: (
+                    <div style={{ paddingTop: '4px', paddingBottom: '12px' }}>
+                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                        <div>
+                          <Tag color={getStatusColor(milestone.status)}>
+                            {milestone.status || 'Open'}
+                          </Tag>
+                          <Text type="secondary" style={{ marginLeft: '8px', fontSize: '12px' }}>
+                            Expected: {formatMilestoneDate(milestone.exp_end_date)}
+                          </Text>
+                        </div>
+                        {milestone.completed_on && (
+                          <div>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              Completed: {formatMilestoneDate(milestone.completed_on)}
+                            </Text>
+                          </div>
+                        )}
+                        {milestone.progress > 0 && (
+                          <div>
+                            <Progress
+                              percent={milestone.progress || 0}
+                              size="small"
+                              style={{ width: '200px' }}
+                            />
+                          </div>
+                        )}
+                      </Space>
+                    </div>
+                  )
+                }))}
+              />
             ) : (
-              <Empty description="No milestones found" />
+              <Empty
+                description="No milestones defined for this project"
+                style={{ marginTop: '24px', marginBottom: '24px' }}
+              >
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  Mark tasks as milestones to track key project deliverables
+                </Text>
+              </Empty>
             )}
           </Card>
         </Col>
@@ -1047,6 +1132,16 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Sprint Report Dialog */}
+      {showSprintReport && (
+        <SprintReportDialog
+          open={showSprintReport}
+          onClose={() => setShowSprintReport(false)}
+          projectId={projectId}
+          projectName={projectData?.project_name || projectData?.name}
+        />
+      )}
     </div>
   )
 }

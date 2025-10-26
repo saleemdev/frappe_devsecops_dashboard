@@ -21,7 +21,8 @@ const API_CONFIG = {
     projects: {
       list: '/api/resource/Project',
       detail: '/api/resource/Project',
-      tasks: '/api/resource/Task'
+      tasks: '/api/resource/Task',
+      create: '/api/method/frappe_devsecops_dashboard.api.dashboard.create_project'
     },
 
     // Applications
@@ -64,6 +65,7 @@ const API_CONFIG = {
     	// Zenhub (sprints, issues)
     	zenhub: {
     	  sprintData: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_sprint_data',
+    	  stakeholderReport: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_stakeholder_sprint_report',
     	  workspaceIssues: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_workspace_issues'
     	},
 

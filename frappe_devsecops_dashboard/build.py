@@ -2,13 +2,13 @@ import os
 import subprocess
 import shutil
 import re
-from pathlib import Path
+import sys
 import frappe
 
 def before_build():
     """Build frontend assets before Frappe build process"""
     try:
-        build_frontend_assets()
+        call_frontend_build_script()
     except Exception as e:
         frappe.log_error(f"Frontend build failed: {str(e)}", "DevSecOps Dashboard Build Error")
         print(f"Warning: Frontend build failed: {str(e)}")
@@ -21,21 +21,71 @@ def after_build():
         frappe.log_error(f"Build verification failed: {str(e)}", "DevSecOps Dashboard Build Verification")
         print(f"Warning: Build verification failed: {str(e)}")
 
+def call_frontend_build_script():
+    """Call the frontend/build.py script to build and update assets"""
+    # Get the app path - frappe.get_app_path returns the app directory
+    # which is the frappe_devsecops_dashboard subdirectory, so we need to go up one level
+    try:
+        app_path = frappe.get_app_path("frappe_devsecops_dashboard")
+        # Go up one level to get the actual app root
+        app_path = os.path.dirname(app_path)
+    except:
+        # Fallback: use the parent directory of this file
+        app_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    build_script = os.path.join(app_path, "frontend", "build.py")
+
+    if not os.path.exists(build_script):
+        print(f"Frontend build script not found at {build_script}")
+        print(f"App path: {app_path}")
+        print(f"Available files: {os.listdir(app_path) if os.path.exists(app_path) else 'N/A'}")
+        return
+
+    print("=" * 60)
+    print("Executing frontend build script...")
+    print("=" * 60)
+
+    try:
+        # Execute the build.py script using the current Python interpreter
+        result = subprocess.run(
+            [sys.executable, build_script],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+
+        # Print the output
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr)
+
+        # Check if build was successful
+        if result.returncode != 0:
+            raise Exception(f"Frontend build script failed with return code {result.returncode}")
+
+        print("=" * 60)
+        print("Frontend build script completed successfully")
+        print("=" * 60)
+
+    except Exception as e:
+        raise Exception(f"Failed to execute frontend build script: {e}")
+
 def build_frontend_assets():
-    """Build the React frontend using Vite"""
+    """Build the React frontend using Vite (legacy method)"""
     app_path = frappe.get_app_path("frappe_devsecops_dashboard")
     frontend_path = os.path.join(app_path, "frontend")
-    
+
     if not os.path.exists(frontend_path):
         print("Frontend directory not found, skipping frontend build")
         return
-    
+
     print("Building DevSecOps Dashboard frontend assets...")
-    
+
     # Change to frontend directory
     original_cwd = os.getcwd()
     os.chdir(frontend_path)
-    
+
     try:
         # Check if node_modules exists
         if not os.path.exists("node_modules"):
@@ -45,12 +95,12 @@ def build_frontend_assets():
         # Build the frontend using npm run build
         print("Building frontend with npm run build...")
         subprocess.run(["npm", "run", "build"], check=True)
-        
+
         # Copy the built index.html to www directory
         copy_html_to_www()
-        
+
         print("Frontend build completed successfully")
-        
+
     except subprocess.CalledProcessError as e:
         raise Exception(f"Frontend build command failed: {e}")
     except Exception as e:
@@ -132,14 +182,39 @@ def verify_build_assets():
 def clean_build_artifacts():
     """Clean up build artifacts"""
     app_path = frappe.get_app_path("frappe_devsecops_dashboard")
-    
+
     # Clean up any temporary build files
     temp_dirs = [
         os.path.join(app_path, "frontend", "dist"),
         os.path.join(app_path, "frontend", ".vite"),
     ]
-    
+
     for temp_dir in temp_dirs:
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
             print(f"Cleaned up {temp_dir}")
+
+def run_frontend_build():
+    """
+    Run frontend build after migration.
+    This ensures the frontend assets are always up-to-date after database migrations.
+    Errors are logged but don't fail the migration.
+
+    This function is called as a Frappe after_migrate hook and directly invokes
+    the existing call_frontend_build_script() function.
+    """
+    try:
+        frappe.logger().info("Starting DevSecOps Dashboard frontend build after migration...")
+
+        # Call the existing frontend build script function
+        # This function handles all the build logic and error reporting
+        call_frontend_build_script()
+
+        frappe.logger().info("DevSecOps Dashboard frontend build completed successfully after migration")
+
+    except Exception as e:
+        # Log the error but don't fail the migration
+        frappe.log_error(
+            f"Frontend build failed after migration: {str(e)}",
+            "DevSecOps Dashboard Post-Migration Build Error"
+        )

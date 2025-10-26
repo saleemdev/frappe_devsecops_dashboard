@@ -16,6 +16,8 @@ import {
   MenuOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
+import Projects from './components/Projects'
+import ProjectDetail from './components/ProjectDetail'
 import UnauthorizedPage from './components/UnauthorizedPage'
 
 import ChangeRequests from './components/ChangeRequests'
@@ -24,6 +26,7 @@ import ChangeRequestsDashboard from './components/ChangeRequestsDashboard'
 import ProjectApps from './components/ProjectApps'
 import ProjectAppDetail from './components/ProjectAppDetail'
 import ProjectEdit from './components/ProjectEdit'
+import ProjectCreateForm from './components/ProjectCreateForm'
 import DevOpsConfig from './components/DevOpsConfig'
 import MonitoringDashboards from './components/MonitoringDashboards'
 import Incidents from './components/Incidents'
@@ -300,6 +303,10 @@ function AppContent({
   // Function to render current page based on route and state
   const renderCurrentPage = () => {
     // Handle detail views first with null safety
+    if (showProjectDetail === true && selectedProjectId) {
+      return <ProjectDetail projectId={selectedProjectId} navigateToRoute={navigateToRoute} />
+    }
+
     if (showAppDetail === true && selectedAppId) {
       return <ProjectAppDetail appId={selectedAppId} />
     }
@@ -316,11 +323,10 @@ function AppContent({
     switch (currentRoute) {
       case 'projects':
         return (
-          <Dashboard
+          <Projects
             navigateToRoute={navigateToRoute}
             showProjectDetail={showProjectDetail}
             selectedProjectId={selectedProjectId}
-            viewMode="projects"
           />
         )
       case 'team-utilization':
@@ -366,6 +372,13 @@ function AppContent({
         return (
           <ProjectEdit
             projectId={selectedProjectId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
+
+      case 'project-create':
+        return (
+          <ProjectCreateForm
             navigateToRoute={navigateToRoute}
           />
         )

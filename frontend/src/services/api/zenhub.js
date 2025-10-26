@@ -55,6 +55,44 @@ class ZenhubService {
       })
     })
   }
+
+  /**
+   * Get stakeholder-focused sprint report for a project
+   * Simplified metrics optimized for executive-level reporting
+   * @param {string} projectId - The Frappe Project ID
+   * @param {boolean} forceRefresh - Force refresh from API, bypass cache
+   */
+  async getStakeholderSprintReport(projectId, forceRefresh = false) {
+    if (!projectId) {
+      throw { status: 400, message: 'projectId is required', data: null }
+    }
+
+    if (isMockEnabled('zenhub')) {
+      await simulateDelay(600)
+      return mockZenhubSprintReport(projectId)
+    }
+
+    const client = await this.initClient()
+
+    // If force refresh, clear the cache first
+    if (forceRefresh) {
+      const { clearCache } = await import('./config.js')
+      clearCache(`zenhub-stakeholder-sprint-${projectId}`)
+    }
+
+    return withRetry(async () => {
+      return withCache(`zenhub-stakeholder-sprint-${projectId}`, async () => {
+        const response = await client.get(API_CONFIG.endpoints.zenhub.stakeholderReport, {
+          params: {
+            project_id: projectId,
+            force_refresh: forceRefresh ? 1 : 0
+          }
+        })
+        // Response already normalized by axios interceptor (response.data.message -> response.data)
+        return response.data
+      })
+    })
+  }
 }
 
 export default new ZenhubService()

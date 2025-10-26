@@ -56,6 +56,7 @@ const useNavigationStore = create(
        */
       navigateToRoute: (route, projectId = null, appId = null) => {
         const state = get()
+        console.log('[Navigation] navigateToRoute called with:', { route, projectId, appId })
 
         switch (route) {
           case 'dashboard':
@@ -263,6 +264,23 @@ const useNavigationStore = create(
             }
             break
 
+          case 'project-create':
+            console.log('[Navigation] Setting route to project-create')
+            set({
+              currentRoute: 'project-create',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            console.log('[Navigation] Hash set to project/create')
+            window.location.hash = 'project/create'
+            break
+
           case 'app-detail':
             if (appId) {
               set({
@@ -327,8 +345,23 @@ const useNavigationStore = create(
        */
       handleHashChange: () => {
         const hash = window.location.hash.slice(1) // Remove the '#'
+        console.log('[Navigation] handleHashChange:', hash)
 
-        if (hash === 'projects') {
+        // Check most specific routes first
+        if (hash === 'project/create') {
+          // Handle project creation route
+          set({
+            currentRoute: 'project-create',
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+        } else if (hash === 'projects') {
           get().navigateToRoute('projects')
         } else if (hash === 'team-utilization') {
           get().navigateToRoute('team-utilization')
@@ -376,6 +409,7 @@ const useNavigationStore = create(
         } else if (hash === 'system-test') {
           get().navigateToRoute('system-test')
 
+        // General patterns after specific ones
         } else if (hash.startsWith('project/')) {
           const parts = hash.split('/')
           const projectId = parts[1]

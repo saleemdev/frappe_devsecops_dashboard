@@ -18,6 +18,67 @@ const colorByPercent = (pct) => {
 
 class ProjectsService {
   /**
+   * Get all projects with their associated tasks
+   * Uses the backend API endpoint that returns projects with task data
+   */
+  async getProjects() {
+    if (isMockEnabled('projects')) {
+      const { simulateDelay, mockProjects } = await loadMock()
+      await simulateDelay(300)
+      return {
+        success: true,
+        data: mockProjects
+      }
+    }
+
+    try {
+      // Use the backend API that returns projects with tasks
+      // This endpoint calls get_projects_with_tasks() which enhances projects with task data
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.dashboard.get_dashboard_data', {
+        method: 'GET',
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || '',
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // DEBUG: Log raw response
+      console.log('🔍 Projects Service - Raw API Response:', data)
+
+      // The backend returns { message: { success, projects, metrics, ... } }
+      if (data.message && data.message.success && data.message.projects) {
+        console.log('✅ Projects Service - Extracted projects:', data.message.projects)
+        console.log('📊 Projects Service - First project structure:', data.message.projects[0])
+
+        return {
+          success: true,
+          data: data.message.projects || []
+        }
+      }
+
+      console.error('❌ Projects Service - Invalid response format:', data)
+      return {
+        success: false,
+        error: 'Invalid response format',
+        data: []
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+      return {
+        success: false,
+        error: error.message,
+        data: []
+      }
+    }
+  }
+
+  /**
    * Returns grouped summary by Task Type for a project
    * Each item: { taskType, name, custom_priority, total, completed, completionRate, percent, color }
    */
@@ -121,6 +182,157 @@ class ProjectsService {
         success: false,
         error: error.message,
         data: []
+      }
+    }
+  }
+
+  /**
+   * Create a new project with team members
+   * @param {Object} projectData - Project data object
+   * @param {string} projectData.project_name - Project name (required)
+   * @param {string} projectData.project_type - Project type (required)
+   * @param {string} projectData.expected_start_date - Start date in YYYY-MM-DD format (required)
+   * @param {string} projectData.expected_end_date - End date in YYYY-MM-DD format (required)
+   * @param {Array} projectData.team_members - Array of team member objects with 'user' field (optional)
+   * @param {string} projectData.notes - Project notes/description (optional)
+   * @param {string} projectData.priority - Project priority (optional)
+   * @param {string} projectData.department - Department link (optional)
+   * @returns {Promise<Object>} Response with success status and project details
+   */
+  async createProject(projectData) {
+    if (isMockEnabled('projects')) {
+      const { simulateDelay } = await loadMock()
+      await simulateDelay(500)
+
+      // Mock successful project creation
+      return {
+        success: true,
+        message: 'Project created successfully',
+        project_id: `PROJ-${Date.now()}`,
+        project_name: projectData.project_name,
+        project: {
+          name: `PROJ-${Date.now()}`,
+          project_name: projectData.project_name,
+          project_type: projectData.project_type,
+          status: 'Open',
+          expected_start_date: projectData.expected_start_date,
+          expected_end_date: projectData.expected_end_date,
+          priority: projectData.priority || 'Medium',
+          team_members_count: (projectData.team_members || []).length
+        }
+      }
+    }
+
+    try {
+      // Validate required fields
+      if (!projectData.project_name || !projectData.project_name.trim()) {
+        return {
+          status: 400,
+          message: 'Project name is required',
+          data: null
+        }
+      }
+
+      if (!projectData.project_type) {
+        return {
+          status: 400,
+          message: 'Project type is required',
+          data: null
+        }
+      }
+
+      if (!projectData.expected_start_date) {
+        return {
+          status: 400,
+          message: 'Expected start date is required',
+          data: null
+        }
+      }
+
+      if (!projectData.expected_end_date) {
+        return {
+          status: 400,
+          message: 'Expected end date is required',
+          data: null
+        }
+      }
+
+      // Prepare request body
+      const requestBody = {
+        project_name: projectData.project_name.trim(),
+        project_type: projectData.project_type,
+        expected_start_date: projectData.expected_start_date,
+        expected_end_date: projectData.expected_end_date
+      }
+
+      // Add optional fields
+      if (projectData.team_members && Array.isArray(projectData.team_members)) {
+        requestBody.team_members = projectData.team_members
+      }
+
+      if (projectData.notes) {
+        requestBody.notes = projectData.notes
+      }
+
+      if (projectData.priority) {
+        requestBody.priority = projectData.priority
+      }
+
+      if (projectData.department) {
+        requestBody.department = projectData.department
+      }
+
+      // Make API call
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.dashboard.create_project', {
+        method: 'POST',
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || '',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody),
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        return {
+          status: response.status,
+          message: errorData.message || `API error: ${response.status}`,
+          data: null
+        }
+      }
+
+      const data = await response.json()
+
+      // Handle Frappe response format
+      if (data.message) {
+        const result = data.message
+        if (result.success) {
+          return {
+            status: 200,
+            message: result.message || 'Project created successfully',
+            data: result
+          }
+        } else {
+          return {
+            status: 400,
+            message: result.error || 'Failed to create project',
+            data: null
+          }
+        }
+      }
+
+      return {
+        status: 200,
+        message: 'Project created successfully',
+        data: data
+      }
+    } catch (error) {
+      console.error('Error creating project:', error)
+      return {
+        status: 500,
+        message: error.message || 'An error occurred while creating the project',
+        data: null
       }
     }
   }

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Modal, Typography, Space, Tag, Row, Col, Card, Statistic, Progress, Descriptions, Table, List, Alert, Empty, Spin, Button, Badge, Avatar, Tooltip, Segmented, message, Input, Tabs } from 'antd'
-import { DashboardOutlined, CheckCircleOutlined, ExclamationCircleOutlined, PauseCircleOutlined, ReloadOutlined, SyncOutlined, EyeOutlined, StopOutlined, UserOutlined, WarningOutlined, DownloadOutlined } from '@ant-design/icons'
+import { DashboardOutlined, CheckCircleOutlined, ExclamationCircleOutlined, PauseCircleOutlined, ReloadOutlined, SyncOutlined, EyeOutlined, StopOutlined, UserOutlined, WarningOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons'
 import api from '../services/api'
+import StakeholderSprintReport from './StakeholderSprintReport'
 
 const { Text, Title } = Typography
 
@@ -95,6 +96,7 @@ function SprintReportDialog({ open, onClose, projectId, projectName }) {
   const pipelineNames = useMemo(() => (pipelinesFromApi || []).map(p => p?.name).filter(Boolean), [pipelinesFromApi])
 
   const [viewMode, setViewMode] = useState('table') // 'table' | 'kanban'
+  const [reportMode, setReportMode] = useState('detailed') // 'detailed' | 'stakeholder'
   const [statusFilter, setStatusFilter] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -267,16 +269,37 @@ function SprintReportDialog({ open, onClose, projectId, projectName }) {
         <Empty description="No active or closed sprints found for this project" />
       ) : (
         <Space direction="vertical" size={20} style={{ width: '100%' }}>
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Report Mode Selector */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <Title level={4} style={{ margin: 0 }}>{data.workspace_name}</Title>
-              <Text type="secondary">Workspace ID: {data.workspace_id}</Text>
-            </div>
-            <div>
-              {statusTag(sprint?.state)}
+              <Text type="secondary">Report View:</Text>
+              <Segmented
+                options={[
+                  { label: 'Stakeholder View', value: 'stakeholder', icon: <BarChartOutlined /> },
+                  { label: 'Detailed View', value: 'detailed' }
+                ]}
+                value={reportMode}
+                onChange={setReportMode}
+                style={{ marginLeft: 8 }}
+              />
             </div>
           </div>
+
+          {/* Stakeholder View */}
+          {reportMode === 'stakeholder' ? (
+            <StakeholderSprintReport projectId={projectId} projectName={projectName} onClose={onClose} />
+          ) : (
+            <>
+              {/* Detailed View Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <Title level={4} style={{ margin: 0 }}>{data.workspace_name}</Title>
+                  <Text type="secondary">Workspace ID: {data.workspace_id}</Text>
+                </div>
+                <div>
+                  {statusTag(sprint?.state)}
+                </div>
+              </div>
 
           {/* Sprint name and dates */}
           <Descriptions bordered column={3} size="small">
@@ -518,25 +541,27 @@ function SprintReportDialog({ open, onClose, projectId, projectName }) {
             </Card>
           )}
 
-          {/* Blockers */}
-          {(sprint?.blockers || []).length > 0 && (
-            <Card title="Blockers">
-              <List
-                dataSource={sprint.blockers}
-                renderItem={(b) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      title={<Text strong>{b.title || b.issue_id}</Text>}
-                      description={(
-                        <div>
-                          <Text type="secondary">Blocked by: {(b.blocked_by || []).join(', ') || 'N/A'}</Text>
-                        </div>
-                      )}
-                    />
-                  </List.Item>
-                )}
-              />
-            </Card>
+              {/* Blockers */}
+              {(sprint?.blockers || []).length > 0 && (
+                <Card title="Blockers">
+                  <List
+                    dataSource={sprint.blockers}
+                    renderItem={(b) => (
+                      <List.Item>
+                        <List.Item.Meta
+                          title={<Text strong>{b.title || b.issue_id}</Text>}
+                          description={(
+                            <div>
+                              <Text type="secondary">Blocked by: {(b.blocked_by || []).join(', ') || 'N/A'}</Text>
+                            </div>
+                          )}
+                        />
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              )}
+            </>
           )}
         </Space>
       )}

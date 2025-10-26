@@ -139,6 +139,7 @@ const useAuthStore = create(
           const mockPermissions = [
             'read:dashboard',
             'read:projects',
+            'write:projects',
             'read:applications',
             'read:incidents',
             'write:incidents',

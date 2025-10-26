@@ -563,6 +563,62 @@ def get_workspace_issues_query_edges() -> str:
     }
     """
 
+
+def get_stakeholder_sprint_query() -> str:
+    """
+    Optimized GraphQL query for stakeholder-focused sprint reporting.
+
+    Fetches only essential data needed for executive-level reporting:
+    - Sprint metadata (name, dates, state)
+    - Issue counts and status distribution
+    - Epic information for unique epic count
+    - Assignee information for team workload
+    - Story points for capacity planning
+
+    This query is optimized for performance and reduced payload size.
+
+    Returns:
+        str: The GraphQL query string
+    """
+    return """
+    query GetStakeholderSprintData($workspaceId: ID!) {
+      workspace(id: $workspaceId) {
+        id
+        name
+        sprints(first: 10) {
+          nodes {
+            id
+            name
+            state
+            startDate
+            endDate
+            issues(first: 100) {
+              totalCount
+              nodes {
+                id
+                state
+                estimate { value }
+                assignees {
+                  nodes {
+                    id
+                    login
+                    name
+                  }
+                }
+                epic {
+                  issue {
+                    id
+                    title
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+
 def calculate_sprint_metrics(sprint_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Calculate sprint metrics from raw Zenhub sprint data.
@@ -792,6 +848,185 @@ def transform_sprint_data(sprint: Dict[str, Any]) -> Dict[str, Any]:
         dict: Transformed sprint data
     """
     metrics = calculate_sprint_metrics(sprint)
+
+    return {
+        "sprint_id": sprint.get("id"),
+        "sprint_name": sprint.get("name"),
+        "state": sprint.get("state", "").lower(),
+        "start_date": sprint.get("startDate"),
+        "end_date": sprint.get("endDate"),
+        **metrics
+    }
+
+
+def calculate_stakeholder_metrics(sprint_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calculate simplified stakeholder-focused metrics from raw Zenhub sprint data.
+
+    This function extracts only the metrics needed for executive-level reporting:
+    - Issue counts by status
+    - Unique epic count
+    - Story points summary
+    - Team member workload (ticket count, not story points)
+    - Sprint health indicators
+
+    Args:
+        sprint_data (dict): Raw sprint data from Zenhub GraphQL API
+
+    Returns:
+        dict: Stakeholder-focused metrics
+    """
+    issues = sprint_data.get("issues", {}).get("nodes", [])
+
+    # Initialize counters
+    issues_by_status = {
+        "to_do": 0,
+        "in_progress": 0,
+        "in_review": 0,
+        "done": 0,
+        "blocked": 0
+    }
+
+    total_story_points = 0
+    completed_story_points = 0
+    blocked_count = 0
+    unique_epics = set()
+    team_member_tickets: Dict[str, Dict[str, Any]] = {}
+
+    # Process each issue
+    for issue in issues:
+        state = (issue.get("state") or "").lower()
+        estimate = issue.get("estimate") or {}
+        points = estimate.get("value", 0) if isinstance(estimate, dict) else 0
+
+        # Count by status
+        if state in ("closed", "done", "completed"):
+            issues_by_status["done"] += 1
+            completed_story_points += points
+        elif state in ("in_progress", "in progress", "working"):
+            issues_by_status["in_progress"] += 1
+        elif state in ("review", "in_review"):
+            issues_by_status["in_review"] += 1
+        elif state in ("blocked",):
+            issues_by_status["blocked"] += 1
+            blocked_count += 1
+        else:
+            issues_by_status["to_do"] += 1
+
+        total_story_points += points
+
+        # Count unique epics
+        epic_data = issue.get("epic")
+        if isinstance(epic_data, dict):
+            epic_issue = epic_data.get("issue") if epic_data.get("issue") else epic_data
+            if isinstance(epic_issue, dict) and epic_issue.get("id"):
+                unique_epics.add(epic_issue.get("id"))
+
+        # Track team member ticket counts
+        assignees_container = issue.get("assignees") or {}
+        assignees_nodes = assignees_container.get("nodes", [])
+
+        if not isinstance(assignees_nodes, list):
+            edges = assignees_container.get("edges", [])
+            if isinstance(edges, list):
+                assignees_nodes = [e.get("node") for e in edges if isinstance(e, dict) and isinstance(e.get("node"), dict)]
+            else:
+                assignees_nodes = []
+
+        for assignee in assignees_nodes:
+            if not isinstance(assignee, dict) or not assignee.get("id"):
+                continue
+
+            assignee_id = assignee.get("id")
+            if assignee_id not in team_member_tickets:
+                team_member_tickets[assignee_id] = {
+                    "id": assignee_id,
+                    "name": assignee.get("name"),
+                    "login": assignee.get("login"),
+                    "ticket_count": 0,
+                    "completed_tickets": 0
+                }
+
+            team_member_tickets[assignee_id]["ticket_count"] += 1
+            if state in ("closed", "done", "completed"):
+                team_member_tickets[assignee_id]["completed_tickets"] += 1
+
+    # Calculate percentages
+    total_issues = len(issues)
+    completion_percentage = (
+        (completed_story_points / total_story_points * 100)
+        if total_story_points > 0
+        else 0.0
+    )
+
+    progress_percentage = (
+        (issues_by_status["done"] / total_issues * 100)
+        if total_issues > 0
+        else 0.0
+    )
+
+    blocked_rate = (
+        (blocked_count / total_issues * 100)
+        if total_issues > 0
+        else 0.0
+    )
+
+    # Calculate team utilization (average workload)
+    team_utilization = 0.0
+    if team_member_tickets:
+        avg_tickets = total_issues / len(team_member_tickets)
+        team_utilization = (avg_tickets / max(total_issues, 1)) * 100
+
+    # Determine sprint health
+    health_status = "on_track"
+    if blocked_rate > 20:
+        health_status = "at_risk"
+    elif progress_percentage < 30 and total_issues > 0:
+        health_status = "off_track"
+
+    # Build team members list with workload percentage
+    team_members = []
+    for tm in team_member_tickets.values():
+        workload_pct = (tm["ticket_count"] / total_issues * 100) if total_issues > 0 else 0.0
+        team_members.append({
+            **tm,
+            "workload_percentage": round(workload_pct, 2)
+        })
+
+    # Sort by ticket count (descending)
+    team_members.sort(key=lambda x: x["ticket_count"], reverse=True)
+
+    return {
+        "total_issues": total_issues,
+        "unique_epics": len(unique_epics),
+        "issues_by_status": issues_by_status,
+        "total_story_points": total_story_points,
+        "completed_story_points": completed_story_points,
+        "remaining_story_points": total_story_points - completed_story_points,
+        "completion_percentage": round(completion_percentage, 2),
+        "progress_percentage": round(progress_percentage, 2),
+        "blocked_issues_count": blocked_count,
+        "health_status": health_status,
+        "health_indicators": {
+            "completion_rate": round(completion_percentage, 2),
+            "blocked_rate": round(blocked_rate, 2),
+            "team_utilization": round(team_utilization, 2)
+        },
+        "team_members": team_members
+    }
+
+
+def transform_stakeholder_sprint_data(sprint: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transform raw Zenhub sprint data into stakeholder-focused report format.
+
+    Args:
+        sprint (dict): Raw sprint data from Zenhub
+
+    Returns:
+        dict: Transformed stakeholder sprint data
+    """
+    metrics = calculate_stakeholder_metrics(sprint)
 
     return {
         "sprint_id": sprint.get("id"),
@@ -1089,6 +1324,134 @@ def get_workspace_issues(project_id: str, page_size: int = 100) -> Dict[str, Any
         frappe.log_error(
             title="Zenhub Workspace Issues Error",
             message=f"Unexpected error fetching workspace issues for project {project_id}: {str(e)}",
+        )
+        return {
+            "success": False,
+            "error": f"An unexpected error occurred: {str(e)}",
+            "error_type": "api_error",
+        }
+
+
+@frappe.whitelist()
+def get_stakeholder_sprint_report(project_id: str, force_refresh: bool = False) -> Dict[str, Any]:
+    """
+    Fetch simplified stakeholder-focused sprint report from Zenhub.
+
+    This endpoint returns only the metrics needed for executive-level reporting:
+    - Sprint overview (name, dates, status)
+    - Issue counts by status
+    - Unique epic count
+    - Story points summary
+    - Team member workload distribution
+    - Sprint health indicators
+
+    This is optimized for performance and reduced payload size compared to get_sprint_data.
+
+    Args:
+        project_id (str): The Frappe Project doctype name/ID
+        force_refresh (bool, optional): Force refresh from API, bypass cache. Defaults to False
+
+    Returns:
+        dict: JSON response containing stakeholder sprint report or error information
+
+    Example:
+        GET /api/method/frappe_devsecops_dashboard.api.zenhub.get_stakeholder_sprint_report?project_id=PROJ-001
+    """
+    try:
+        # Generate cache key
+        cache_key = f"{SPRINT_DATA_CACHE_KEY_PREFIX}stakeholder_{project_id}"
+
+        # Try to get from cache first (unless force_refresh)
+        if not force_refresh:
+            cached_data = frappe.cache().get_value(cache_key)
+            if cached_data:
+                try:
+                    result = json_lib.loads(cached_data)
+                    result["_cached"] = True
+                    result["_cache_time"] = frappe.cache().ttl(cache_key)
+                    return result
+                except Exception:
+                    pass
+
+        # Validate project_id
+        if not project_id:
+            return {
+                "success": False,
+                "error": "project_id parameter is required",
+                "error_type": "validation_error"
+            }
+
+        # Fetch the Project document with permission check
+        try:
+            project = frappe.get_doc("Project", project_id)
+
+            if not project.has_permission('read'):
+                return {
+                    "success": False,
+                    "error": f"You do not have permission to access project '{project_id}'",
+                    "error_type": "permission_error"
+                }
+        except frappe.DoesNotExistError:
+            return {
+                "success": False,
+                "error": f"Project '{project_id}' not found",
+                "error_type": "not_found_error"
+            }
+
+        # Get workspace ID from project
+        workspace_id = project.get("custom_zenhub_workspace_id")
+        if not workspace_id:
+            return {
+                "success": False,
+                "error": f"Zenhub workspace ID not configured for project '{project_id}'",
+                "error_type": "validation_error"
+            }
+
+        # Execute GraphQL query
+        query = get_stakeholder_sprint_query()
+        variables = {"workspaceId": workspace_id}
+        response_data = execute_graphql_query(query, variables)
+
+        # Extract workspace and sprints
+        workspace = response_data.get("workspace", {})
+        sprints_container = workspace.get("sprints", {})
+        sprints_nodes = sprints_container.get("nodes", [])
+
+        # Transform sprints to stakeholder format
+        transformed_sprints = [transform_stakeholder_sprint_data(s) for s in sprints_nodes]
+
+        result = {
+            "success": True,
+            "workspace_id": workspace_id,
+            "workspace_name": workspace.get("name"),
+            "sprints": transformed_sprints,
+            "_cached": False,
+            "_fetched_at": frappe.utils.now()
+        }
+
+        # Cache the successful result
+        try:
+            frappe.cache().set_value(
+                cache_key,
+                json_lib.dumps(result),
+                expires_in_sec=SPRINT_DATA_CACHE_TTL
+            )
+        except Exception as cache_error:
+            frappe.log_error(
+                title="Zenhub Cache Error",
+                message=f"Failed to cache stakeholder sprint report: {str(cache_error)}"
+            )
+
+        return result
+
+    except frappe.AuthenticationError as e:
+        return {"success": False, "error": str(e), "error_type": "authentication_error"}
+    except frappe.ValidationError as e:
+        return {"success": False, "error": str(e), "error_type": "validation_error"}
+    except Exception as e:
+        frappe.log_error(
+            title="Zenhub Stakeholder Report Error",
+            message=f"Unexpected error fetching stakeholder sprint report for project {project_id}: {str(e)}",
         )
         return {
             "success": False,

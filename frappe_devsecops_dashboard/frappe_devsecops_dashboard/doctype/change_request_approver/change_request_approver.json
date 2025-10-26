@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-10-26 21:56:47.695846",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "business_function",
+  "approval_status",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User"
+  },
+  {
+   "fieldname": "business_function",
+   "fieldtype": "Data",
+   "label": "Business Function"
+  },
+  {
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval Status",
+   "options": "Pending\nApproved\nRejected"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text Editor",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-10-26 21:58:49.040178",
+ "modified_by": "Administrator",
+ "module": "Frappe Devsecops Dashboard",
+ "name": "Change Request Approver",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

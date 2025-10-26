@@ -67,6 +67,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [taskTypeOptions, setTaskTypeOptions] = useState([])
   const [userSearchResults, setUserSearchResults] = useState([])
   const [showSprintReport, setShowSprintReport] = useState(false)
+  const [notesExpanded, setNotesExpanded] = useState(false)  // For notes expand/collapse
 
   // Fetch task types when modal opens
   useEffect(() => {
@@ -225,6 +226,21 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       case 'low': return 'green'
       default: return 'blue'
     }
+  }
+
+  // Helper function to truncate notes text
+  const truncateNotes = (text, maxLength = 200) => {
+    if (!text) return ''
+    const cleanText = stripHtmlTags(text)
+    if (cleanText.length <= maxLength) return cleanText
+    return cleanText.substring(0, maxLength) + '...'
+  }
+
+  // Helper function to check if notes should be truncated
+  const shouldTruncateNotes = (text, maxLength = 200) => {
+    if (!text) return false
+    const cleanText = stripHtmlTags(text)
+    return cleanText.length > maxLength
   }
 
   // Helper function to determine milestone status for Steps component
@@ -554,6 +570,51 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             </Button>
           </Col>
         </Row>
+
+        {/* Notes/Description Section */}
+        {projectData?.notes && projectData.notes.trim() && (
+          <Row gutter={[16, 16]} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f0f0f0' }}>
+            <Col xs={24}>
+              <div style={{
+                backgroundColor: '#fafafa',
+                border: '1px solid #e8e8e8',
+                borderRadius: '6px',
+                padding: '12px 16px',
+                transition: 'all 0.3s ease'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Description
+                    </Text>
+                    <div style={{ marginTop: '8px', lineHeight: '1.6', color: '#262626' }}>
+                      {notesExpanded ? (
+                        <Text>{stripHtmlTags(projectData.notes)}</Text>
+                      ) : (
+                        <Text>{truncateNotes(projectData.notes, 200)}</Text>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {shouldTruncateNotes(projectData.notes, 200) && (
+                  <div style={{ marginTop: '8px' }}>
+                    <Button
+                      type="text"
+                      size="small"
+                      onClick={() => {
+                        console.log('[ProjectDetail] Toggling notes expanded state')
+                        setNotesExpanded(!notesExpanded)
+                      }}
+                      style={{ padding: '0 0', height: 'auto', color: '#1890ff' }}
+                    >
+                      {notesExpanded ? 'Show less' : 'Show more'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </Col>
+          </Row>
+        )}
       </Card>
 
       {/* Project Overview Cards - Improved Visual Hierarchy */}

@@ -529,7 +529,8 @@ def get_project_details(project_name):
             "actual_end_date": project.actual_end_date,
             "cost_center": project.cost_center,
             "department": project.department,
-            "zenhub_id": project.get("custom_zenhub_workspace_id", "")
+            "zenhub_id": project.get("custom_zenhub_workspace_id", ""),
+            "notes": project.notes or ""  # Include notes field for project description
         }
 
         enhanced_project = enhance_project_with_task_data(project_data)

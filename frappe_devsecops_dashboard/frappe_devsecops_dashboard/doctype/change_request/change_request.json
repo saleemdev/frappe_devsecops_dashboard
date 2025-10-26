@@ -2,7 +2,7 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "format:CR-{YY}-{#####}",
- "creation": "2025-10-16 10:00:00.000000",
+ "creation": "2025-10-16 10:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -40,9 +40,11 @@
   "rollback_plan",
   "approval_tab",
   "approval_status_section",
-  "approval_status",
-  "column_break_5",
   "workflow_state",
+  "column_break_5",
+  "approval_status",
+  "section_break_n1bcm",
+  "change_approvers",
   "amended_from"
  ],
  "fields": [
@@ -94,10 +96,10 @@
   {
    "fieldname": "project",
    "fieldtype": "Link",
-   "label": "Project",
-   "options": "Project",
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project"
   },
   {
    "fieldname": "section_break_2",
@@ -241,7 +243,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Change Request Acceptance",
-   "options": "\nPending Review\nRework\nNot Accepted\nWithdrawn\nDeferred\nApproved for Implementation"
+   "options": "Pending Review\nRework\nNot Accepted\nWithdrawn\nDeferred\nApproved for Implementation"
   },
   {
    "fieldname": "column_break_5",
@@ -262,12 +264,22 @@
    "options": "Change Request",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "change_approvers",
+   "fieldtype": "Table",
+   "label": "Change Approvers",
+   "options": "Change Request Approver"
+  },
+  {
+   "fieldname": "section_break_n1bcm",
+   "fieldtype": "Section Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-10-16 10:00:00.000000",
+ "modified": "2025-10-26 22:00:31.180200",
  "modified_by": "Administrator",
  "module": "Frappe Devsecops Dashboard",
  "name": "Change Request",

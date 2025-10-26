@@ -11,7 +11,6 @@ import {
   Avatar,
   Timeline,
   Space,
-  Table,
   Spin,
   Empty,
   Modal,
@@ -29,13 +28,15 @@ import {
   EditOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
+  CheckCircleFilled,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   FileTextOutlined,
   UserOutlined,
   PlusOutlined,
   CopyOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  LoadingOutlined
 } from '@ant-design/icons'
 import {
   getProjectDetails,
@@ -243,6 +244,94 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
     return cleanText.length > maxLength
   }
 
+  // Helper function to group tasks by Task Type and order chronologically
+  const groupTasksByType = (tasks) => {
+    if (!tasks || tasks.length === 0) return []
+
+    // Group tasks by type
+    const grouped = {}
+    tasks.forEach(task => {
+      const taskType = task.type || 'Uncategorized'
+      if (!grouped[taskType]) {
+        grouped[taskType] = []
+      }
+      grouped[taskType].push(task)
+    })
+
+    // Sort tasks within each group by creation date (oldest first)
+    Object.keys(grouped).forEach(type => {
+      grouped[type].sort((a, b) => {
+        const dateA = new Date(a.creation || a.exp_start_date || 0)
+        const dateB = new Date(b.creation || b.exp_start_date || 0)
+        return dateA - dateB
+      })
+    })
+
+    // Convert to array and sort by earliest task in each group
+    const result = Object.entries(grouped).map(([type, typeTasks]) => {
+      const earliestDate = Math.min(...typeTasks.map(t => new Date(t.creation || t.exp_start_date || 0).getTime()))
+      return {
+        type,
+        tasks: typeTasks,
+        earliestDate: new Date(earliestDate)
+      }
+    })
+
+    // Sort groups by earliest task date
+    result.sort((a, b) => a.earliestDate - b.earliestDate)
+
+    return result
+  }
+
+  // Helper function to calculate task type completion status
+  const getTaskTypeStatus = (tasks) => {
+    if (!tasks || tasks.length === 0) return { status: 'wait', completed: 0, total: 0, hasOverdue: false }
+
+    const completed = tasks.filter(t => t.status && (t.status.toLowerCase() === 'completed' || t.status.toLowerCase() === 'closed')).length
+    const total = tasks.length
+    const hasOverdue = tasks.some(t => {
+      if (!t.exp_end_date) return false
+      const dueDate = new Date(t.exp_end_date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      dueDate.setHours(0, 0, 0, 0)
+      return dueDate < today && t.status && t.status.toLowerCase() !== 'completed' && t.status.toLowerCase() !== 'closed'
+    })
+
+    let status = 'wait'
+    if (hasOverdue) {
+      status = 'error'
+    } else if (completed === total) {
+      status = 'finish'
+    } else if (completed > 0) {
+      status = 'process'
+    }
+
+    return { status, completed, total, hasOverdue }
+  }
+
+  // Helper function to get color for task type status
+  const getTaskTypeStatusColor = (status, hasOverdue) => {
+    if (hasOverdue) return '#ff4d4f'  // error red
+    switch (status) {
+      case 'finish': return '#52c41a'  // success green
+      case 'process': return '#1890ff'  // processing blue
+      case 'error': return '#ff4d4f'  // error red
+      default: return '#d9d9d9'  // default gray
+    }
+  }
+
+  // Helper function to get icon for task type status
+  const getTaskTypeStatusIcon = (status, hasOverdue) => {
+    if (hasOverdue) return <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+    switch (status) {
+      case 'finish': return <CheckCircleFilled style={{ color: '#52c41a' }} />
+      case 'process': return <LoadingOutlined style={{ color: '#1890ff' }} />
+      case 'error': return <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+      default: return null
+    }
+  }
+
   // Helper function to determine milestone status for Steps component
   const getMilestoneStepStatus = (milestone) => {
     const today = new Date()
@@ -421,55 +510,6 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       setTaskFormLoading(false)
     }
   }
-
-  const taskColumns = [
-    {
-      title: 'Task',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text, record) => (
-        <div>
-          <Text strong>{text}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.description}
-          </Text>
-        </div>
-      )
-    },
-    {
-      title: 'Assignee',
-      dataIndex: 'assignee',
-      key: 'assignee',
-      render: (assignee) => (
-        <Space>
-          <Avatar size="small" icon={<UserOutlined />} />
-          <Text>{assignee}</Text>
-        </Space>
-      )
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => (
-        <Tag color={getStatusColor(status)}>{status}</Tag>
-      )
-    },
-    {
-      title: 'Priority',
-      dataIndex: 'priority',
-      key: 'priority',
-      render: (priority) => (
-        <Tag color={getPriorityColor(priority)}>{priority}</Tag>
-      )
-    },
-    {
-      title: 'Due Date',
-      dataIndex: 'dueDate',
-      key: 'dueDate'
-    }
-  ]
 
   if (loading) {
     return (
@@ -857,9 +897,9 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             </Row>
           </Card>
 
-          {/* Tasks Table */}
+          {/* DevSecOps Timeline - Task Progression by Type */}
           <Card
-            title="Project Tasks"
+            title="DevSecOps Timeline"
             style={{
               marginBottom: '24px',
               borderRadius: '12px',
@@ -867,19 +907,72 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             }}
           >
             {projectData?.tasks && projectData.tasks.length > 0 ? (
-              <Table
-                columns={taskColumns}
-                dataSource={projectData.tasks.map((task, idx) => ({
-                  key: task.name || idx,
-                  name: task.subject || task.name,
-                  description: task.description || '',
-                  assignee: task.owner || 'Unassigned',
-                  status: task.status || 'Open',
-                  priority: task.priority || 'Normal',
-                  dueDate: task.exp_end_date || 'N/A'
-                }))}
-                pagination={{ pageSize: 10 }}
-                size="middle"
+              <Steps
+                direction="vertical"
+                current={-1}
+                items={groupTasksByType(projectData.tasks).map((group) => {
+                  const statusInfo = getTaskTypeStatus(group.tasks)
+                  const icon = getTaskTypeStatusIcon(statusInfo.status, statusInfo.hasOverdue)
+
+                  return {
+                    title: (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue) }}>
+                          {group.type}
+                        </span>
+                        <Tag color={getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue)} style={{ marginLeft: '8px' }}>
+                          {statusInfo.completed}/{statusInfo.total} completed
+                        </Tag>
+                      </div>
+                    ),
+                    description: (
+                      <div style={{ marginTop: '12px', marginLeft: '0px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {group.tasks.map((task, idx) => (
+                            <div
+                              key={task.name || idx}
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor: '#fafafa',
+                                borderRadius: '4px',
+                                borderLeft: `3px solid ${task.status && (task.status.toLowerCase() === 'completed' || task.status.toLowerCase() === 'closed') ? '#52c41a' : '#d9d9d9'}`,
+                                fontSize: '12px'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
+                                <div style={{ flex: 1 }}>
+                                  <Text strong style={{ fontSize: '13px' }}>
+                                    {task.subject || task.name}
+                                  </Text>
+                                  {task.description && (
+                                    <div style={{ marginTop: '4px', color: '#666', fontSize: '11px' }}>
+                                      {task.description.substring(0, 80)}...
+                                    </div>
+                                  )}
+                                  <div style={{ marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    <Tag color={task.priority === 'High' ? 'red' : task.priority === 'Medium' ? 'orange' : 'green'} style={{ fontSize: '10px' }}>
+                                      {task.priority || 'Normal'}
+                                    </Tag>
+                                    <Tag style={{ fontSize: '10px' }}>
+                                      {task.status || 'Open'}
+                                    </Tag>
+                                    {task.exp_end_date && (
+                                      <Tag style={{ fontSize: '10px' }}>
+                                        Due: {formatDate(task.exp_end_date)}
+                                      </Tag>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ),
+                    status: statusInfo.status,
+                    icon: icon
+                  }
+                })}
               />
             ) : (
               <Empty description="No tasks found" />

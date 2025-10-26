@@ -44,6 +44,27 @@ import {
 
 const { Title, Text } = Typography
 
+const BUSINESS_FUNCTION_OPTIONS = [
+  'Internal Stakeholder',
+  'Client Stakeholder',
+  'Client Focal Person',
+  'Project Manager',
+  'Engineering Lead',
+  'Security Analyst',
+  'Platform Engineer',
+  'DevOps Engineer',
+  'Software Reliability Engineer',
+  'Software Developer',
+  'Product Designer',
+  'Business Analyst',
+  'Solution Architect',
+  'Product Manager',
+  'Service Delivery Contact',
+  'Quality Assurance',
+  'Subject Matter Expert'
+]
+
+
 /**
  * Debounce utility function
  * Delays function execution until after the specified delay has passed without new calls
@@ -486,6 +507,56 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
     }
   }
 
+  const handleSaveMemberEdit = async () => {
+    if (!memberBeingEdited) return
+    setSavingMemberEdit(true)
+    try {
+      console.log('[ProjectEdit] Updating project user:', memberBeingEdited.name, 'role:', editBusinessFunction)
+      const response = await updateProjectUser(
+        projectId,
+        memberBeingEdited.name,
+        { business_function: editBusinessFunction || null }
+      )
+      console.log('[ProjectEdit] Update project user response:', response)
+      if (response.success) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Team member updated',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2500
+        })
+        setShowEditMemberModal(false)
+        setMemberBeingEdited(null)
+        setEditBusinessFunction(null)
+        loadProjectData()
+      } else {
+        await Swal.fire({
+          icon: 'error',
+          title: response.error || 'Failed to update team member',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000
+        })
+      }
+    } catch (error) {
+      console.error('[ProjectEdit] Error updating team member:', error)
+      await Swal.fire({
+        icon: 'error',
+        title: 'Failed to update team member',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      })
+    } finally {
+      setSavingMemberEdit(false)
+    }
+  }
+
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -503,6 +574,9 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
       </Empty>
     )
   }
+
+  const editMemberModalTitle = `Edit Team Member${memberBeingEdited ? ' \u2014 ' + memberBeingEdited.full_name : ''}`
+
 
   return (
     <div style={{ padding: '0' }}>
@@ -692,15 +766,32 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                           <Text strong style={{ fontSize: '13px' }}>{member.full_name}</Text>
                           <br />
                           <Text type="secondary" style={{ fontSize: '11px' }}>{member.email}</Text>
+                          {(member.custom_business_function || member.business_function) && (
+                            <div style={{ marginTop: 4 }}>
+                              <Tag color="blue">{member.custom_business_function || member.business_function}</Tag>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <Button
-                        type="text"
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleRemoveUser(member.name)}
-                      />
+                      <Space>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={() => {
+                            setMemberBeingEdited(member)
+                            setEditBusinessFunction(member.custom_business_function || member.business_function || null)
+                            setShowEditMemberModal(true)
+                          }}
+                        />
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleRemoveUser(member.name)}
+                        />
+                      </Space>
                     </div>
                   ))
                 ) : (
@@ -830,6 +921,8 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
               <Spin size="small" style={{ marginRight: '8px' }} />
               <Text type="secondary">Searching...</Text>
             </div>
+
+
           )}
           {!isManagerDebouncing && managerSearchResults.length > 0 && (
             <div style={{
@@ -878,6 +971,42 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
               <Text type="secondary">Type to search for users...</Text>
             </div>
           )}
+        </div>
+      </Modal>
+
+
+      {/* Edit Team Member Modal */}
+      <Modal
+        title={editMemberModalTitle}
+        open={showEditMemberModal}
+        onCancel={() => {
+          setShowEditMemberModal(false)
+          setMemberBeingEdited(null)
+          setEditBusinessFunction(null)
+        }}
+        footer={[
+          <Button key="cancel" onClick={() => {
+            setShowEditMemberModal(false)
+            setMemberBeingEdited(null)
+            setEditBusinessFunction(null)
+          }}>
+            Cancel
+          </Button>,
+          <Button key="save" type="primary" loading={savingMemberEdit} onClick={handleSaveMemberEdit}>
+            Save
+          </Button>
+        ]}
+      >
+        <div style={{ marginBottom: '16px' }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>BUSINESS FUNCTION</Text>
+          <Select
+            allowClear
+            placeholder="Select business function"
+            value={editBusinessFunction}
+            onChange={setEditBusinessFunction}
+            style={{ width: '100%', marginTop: '8px' }}
+            options={BUSINESS_FUNCTION_OPTIONS.map(opt => ({ label: opt, value: opt }))}
+          />
         </div>
       </Modal>
 

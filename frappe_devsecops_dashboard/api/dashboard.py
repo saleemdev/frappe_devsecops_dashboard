@@ -1539,7 +1539,8 @@ def add_project_user(project_name, user_id):
             "user": user_id,
             "email": user_doc.email,
             "full_name": user_doc.full_name,
-            "image": user_doc.user_image
+            "image": user_doc.user_image,
+            "welcome_email_sent": 1  # Set to True by default
         })
 
         # Optional: set additional fields if provided in payload
@@ -2425,12 +2426,19 @@ def create_project(project_name, project_type, expected_start_date, expected_end
                     # Get user details
                     try:
                         user_doc = frappe.get_doc("User", user_id)
-                        project.append("users", {
+                        user_row = {
                             "user": user_id,
                             "email": user_doc.email,
                             "full_name": user_doc.full_name,
-                            "image": user_doc.user_image
-                        })
+                            "image": user_doc.user_image,
+                            "welcome_email_sent": 1  # Set to True by default
+                        }
+
+                        # Add custom_business_function if provided in member data
+                        if member.get("custom_business_function"):
+                            user_row["custom_business_function"] = member.get("custom_business_function")
+
+                        project.append("users", user_row)
                     except Exception as e:
                         frappe.log_error(
                             f"Error adding user {user_id}: {str(e)}",

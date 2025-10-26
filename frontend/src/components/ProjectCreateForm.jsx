@@ -16,14 +16,16 @@ import {
   Table,
   Modal,
   Typography,
-  Alert
+  Alert,
+  Tag
 } from 'antd'
 import {
   ArrowLeftOutlined,
   SaveOutlined,
   PlusOutlined,
   DeleteOutlined,
-  UserOutlined
+  UserOutlined,
+  EditOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import Swal from 'sweetalert2'
@@ -32,6 +34,26 @@ import projectsService from '../services/api/projects'
 import { searchUsers } from '../utils/projectAttachmentsApi'
 
 const { Title, Text } = Typography
+
+const BUSINESS_FUNCTION_OPTIONS = [
+  'Internal Stakeholder',
+  'Client Stakeholder',
+  'Client Focal Person',
+  'Project Manager',
+  'Engineering Lead',
+  'Security Analyst',
+  'Platform Engineer',
+  'DevOps Engineer',
+  'Software Reliability Engineer',
+  'Software Developer',
+  'Product Designer',
+  'Business Analyst',
+  'Solution Architect',
+  'Product Manager',
+  'Service Delivery Contact',
+  'Quality Assurance',
+  'Subject Matter Expert'
+]
 
 /**
  * ProjectCreateForm Component
@@ -48,6 +70,10 @@ function ProjectCreateForm({ navigateToRoute }) {
   const [addingUser, setAddingUser] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
   const [isDebouncing, setIsDebouncing] = useState(false)
+  const [businessFunctionToAdd, setBusinessFunctionToAdd] = useState(null)
+  const [showEditMemberModal, setShowEditMemberModal] = useState(false)
+  const [memberBeingEdited, setMemberBeingEdited] = useState(null)
+  const [editBusinessFunction, setEditBusinessFunction] = useState(null)
   const userSearchTimeoutRef = useRef(null)
 
   const { hasPermission, isAuthenticated } = useAuthStore()
@@ -96,19 +122,28 @@ function ProjectCreateForm({ navigateToRoute }) {
     }
 
     if (!value || value.length < 2) {
+      console.log('[ProjectCreateForm] Search cleared - value too short:', value?.length)
       setUserSearchResults([])
       setIsDebouncing(false)
       return
     }
 
+    console.log('[ProjectCreateForm] Starting debounced search for:', value)
     setIsDebouncing(true)
     userSearchTimeoutRef.current = setTimeout(async () => {
       try {
         setSearchLoading(true)
-        const results = await searchUsers(value)
-        setUserSearchResults(results || [])
+        console.log('[ProjectCreateForm] Executing search API call for:', value)
+        const response = await searchUsers(value)
+        console.log('[ProjectCreateForm] Search response received:', response)
+
+        // Extract users from response - API returns {success: true, users: [...]}
+        const users = response.message?.users || response.users || []
+        console.log('[ProjectCreateForm] Extracted users:', users)
+
+        setUserSearchResults(users)
       } catch (error) {
-        console.error('Error searching users:', error)
+        console.error('[ProjectCreateForm] Error searching users:', error)
         setUserSearchResults([])
       } finally {
         setSearchLoading(false)
@@ -119,6 +154,8 @@ function ProjectCreateForm({ navigateToRoute }) {
 
   // Add team member
   const handleAddTeamMember = async () => {
+    console.log('[ProjectCreateForm] handleAddTeamMember called, selectedUserToAdd:', selectedUserToAdd)
+
     if (!selectedUserToAdd) {
       message.warning('Please select a user')
       return
@@ -133,16 +170,26 @@ function ProjectCreateForm({ navigateToRoute }) {
     try {
       setAddingUser(true)
       const user = userSearchResults.find(u => u.name === selectedUserToAdd)
+      console.log('[ProjectCreateForm] Found user:', user)
+
       if (user) {
-        setTeamMembers([...teamMembers, {
+        const newMember = {
           user: user.name,
           email: user.email,
           full_name: user.full_name,
           image: user.user_image
-        }])
+        }
+        if (businessFunctionToAdd) {
+          newMember.custom_business_function = businessFunctionToAdd
+        }
+        console.log('[ProjectCreateForm] Adding new member:', newMember)
+        setTeamMembers([...teamMembers, newMember])
         setSelectedUserToAdd(null)
+        setBusinessFunctionToAdd(null)
         setUserSearchResults([])
         message.success('Team member added')
+      } else {
+        console.warn('[ProjectCreateForm] User not found in search results')
       }
     } finally {
       setAddingUser(false)
@@ -153,6 +200,28 @@ function ProjectCreateForm({ navigateToRoute }) {
   const handleRemoveTeamMember = (userId) => {
     setTeamMembers(teamMembers.filter(m => m.user !== userId))
     message.success('Team member removed')
+  }
+
+  // Edit team member business function
+  const handleEditMember = (member) => {
+    setMemberBeingEdited(member)
+    setEditBusinessFunction(member.custom_business_function || null)
+    setShowEditMemberModal(true)
+  }
+
+  // Save edited team member
+  const handleSaveMemberEdit = () => {
+    if (!memberBeingEdited) return
+    const updatedMembers = teamMembers.map(m =>
+      m.user === memberBeingEdited.user
+        ? { ...m, custom_business_function: editBusinessFunction || undefined }
+        : m
+    )
+    setTeamMembers(updatedMembers)
+    setShowEditMemberModal(false)
+    setMemberBeingEdited(null)
+    setEditBusinessFunction(null)
+    message.success('Team member updated')
   }
 
   // Handle form submission
@@ -173,7 +242,16 @@ function ProjectCreateForm({ navigateToRoute }) {
         expected_start_date: values.expected_start_date.format('YYYY-MM-DD'),
         expected_end_date: values.expected_end_date.format('YYYY-MM-DD'),
         priority: values.priority || 'Medium',
-        team_members: teamMembers.map(m => ({ user: m.user }))
+        team_members: teamMembers.map(m => {
+          const memberData = {
+            user: m.user
+          }
+          // Include custom_business_function if set
+          if (m.custom_business_function) {
+            memberData.custom_business_function = m.custom_business_function
+          }
+          return memberData
+        })
       }
 
       if (values.department) {
@@ -388,6 +466,14 @@ function ProjectCreateForm({ navigateToRoute }) {
                   ))}
                 </div>
               )}
+              <Select
+                allowClear
+                placeholder="Business function (optional)"
+                value={businessFunctionToAdd}
+                onChange={setBusinessFunctionToAdd}
+                style={{ width: '100%', marginBottom: '8px' }}
+                options={BUSINESS_FUNCTION_OPTIONS.map(opt => ({ label: opt, value: opt }))}
+              />
               <Button
                 type="primary"
                 block
@@ -422,15 +508,28 @@ function ProjectCreateForm({ navigateToRoute }) {
                         <div style={{ minWidth: 0 }}>
                           <Text strong style={{ fontSize: '12px', display: 'block' }}>{member.full_name}</Text>
                           <Text type="secondary" style={{ fontSize: '10px' }}>{member.email}</Text>
+                          {member.custom_business_function && (
+                            <div style={{ marginTop: 4 }}>
+                              <Tag color="blue">{member.custom_business_function}</Tag>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <Button
-                        type="text"
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleRemoveTeamMember(member.user)}
-                      />
+                      <Space>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={() => handleEditMember(member)}
+                        />
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleRemoveTeamMember(member.user)}
+                        />
+                      </Space>
                     </div>
                   ))
                 ) : (
@@ -441,6 +540,41 @@ function ProjectCreateForm({ navigateToRoute }) {
           </Card>
         </Col>
       </Row>
+
+      {/* Edit Team Member Modal */}
+      <Modal
+        title={memberBeingEdited ? `Edit Team Member — ${memberBeingEdited.full_name}` : 'Edit Team Member'}
+        open={showEditMemberModal}
+        onCancel={() => {
+          setShowEditMemberModal(false)
+          setMemberBeingEdited(null)
+          setEditBusinessFunction(null)
+        }}
+        footer={[
+          <Button key="cancel" onClick={() => {
+            setShowEditMemberModal(false)
+            setMemberBeingEdited(null)
+            setEditBusinessFunction(null)
+          }}>
+            Cancel
+          </Button>,
+          <Button key="save" type="primary" onClick={handleSaveMemberEdit}>
+            Save
+          </Button>
+        ]}
+      >
+        <div style={{ marginBottom: '16px' }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>BUSINESS FUNCTION</Text>
+          <Select
+            allowClear
+            placeholder="Select business function"
+            value={editBusinessFunction}
+            onChange={setEditBusinessFunction}
+            style={{ width: '100%', marginTop: '8px' }}
+            options={BUSINESS_FUNCTION_OPTIONS.map(opt => ({ label: opt, value: opt }))}
+          />
+        </div>
+      </Modal>
     </div>
   )
 }

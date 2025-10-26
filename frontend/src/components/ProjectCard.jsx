@@ -25,6 +25,7 @@ const { Text } = Typography
 import {
   SafetyOutlined,
   ProjectOutlined,
+  DashboardOutlined,
   CheckCircleOutlined,
   PaperClipOutlined,
   UploadOutlined,

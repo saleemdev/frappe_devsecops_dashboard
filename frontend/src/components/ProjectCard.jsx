@@ -9,7 +9,6 @@ import {
   Divider,
   Upload,
   Input,
-  Steps,
   Spin,
   Tooltip,
   Empty,
@@ -26,7 +25,6 @@ const { Text } = Typography
 import {
   SafetyOutlined,
   ProjectOutlined,
-  DashboardOutlined,
   CheckCircleOutlined,
   PaperClipOutlined,
   UploadOutlined,
@@ -57,6 +55,11 @@ import {
   formatDate,
   createMention
 } from '../utils/projectAttachmentsApi'
+import {
+  groupTasksByType,
+  getTaskTypeStatus,
+  getTaskTypeStatusColor
+} from '../utils/taskProgressionUtils'
 
 /**
  * Enhanced ProjectCard Component
@@ -528,6 +531,58 @@ const ProjectCard = ({
     </div>
   )
 
+  // Render task progression section - Compact horizontal display
+  const renderTaskProgression = () => {
+    if (!project.tasks || project.tasks.length === 0) {
+      return null
+    }
+
+    const taskGroups = groupTasksByType(project.tasks)
+    if (taskGroups.length === 0) {
+      return null
+    }
+
+    return (
+      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f0f0f0' }}>
+        <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+          Task Progression by Type
+        </Text>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {taskGroups.map((group, idx) => {
+            const statusInfo = getTaskTypeStatus(group.tasks)
+            const color = getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue)
+
+            return (
+              <div
+                key={group.type || idx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 10px',
+                  backgroundColor: '#fafafa',
+                  border: `1px solid ${color}`,
+                  borderRadius: '4px',
+                  fontSize: '12px'
+                }}
+              >
+                <span style={{ color: color, fontWeight: '600' }}>
+                  {group.type}
+                </span>
+                <Tag
+                  color={color}
+                  style={{ margin: 0, fontSize: '11px' }}
+                >
+                  {statusInfo.completed}/{statusInfo.total}
+                </Tag>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // Render metrics section - Compact design using Descriptions
   const renderMetrics = () => (
     <div className="project-card-metrics-section">
@@ -587,63 +642,7 @@ const ProjectCard = ({
     )
   }
 
-  // Render lifecycle section
-  const renderLifecycle = () => {
-    const groups = taskTypeSummary || []
 
-    if (!groups || groups.length === 0) {
-      return (
-        <div className="project-card-lifecycle-section">
-          <div className="section-header">
-            <DashboardOutlined style={{ color: token.colorPrimary, marginRight: 8 }} />
-            <Text strong>DevSecOps Lifecycle</Text>
-          </div>
-          <Empty description="No lifecycle data available" style={{ margin: '16px 0' }} />
-        </div>
-      )
-    }
-
-    const currentIdx = (() => {
-      const wip = groups.findIndex(g => g.percent > 0 && g.percent < 100)
-      if (wip >= 0) return wip
-      const lastDone = [...groups].reverse().findIndex(g => g.percent === 100)
-      if (lastDone >= 0) return groups.length - 1 - lastDone
-      return 0
-    })()
-
-    return (
-      <div className="project-card-lifecycle-section">
-        <div className="section-header">
-          <DashboardOutlined style={{ color: token.colorPrimary, marginRight: 8 }} />
-          <Text strong>DevSecOps Lifecycle</Text>
-        </div>
-        <Steps
-          direction="vertical"
-          size="small"
-          current={currentIdx}
-          className="project-card-steps"
-          items={groups.map((g) => ({
-            title: (
-              <div
-                role="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onTaskTypeClick?.(project, g)
-                }}
-                className="lifecycle-step-title"
-              >
-                <div className="lifecycle-step-content">
-                  <span>{g.name}</span>
-                  <Tag color={g.color} className="lifecycle-step-tag">{g.completionRate}</Tag>
-                </div>
-              </div>
-            ),
-            status: g.percent === 100 ? 'finish' : g.percent > 0 ? 'process' : 'wait',
-          }))}
-        />
-      </div>
-    )
-  }
 
   // Render attachments section
   const renderAttachments = () => {
@@ -907,10 +906,9 @@ const ProjectCard = ({
             children: (
               <div className="project-card-content">
                 {renderProgress()}
+                {renderTaskProgression()}
                 {renderMetrics()}
                 {renderDates()}
-                <Divider style={{ margin: '16px 0' }} />
-                {renderLifecycle()}
                 <Divider style={{ margin: '16px 0' }} />
                 {renderAttachments()}
                 <Divider style={{ margin: '16px 0' }} />

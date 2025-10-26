@@ -49,6 +49,12 @@ import {
   searchUsers,
   getProjectMetrics
 } from '../utils/projectAttachmentsApi'
+import {
+  groupTasksByType,
+  getTaskTypeStatus,
+  getTaskTypeStatusColor,
+  getTaskTypeStatusIconType
+} from '../utils/taskProgressionUtils'
 import SprintReportDialog from './SprintReportDialog'
 
 const { Title, Text } = Typography
@@ -242,94 +248,6 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
     if (!text) return false
     const cleanText = stripHtmlTags(text)
     return cleanText.length > maxLength
-  }
-
-  // Helper function to group tasks by Task Type and order chronologically
-  const groupTasksByType = (tasks) => {
-    if (!tasks || tasks.length === 0) return []
-
-    // Group tasks by type
-    const grouped = {}
-    tasks.forEach(task => {
-      const taskType = task.type || 'Uncategorized'
-      if (!grouped[taskType]) {
-        grouped[taskType] = []
-      }
-      grouped[taskType].push(task)
-    })
-
-    // Sort tasks within each group by creation date (oldest first)
-    Object.keys(grouped).forEach(type => {
-      grouped[type].sort((a, b) => {
-        const dateA = new Date(a.creation || a.exp_start_date || 0)
-        const dateB = new Date(b.creation || b.exp_start_date || 0)
-        return dateA - dateB
-      })
-    })
-
-    // Convert to array and sort by earliest task in each group
-    const result = Object.entries(grouped).map(([type, typeTasks]) => {
-      const earliestDate = Math.min(...typeTasks.map(t => new Date(t.creation || t.exp_start_date || 0).getTime()))
-      return {
-        type,
-        tasks: typeTasks,
-        earliestDate: new Date(earliestDate)
-      }
-    })
-
-    // Sort groups by earliest task date
-    result.sort((a, b) => a.earliestDate - b.earliestDate)
-
-    return result
-  }
-
-  // Helper function to calculate task type completion status
-  const getTaskTypeStatus = (tasks) => {
-    if (!tasks || tasks.length === 0) return { status: 'wait', completed: 0, total: 0, hasOverdue: false }
-
-    const completed = tasks.filter(t => t.status && (t.status.toLowerCase() === 'completed' || t.status.toLowerCase() === 'closed')).length
-    const total = tasks.length
-    const hasOverdue = tasks.some(t => {
-      if (!t.exp_end_date) return false
-      const dueDate = new Date(t.exp_end_date)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      dueDate.setHours(0, 0, 0, 0)
-      return dueDate < today && t.status && t.status.toLowerCase() !== 'completed' && t.status.toLowerCase() !== 'closed'
-    })
-
-    let status = 'wait'
-    if (hasOverdue) {
-      status = 'error'
-    } else if (completed === total) {
-      status = 'finish'
-    } else if (completed > 0) {
-      status = 'process'
-    }
-
-    return { status, completed, total, hasOverdue }
-  }
-
-  // Helper function to get color for task type status
-  const getTaskTypeStatusColor = (status, hasOverdue) => {
-    if (hasOverdue) return '#ff4d4f'  // error red
-    switch (status) {
-      case 'finish': return '#52c41a'  // success green
-      case 'process': return '#1890ff'  // processing blue
-      case 'error': return '#ff4d4f'  // error red
-      default: return '#d9d9d9'  // default gray
-    }
-  }
-
-  // Helper function to get icon for task type status
-  const getTaskTypeStatusIcon = (status, hasOverdue) => {
-    if (hasOverdue) return <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
-    switch (status) {
-      case 'finish': return <CheckCircleFilled style={{ color: '#52c41a' }} />
-      case 'process': return <LoadingOutlined style={{ color: '#1890ff' }} />
-      case 'error': return <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
-      default: return null
-    }
   }
 
   // Helper function to determine milestone status for Steps component
@@ -912,7 +830,17 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 current={-1}
                 items={groupTasksByType(projectData.tasks).map((group) => {
                   const statusInfo = getTaskTypeStatus(group.tasks)
-                  const icon = getTaskTypeStatusIcon(statusInfo.status, statusInfo.hasOverdue)
+                  const iconType = getTaskTypeStatusIconType(statusInfo.status, statusInfo.hasOverdue)
+
+                  // Create icon component based on type
+                  let icon = null
+                  if (iconType === 'CheckCircleFilled') {
+                    icon = <CheckCircleFilled style={{ color: '#52c41a' }} />
+                  } else if (iconType === 'LoadingOutlined') {
+                    icon = <LoadingOutlined style={{ color: '#1890ff' }} />
+                  } else if (iconType === 'ExclamationCircleOutlined') {
+                    icon = <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+                  }
 
                   return {
                     title: (

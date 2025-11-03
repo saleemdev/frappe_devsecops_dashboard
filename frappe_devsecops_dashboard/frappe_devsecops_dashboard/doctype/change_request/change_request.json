@@ -18,9 +18,11 @@
   "section_break_2",
   "system_affected",
   "originator_name",
+  "originator_full_name",
   "column_break_3",
   "originator_organization",
   "originators_manager",
+  "originator_manager_full_name",
   "change_details_tab",
   "change_category_section",
   "change_category",
@@ -116,8 +118,9 @@
   },
   {
    "fieldname": "originator_name",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "label": "Originator Name",
+   "options": "Employee",
    "reqd": 1
   },
   {
@@ -131,8 +134,9 @@
   },
   {
    "fieldname": "originators_manager",
-   "fieldtype": "Data",
-   "label": "Originator's Manager"
+   "fieldtype": "Link",
+   "label": "Originator's Manager",
+   "options": "Employee"
   },
   {
    "fieldname": "change_details_tab",
@@ -274,12 +278,25 @@
   {
    "fieldname": "section_break_n1bcm",
    "fieldtype": "Section Break"
+  },
+  {
+   "fetch_from": "originator_name.employee_name",
+   "fieldname": "originator_full_name",
+   "fieldtype": "Data",
+   "label": "Originator Full Name",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "originators_manager.employee_name",
+   "fieldname": "originator_manager_full_name",
+   "fieldtype": "Data",
+   "label": "Originator Manager Full Name",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
- "is_submittable": 1,
  "links": [],
- "modified": "2025-10-26 22:00:31.180200",
+ "modified": "2025-10-31 11:03:50.375149",
  "modified_by": "Administrator",
  "module": "Frappe Devsecops Dashboard",
  "name": "Change Request",
@@ -296,7 +313,6 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
-   "submit": 1,
    "write": 1
   }
  ],

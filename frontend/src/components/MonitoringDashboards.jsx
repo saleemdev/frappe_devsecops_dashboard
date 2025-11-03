@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card,
   Table,
@@ -7,7 +7,6 @@ import {
   Form,
   Input,
   Select,
-  Switch,
   Space,
   Typography,
   message,
@@ -16,26 +15,53 @@ import {
   Tooltip,
   Row,
   Col,
-  Alert,
-  Spin
+  Switch
 } from 'antd'
 import { useResponsive } from '../hooks/useResponsive'
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  EyeOutlined,
-  SearchOutlined,
-  BarChartOutlined,
   LinkOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  FilterOutlined
+  BarChartOutlined,
+  SearchOutlined
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
+const { TextArea } = Input
 const { Option } = Select
-const { Search } = Input
+
+// API call helper function
+async function apiCall(endpoint, options = {}) {
+  try {
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Frappe-CSRF-Token': window.csrf_token,
+        ...options.headers
+      },
+      ...options
+    })
+
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    // Handle Frappe API response format
+    if (data.message) {
+      return data.message
+    }
+
+    return data
+  } catch (error) {
+    throw error
+  }
+}
 
 const MonitoringDashboards = () => {
   const [dashboards, setDashboards] = useState([])
@@ -49,61 +75,12 @@ const MonitoringDashboards = () => {
   const [form] = Form.useForm()
 
   // Responsive hook
-  const { isMobile, isTablet, isSmallScreen } = useResponsive()
+  const { isMobile } = useResponsive()
 
-  // Mock data for demonstration
-  const mockDashboards = [
-    {
-      id: 'dash-001',
-      name: 'Infrastructure Monitoring',
-      description: 'Real-time monitoring of server resources, network performance, and system health',
-      url: 'https://grafana.example.com/d/infrastructure',
-      category: 'Infrastructure',
-      status: true,
-      lastUpdated: '2024-01-15 14:30:00',
-      createdBy: 'Admin User'
-    },
-    {
-      id: 'dash-002',
-      name: 'Application Performance',
-      description: 'Application response times, error rates, and user experience metrics',
-      url: 'https://newrelic.example.com/dashboard/app-performance',
-      category: 'Application',
-      status: true,
-      lastUpdated: '2024-01-14 09:15:00',
-      createdBy: 'DevOps Team'
-    },
-    {
-      id: 'dash-003',
-      name: 'Security Monitoring',
-      description: 'Security events, threat detection, and compliance monitoring',
-      url: 'https://splunk.example.com/security-dashboard',
-      category: 'Security',
-      status: false,
-      lastUpdated: '2024-01-10 16:45:00',
-      createdBy: 'Security Team'
-    },
-    {
-      id: 'dash-004',
-      name: 'Database Performance',
-      description: 'Database query performance, connection pools, and storage metrics',
-      url: 'https://datadog.example.com/dashboard/database',
-      category: 'Performance',
-      status: true,
-      lastUpdated: '2024-01-12 11:20:00',
-      createdBy: 'DBA Team'
-    }
-  ]
-
-  // Dashboard categories
-  const categories = [
-    { value: 'Infrastructure', label: 'Infrastructure' },
-    { value: 'Application', label: 'Application' },
-    { value: 'Security', label: 'Security' },
-    { value: 'Performance', label: 'Performance' },
-    { value: 'Business', label: 'Business' },
-    { value: 'Custom', label: 'Custom' }
-  ]
+  // Dashboard categories and types
+  const categories = ['Infrastructure', 'Application', 'Security', 'Performance', 'Other']
+  const dashboardTypes = ['Grafana', 'Kibana', 'Prometheus', 'Custom']
+  const accessLevels = ['Public', 'Internal', 'Restricted']
 
   // Load dashboards on component mount
   useEffect(() => {
@@ -117,9 +94,9 @@ const MonitoringDashboards = () => {
     // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter(dashboard =>
-        dashboard.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        dashboard.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        dashboard.category.toLowerCase().includes(searchQuery.toLowerCase())
+        dashboard.dashboard_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        dashboard.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        dashboard.category?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
 
@@ -131,7 +108,7 @@ const MonitoringDashboards = () => {
     // Apply status filter
     if (statusFilter !== 'all') {
       const isActive = statusFilter === 'active'
-      filtered = filtered.filter(dashboard => dashboard.status === isActive)
+      filtered = filtered.filter(dashboard => dashboard.is_active === isActive)
     }
 
     setFilteredDashboards(filtered)
@@ -140,10 +117,15 @@ const MonitoringDashboards = () => {
   const loadDashboards = async () => {
     setLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setDashboards(mockDashboards)
+      const response = await apiCall('/api/method/frappe_devsecops_dashboard.api.monitoring_dashboards.get_dashboard_urls')
+
+      if (response?.success) {
+        setDashboards(response.data || [])
+      } else {
+        message.error('Failed to load monitoring dashboards')
+      }
     } catch (error) {
+      console.error('Error loading dashboards:', error)
       message.error('Failed to load monitoring dashboards')
     } finally {
       setLoading(false)
@@ -156,58 +138,114 @@ const MonitoringDashboards = () => {
     setModalVisible(true)
   }
 
-  const handleEditDashboard = (dashboard) => {
-    setEditingDashboard(dashboard)
-    form.setFieldsValue({
-      name: dashboard.name,
-      description: dashboard.description,
-      url: dashboard.url,
-      category: dashboard.category,
-      status: dashboard.status
-    })
-    setModalVisible(true)
+  const handleEditDashboard = async (dashboard) => {
+    try {
+      console.log('[MonitoringDashboards] Edit clicked for dashboard:', dashboard)
+      console.log('[MonitoringDashboards] Document name (ID):', dashboard.name)
+
+      // Fetch complete dashboard details from backend
+      const response = await apiCall(`/api/method/frappe_devsecops_dashboard.api.monitoring_dashboards.get_dashboard_url?name=${encodeURIComponent(dashboard.name)}`)
+
+      console.log('[MonitoringDashboards] Fetched dashboard details:', response)
+
+      if (response?.success && response?.data) {
+        const dashboardData = response.data
+        console.log('[MonitoringDashboards] Setting form values with fetched data:', dashboardData)
+
+        setEditingDashboard(dashboardData)
+        form.setFieldsValue({
+          dashboard_name: dashboardData.dashboard_name,
+          dashboard_url: dashboardData.dashboard_url,
+          dashboard_type: dashboardData.dashboard_type,
+          category: dashboardData.category,
+          description: dashboardData.description,
+          is_active: dashboardData.is_active,
+          access_level: dashboardData.access_level,
+          project: dashboardData.project,
+          sort_order: dashboardData.sort_order
+        })
+        setModalVisible(true)
+      } else {
+        message.error(response?.error || 'Failed to fetch dashboard details')
+      }
+    } catch (error) {
+      console.error('[MonitoringDashboards] Error fetching dashboard details:', error)
+      message.error('Failed to fetch dashboard details')
+    }
   }
 
-  const handleDeleteDashboard = async (dashboardId) => {
+  const handleDeleteDashboard = async (dashboardRecord) => {
     try {
-      setDashboards(prev => prev.filter(d => d.id !== dashboardId))
-      message.success('Dashboard deleted successfully')
+      console.log('[MonitoringDashboards] Delete clicked for dashboard:', dashboardRecord)
+      console.log('[MonitoringDashboards] Document name (ID) to delete:', dashboardRecord.name)
+
+      const response = await apiCall(`/api/method/frappe_devsecops_dashboard.api.monitoring_dashboards.delete_dashboard_url?name=${encodeURIComponent(dashboardRecord.name)}`, {
+        method: 'POST'
+      })
+
+      console.log('[MonitoringDashboards] Delete response:', response)
+
+      if (response?.success) {
+        setDashboards(prev => prev.filter(d => d.name !== dashboardRecord.name))
+        message.success('Dashboard deleted successfully')
+      } else {
+        message.error(response?.error || 'Failed to delete dashboard')
+      }
     } catch (error) {
+      console.error('[MonitoringDashboards] Error deleting dashboard:', error)
       message.error('Failed to delete dashboard')
     }
   }
 
   const handleViewDashboard = (dashboard) => {
-    window.open(dashboard.url, '_blank', 'noopener,noreferrer')
+    window.open(dashboard.dashboard_url, '_blank', 'noopener,noreferrer')
   }
 
   const handleModalSubmit = async () => {
     try {
       const values = await form.validateFields()
-      
+      console.log('[MonitoringDashboards] Form values:', values)
+
       if (editingDashboard) {
         // Update existing dashboard
-        setDashboards(prev => prev.map(d => 
-          d.id === editingDashboard.id 
-            ? { ...d, ...values, lastUpdated: new Date().toLocaleString() }
-            : d
-        ))
-        message.success('Dashboard updated successfully')
-      } else {
-        // Add new dashboard
-        const newDashboard = {
-          id: `dash-${Date.now()}`,
-          ...values,
-          lastUpdated: new Date().toLocaleString(),
-          createdBy: 'Current User'
+        console.log('[MonitoringDashboards] Updating dashboard:', editingDashboard.name)
+        const response = await apiCall('/api/method/frappe_devsecops_dashboard.api.monitoring_dashboards.update_dashboard_url', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: editingDashboard.name,
+            data: values
+          })
+        })
+
+        console.log('[MonitoringDashboards] Update response:', response)
+        if (response?.success) {
+          await loadDashboards()
+          message.success('Dashboard updated successfully')
+          setModalVisible(false)
+          form.resetFields()
+        } else {
+          message.error(response?.error || 'Failed to update dashboard')
         }
-        setDashboards(prev => [...prev, newDashboard])
-        message.success('Dashboard added successfully')
+      } else {
+        // Create new dashboard
+        console.log('[MonitoringDashboards] Creating new dashboard')
+        const response = await apiCall('/api/method/frappe_devsecops_dashboard.api.monitoring_dashboards.create_dashboard_url', {
+          method: 'POST',
+          body: JSON.stringify({ data: values })
+        })
+
+        console.log('[MonitoringDashboards] Create response:', response)
+        if (response?.success) {
+          await loadDashboards()
+          message.success('Dashboard created successfully')
+          setModalVisible(false)
+          form.resetFields()
+        } else {
+          message.error(response?.error || 'Failed to create dashboard')
+        }
       }
-      
-      setModalVisible(false)
-      form.resetFields()
     } catch (error) {
+      console.error('[MonitoringDashboards] Error submitting form:', error)
       message.error('Please fill in all required fields')
     }
   }
@@ -215,64 +253,59 @@ const MonitoringDashboards = () => {
   const columns = [
     {
       title: 'Dashboard Name',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a, b) => a.name.localeCompare(b.name),
+      dataIndex: 'dashboard_name',
+      key: 'dashboard_name',
+      sorter: (a, b) => (a.dashboard_name || '').localeCompare(b.dashboard_name || ''),
       render: (text, record) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ fontSize: '14px' }}>{text}</Text>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.description.length > 60 
-              ? `${record.description.substring(0, 60)}...` 
-              : record.description
+            {record.description && record.description.length > 60
+              ? `${record.description.substring(0, 60)}...`
+              : record.description || 'No description'
             }
           </Text>
         </Space>
       )
     },
     {
+      title: 'Type',
+      dataIndex: 'dashboard_type',
+      key: 'dashboard_type',
+      width: 100,
+      sorter: (a, b) => (a.dashboard_type || '').localeCompare(b.dashboard_type || ''),
+      render: (type) => <Tag color="blue">{type || 'Custom'}</Tag>
+    },
+    {
       title: 'Category',
       dataIndex: 'category',
       key: 'category',
       width: 120,
-      sorter: (a, b) => a.category.localeCompare(b.category),
+      sorter: (a, b) => (a.category || '').localeCompare(b.category || ''),
       render: (category) => {
         const colors = {
           Infrastructure: 'blue',
           Application: 'green',
           Security: 'red',
           Performance: 'orange',
-          Business: 'purple',
-          Custom: 'gray'
+          Other: 'gray'
         }
-        return <Tag color={colors[category] || 'default'}>{category}</Tag>
+        return <Tag color={colors[category] || 'default'}>{category || 'Other'}</Tag>
       }
     },
     {
       title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'is_active',
+      key: 'is_active',
       width: 100,
-      sorter: (a, b) => a.status - b.status,
-      render: (status) => (
-        <Tag 
-          icon={status ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-          color={status ? 'success' : 'error'}
+      sorter: (a, b) => a.is_active - b.is_active,
+      render: (isActive) => (
+        <Tag
+          icon={isActive ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+          color={isActive ? 'success' : 'error'}
         >
-          {status ? 'Active' : 'Inactive'}
+          {isActive ? 'Active' : 'Inactive'}
         </Tag>
-      )
-    },
-    {
-      title: 'Last Updated',
-      dataIndex: 'lastUpdated',
-      key: 'lastUpdated',
-      width: 150,
-      sorter: (a, b) => new Date(a.lastUpdated) - new Date(b.lastUpdated),
-      render: (date) => (
-        <Text type="secondary" style={{ fontSize: '12px' }}>
-          {new Date(date).toLocaleDateString()}
-        </Text>
       )
     },
     {
@@ -281,11 +314,11 @@ const MonitoringDashboards = () => {
       width: 150,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="View Dashboard">
+          <Tooltip title="Open Dashboard">
             <Button
               type="text"
               size="small"
-              icon={<EyeOutlined />}
+              icon={<LinkOutlined />}
               onClick={() => handleViewDashboard(record)}
             />
           </Tooltip>
@@ -299,8 +332,8 @@ const MonitoringDashboards = () => {
           </Tooltip>
           <Popconfirm
             title="Delete Dashboard"
-            description="Are you sure you want to delete this dashboard?"
-            onConfirm={() => handleDeleteDashboard(record.id)}
+            description={`Are you sure you want to delete "${record.dashboard_name}"?`}
+            onConfirm={() => handleDeleteDashboard(record)}
             okText="Yes"
             cancelText="No"
           >
@@ -334,7 +367,7 @@ const MonitoringDashboards = () => {
         {/* Filters and Search */}
         <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
           <Col xs={24} sm={12} md={8}>
-            <Search
+            <Input.Search
               placeholder="Search dashboards..."
               allowClear
               prefix={<SearchOutlined />}
@@ -351,7 +384,7 @@ const MonitoringDashboards = () => {
             >
               <Option value="all">All Categories</Option>
               {categories.map(cat => (
-                <Option key={cat.value} value={cat.value}>{cat.label}</Option>
+                <Option key={cat} value={cat}>{cat}</Option>
               ))}
             </Select>
           </Col>
@@ -411,10 +444,26 @@ const MonitoringDashboards = () => {
           <Form
             form={form}
             layout="vertical"
-            initialValues={{ status: true }}
+            initialValues={{ is_active: true, dashboard_type: 'Custom', category: 'Other', access_level: 'Internal', sort_order: 0 }}
           >
+            {editingDashboard && (
+              <Form.Item label="Document ID" style={{ marginBottom: '16px' }}>
+                <div style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: '4px',
+                  border: '1px solid #d9d9d9',
+                  fontFamily: 'monospace',
+                  fontSize: '12px',
+                  color: '#666'
+                }}>
+                  {editingDashboard.name}
+                </div>
+              </Form.Item>
+            )}
+
             <Form.Item
-              name="name"
+              name="dashboard_name"
               label="Dashboard Name"
               rules={[{ required: true, message: 'Please enter dashboard name' }]}
             >
@@ -422,22 +471,10 @@ const MonitoringDashboards = () => {
             </Form.Item>
 
             <Form.Item
-              name="description"
-              label="Description"
-              rules={[{ required: true, message: 'Please enter description' }]}
-            >
-              <Input.TextArea
-                rows={3}
-                placeholder="Describe what this dashboard monitors"
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="url"
+              name="dashboard_url"
               label="Dashboard URL"
               rules={[
-                { required: true, message: 'Please enter dashboard URL' },
-                { type: 'url', message: 'Please enter a valid URL' }
+                { required: true, message: 'Please enter dashboard URL' }
               ]}
             >
               <Input
@@ -449,30 +486,70 @@ const MonitoringDashboards = () => {
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
-                  name="category"
-                  label="Category"
-                  rules={[{ required: true, message: 'Please select category' }]}
+                  name="dashboard_type"
+                  label="Dashboard Type"
                 >
-                  <Select placeholder="Select category">
-                    {categories.map(cat => (
-                      <Option key={cat.value} value={cat.value}>{cat.label}</Option>
+                  <Select placeholder="Select type">
+                    {dashboardTypes.map(type => (
+                      <Option key={type} value={type}>{type}</Option>
                     ))}
                   </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>
                 <Form.Item
-                  name="status"
-                  label="Status"
-                  valuePropName="checked"
+                  name="category"
+                  label="Category"
                 >
-                  <Switch
-                    checkedChildren="Active"
-                    unCheckedChildren="Inactive"
-                  />
+                  <Select placeholder="Select category">
+                    {categories.map(cat => (
+                      <Option key={cat} value={cat}>{cat}</Option>
+                    ))}
+                  </Select>
                 </Form.Item>
               </Col>
             </Row>
+
+            <Form.Item
+              name="description"
+              label="Description"
+            >
+              <TextArea
+                rows={3}
+                placeholder="Describe what this dashboard monitors"
+              />
+            </Form.Item>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="access_level"
+                  label="Access Level"
+                >
+                  <Select placeholder="Select access level">
+                    {accessLevels.map(level => (
+                      <Option key={level} value={level}>{level}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="is_active"
+                  label="Active"
+                  valuePropName="checked"
+                >
+                  <Switch />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item
+              name="sort_order"
+              label="Sort Order"
+            >
+              <Input type="number" placeholder="0" />
+            </Form.Item>
           </Form>
         </Modal>
       </Card>

@@ -4,6 +4,11 @@
  */
 
 import { createApiClient } from '../services/api/config.js'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+// Extend dayjs with relativeTime plugin
+dayjs.extend(relativeTime)
 
 // Create API client instance
 let apiClient = null
@@ -63,9 +68,27 @@ export const uploadProjectFile = async (projectName, file) => {
         'Content-Type': 'multipart/form-data'
       }
     })
-    return response.data
+
+    // Frappe returns the File document directly
+    // The response interceptor unwraps the message field
+    // Check if we got a valid File document
+    if (response.data && response.data.name) {
+      return {
+        success: true,
+        file: response.data
+      }
+    }
+
+    return {
+      success: false,
+      error: 'Invalid response from server'
+    }
   } catch (error) {
-    throw error
+    console.error('[uploadProjectFile] Error:', error)
+    return {
+      success: false,
+      error: error?.message || error?.response?.data?.message || 'Failed to upload file'
+    }
   }
 }
 
@@ -209,6 +232,35 @@ export const formatDate = (dateString) => {
     })
   } catch {
     return 'Invalid date'
+  }
+}
+
+/**
+ * Format date with human-readable relative time
+ * Example: "Jan 15, 2024 (2 months ago)" or "Mar 20, 2024 (in 1 month)"
+ * Returns "Not set" for null/undefined/empty values
+ */
+export const formatDateWithRelativeTime = (dateString) => {
+  // Handle null, undefined, empty string, and "None" values
+  if (!dateString || dateString === 'None' || dateString === 'null') {
+    return 'Not set'
+  }
+
+  try {
+    const date = dayjs(dateString)
+
+    // Check if date is valid
+    if (!date.isValid()) {
+      return 'Not set'
+    }
+
+    const formatted = date.format('MMM DD, YYYY')
+    const relative = date.fromNow()
+
+    return `${formatted} (${relative})`
+  } catch (error) {
+    console.error('[formatDateWithRelativeTime] Error formatting date:', dateString, error)
+    return 'Not set'
   }
 }
 

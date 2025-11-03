@@ -113,9 +113,23 @@ def get_change_request(name: str) -> Dict[str, Any]:
         if not doc.has_permission('read'):
             frappe.throw(_('You do not have permission to read this Change Request'), frappe.PermissionError)
 
+        # Convert to dict
+        data = doc.as_dict()
+
+        # Enrich approvers with full names from User DocType
+        if data.get('change_approvers'):
+            for approver in data['change_approvers']:
+                if approver.get('user'):
+                    try:
+                        user_doc = frappe.get_doc('User', approver['user'])
+                        approver['user_full_name'] = user_doc.full_name or approver['user']
+                    except Exception:
+                        # If user not found, use the user ID
+                        approver['user_full_name'] = approver['user']
+
         return {
             'success': True,
-            'data': doc.as_dict()
+            'data': data
         }
 
     except frappe.DoesNotExistError:
@@ -310,5 +324,308 @@ def get_projects() -> Dict[str, Any]:
         return {
             'success': False,
             'error': str(e)
+        }
+
+
+@frappe.whitelist()
+def sync_approvers_from_project(change_request_name: str) -> Dict[str, Any]:
+    """
+    Manually sync approvers from the linked Project's team members
+    Can be called from the Edit Change Request form to refresh/sync approvers
+
+    Args:
+        change_request_name: The Change Request ID (e.g., CR-25-00001)
+
+    Returns:
+        Dict with success status and count of approvers added
+    """
+    try:
+        # Get the Change Request document
+        doc = frappe.get_doc('Change Request', change_request_name)
+
+        # Check write permission
+        if not doc.has_permission('write'):
+            frappe.throw(_('You do not have permission to update this Change Request'), frappe.PermissionError)
+
+        if not doc.project:
+            frappe.throw(_('Change Request must have a linked Project to sync approvers'), frappe.ValidationError)
+
+        # Get the project document
+        project = frappe.get_doc('Project', doc.project)
+
+        # Get existing approver users to avoid duplicates
+        existing_approver_users = {approver.user for approver in doc.change_approvers}
+
+        # Fetch project users who are marked as change approvers
+        project_users = project.get('users', [])
+
+        approvers_added = 0
+        for project_user in project_users:
+            # Check if user is marked as change approver and not already in the list
+            if project_user.get('custom_is_change_approver') and project_user.user not in existing_approver_users:
+                # Add to change_approvers table
+                doc.append('change_approvers', {
+                    'user': project_user.user,
+                    'business_function': project_user.get('custom_business_function', ''),
+                    'approval_status': 'Pending'
+                })
+                approvers_added += 1
+
+        # Save if approvers were added
+        if approvers_added > 0:
+            doc.save()
+
+        return {
+            'success': True,
+            'message': _('Synced {0} approver(s) from Project team members').format(approvers_added),
+            'data': {
+                'approvers_added': approvers_added,
+                'total_approvers': len(doc.change_approvers)
+            }
+        }
+
+    except frappe.ValidationError as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+    except frappe.PermissionError as e:
+        frappe.throw(str(e), frappe.PermissionError)
+    except frappe.DoesNotExistError:
+        frappe.throw(_('Change Request {0} not found').format(change_request_name), frappe.DoesNotExistError)
+    except Exception as e:
+        frappe.log_error(f"Error syncing approvers for {change_request_name}: {str(e)}", "Change Request Approver Sync API")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+@frappe.whitelist()
+def update_change_request_approval(
+    change_request_name: str,
+    approver_index,
+    approval_status: str,
+    remarks: str
+) -> Dict[str, Any]:
+    """
+    Update approval status for a specific approver in the Change Request Approver child table
+    Also updates the Change Request's approval_status based on all approvers' decisions
+
+    Args:
+        change_request_name: The Change Request ID (e.g., CR-25-00001)
+        approver_index: Index of the approver in the change_approvers table (0-based)
+        approval_status: Status to set ('Approved' or 'Rejected')
+        remarks: Comments/reason for the approval decision
+
+    Returns:
+        Dict with success status and updated approver data
+    """
+    try:
+        import json
+        from datetime import datetime
+
+        # Convert approver_index to integer
+        try:
+            approver_index = int(approver_index)
+        except (ValueError, TypeError):
+            frappe.throw(_('Invalid approver index format'), frappe.ValidationError)
+
+        # Validate inputs
+        if approval_status not in ['Approved', 'Rejected']:
+            frappe.throw(_('Approval status must be either "Approved" or "Rejected"'), frappe.ValidationError)
+
+        if not remarks or not remarks.strip():
+            frappe.throw(_('Remarks/Comments are mandatory for approval decisions'), frappe.ValidationError)
+
+        # Get the Change Request document
+        doc = frappe.get_doc('Change Request', change_request_name)
+
+        # Check write permission
+        if not doc.has_permission('write'):
+            frappe.throw(_('You do not have permission to update this Change Request'), frappe.PermissionError)
+
+        # Validate approver index
+        if approver_index < 0 or approver_index >= len(doc.change_approvers):
+            frappe.throw(_('Invalid approver index: {0}. Valid range: 0-{1}').format(approver_index, len(doc.change_approvers) - 1), frappe.ValidationError)
+
+        # Get the approver row
+        approver = doc.change_approvers[approver_index]
+
+        # Verify current user is the approver
+        current_user = frappe.session.user
+        if approver.user != current_user:
+            frappe.throw(_('You can only approve/reject your own approval requests'), frappe.PermissionError)
+
+        # Update the approver record
+        approver.approval_status = approval_status
+        approver.remarks = remarks
+
+        # Check if all approvers have responded
+        all_approved = True
+        any_rejected = False
+        all_responded = True
+
+        for app in doc.change_approvers:
+            if app.approval_status == 'Pending':
+                all_responded = False
+                break
+            if app.approval_status == 'Rejected':
+                any_rejected = True
+            elif app.approval_status != 'Approved':
+                all_approved = False
+
+        # Update Change Request approval_status based on approvers' decisions
+        if any_rejected:
+            doc.approval_status = 'Not Accepted'
+        elif all_approved and all_responded:
+            doc.approval_status = 'Approved for Implementation'
+
+        # Save the document
+        doc.save()
+
+        return {
+            'success': True,
+            'message': _('Approval updated successfully'),
+            'data': {
+                'user': approver.user,
+                'approval_status': approver.approval_status,
+                'remarks': approver.remarks,
+                'change_request_status': doc.approval_status,
+                'modified': doc.modified
+            }
+        }
+
+    except frappe.ValidationError as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
+    except frappe.PermissionError as e:
+        frappe.throw(str(e), frappe.PermissionError)
+    except frappe.DoesNotExistError:
+        frappe.throw(_('Change Request {0} not found').format(change_request_name), frappe.DoesNotExistError)
+    except Exception as e:
+        frappe.log_error(f"Error updating approval for {change_request_name}: {str(e)}", "Change Request Approval API")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+@frappe.whitelist()
+def search_employees(query: str = '') -> Dict[str, Any]:
+    """
+    Search for employees by name or ID
+
+    Args:
+        query: Search query string (partial name or employee ID)
+
+    Returns:
+        Dict with list of matching employees including manager info
+    """
+    try:
+        # Ensure query is a string
+        query = str(query).strip() if query else ''
+
+        # Build SQL query for employee search
+        sql = "SELECT name, employee_name, reports_to FROM `tabEmployee` WHERE status = 'Active'"
+        params = []
+
+        if query and len(query) > 0:
+            sql += " AND (name LIKE %s OR employee_name LIKE %s)"
+            params = [f'%{query}%', f'%{query}%']
+
+        sql += " ORDER BY employee_name ASC LIMIT 20"
+
+        # Execute query
+        employees = frappe.db.sql(sql, params, as_dict=True)
+
+        # Fetch manager full names for each employee
+        for emp in employees:
+            if emp.get('reports_to'):
+                try:
+                    # Query to get manager's employee_name
+                    manager_result = frappe.db.sql(
+                        "SELECT employee_name FROM `tabEmployee` WHERE name = %s",
+                        emp['reports_to'],
+                        as_dict=True
+                    )
+                    if manager_result:
+                        emp['reports_to_full_name'] = manager_result[0]['employee_name']
+                    else:
+                        emp['reports_to_full_name'] = emp['reports_to']
+                except Exception:
+                    emp['reports_to_full_name'] = emp['reports_to']
+            else:
+                emp['reports_to_full_name'] = None
+
+        return {
+            'success': True,
+            'data': employees
+        }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'data': []
+        }
+
+
+@frappe.whitelist()
+def get_doctype_permissions(doctype: str) -> Dict[str, Any]:
+    """
+    Get user permissions for a specific DocType
+
+    Args:
+        doctype: The DocType name (e.g., 'Change Request', 'Project')
+
+    Returns:
+        Dict with permission flags (read, write, create, delete, etc.)
+    """
+    try:
+        # Check DocType-level permissions using frappe.has_permission
+        permissions = {
+            'read': frappe.has_permission(doctype, 'read'),
+            'write': frappe.has_permission(doctype, 'write'),
+            'create': frappe.has_permission(doctype, 'create'),
+            'delete': frappe.has_permission(doctype, 'delete'),
+            'submit': frappe.has_permission(doctype, 'submit'),
+            'amend': frappe.has_permission(doctype, 'amend'),
+            'cancel': frappe.has_permission(doctype, 'cancel'),
+            'print': frappe.has_permission(doctype, 'print'),
+            'email': frappe.has_permission(doctype, 'email'),
+            'report': frappe.has_permission(doctype, 'report'),
+            'export': frappe.has_permission(doctype, 'export'),
+            'import': frappe.has_permission(doctype, 'import'),
+            'share': frappe.has_permission(doctype, 'share')
+        }
+
+        return {
+            'success': True,
+            'permissions': permissions
+        }
+
+    except Exception as e:
+        frappe.log_error(f"Error fetching permissions for {doctype}: {str(e)}", "Permissions API")
+        return {
+            'success': False,
+            'error': str(e),
+            'permissions': {
+                'read': False,
+                'write': False,
+                'create': False,
+                'delete': False,
+                'submit': False,
+                'amend': False,
+                'cancel': False,
+                'print': False,
+                'email': False,
+                'report': False,
+                'export': False,
+                'import': False,
+                'share': False
+            }
         }
 

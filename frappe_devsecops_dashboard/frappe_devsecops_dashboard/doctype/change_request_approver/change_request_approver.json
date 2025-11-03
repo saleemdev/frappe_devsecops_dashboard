@@ -10,7 +10,8 @@
   "user",
   "business_function",
   "approval_status",
-  "remarks"
+  "remarks",
+  "approval_datetime"
  ],
  "fields": [
   {
@@ -22,24 +23,39 @@
   {
    "fieldname": "business_function",
    "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
    "label": "Business Function"
   },
   {
    "fieldname": "approval_status",
    "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
    "label": "Approval Status",
    "options": "Pending\nApproved\nRejected"
   },
   {
    "fieldname": "remarks",
    "fieldtype": "Text Editor",
+   "in_list_view": 1,
+   "in_preview": 1,
+   "in_standard_filter": 1,
    "label": "Remarks"
+  },
+  {
+   "default": "now",
+   "fieldname": "approval_datetime",
+   "fieldtype": "Datetime",
+   "label": "Approval DateTime"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-10-26 21:58:49.040178",
+ "modified": "2025-10-27 13:35:12.713545",
  "modified_by": "Administrator",
  "module": "Frappe Devsecops Dashboard",
  "name": "Change Request Approver",

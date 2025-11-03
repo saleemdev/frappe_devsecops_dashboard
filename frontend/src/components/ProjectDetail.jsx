@@ -21,7 +21,12 @@ import {
   Tooltip,
   Checkbox,
   message,
-  Steps
+  Steps,
+  Upload,
+  Popconfirm,
+  List,
+  Collapse,
+  Divider
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -36,8 +41,15 @@ import {
   PlusOutlined,
   CopyOutlined,
   BarChartOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  LockOutlined,
+  UploadOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  PaperClipOutlined,
+  TeamOutlined
 } from '@ant-design/icons'
+import useAuthStore from '../stores/authStore'
 import {
   getProjectDetails,
   getProjectUsers,
@@ -46,8 +58,14 @@ import {
   createProjectTask,
   getTaskTypes,
   formatDate,
+  formatDateWithRelativeTime,
   searchUsers,
-  getProjectMetrics
+  getProjectMetrics,
+  getProjectFiles,
+  uploadProjectFile,
+  deleteProjectFile,
+  formatFileSize,
+  getFileIcon
 } from '../utils/projectAttachmentsApi'
 import {
   groupTasksByType,
@@ -60,6 +78,7 @@ import SprintReportDialog from './SprintReportDialog'
 const { Title, Text } = Typography
 
 const ProjectDetail = ({ projectId, navigateToRoute }) => {
+  const { hasWritePermission } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [projectData, setProjectData] = useState(null)
   const [projectManager, setProjectManager] = useState(null)
@@ -75,6 +94,12 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [userSearchResults, setUserSearchResults] = useState([])
   const [showSprintReport, setShowSprintReport] = useState(false)
   const [notesExpanded, setNotesExpanded] = useState(false)  // For notes expand/collapse
+  const [canEditProject, setCanEditProject] = useState(true)
+  const [checkingProjectPermissions, setCheckingProjectPermissions] = useState(true)
+  const [attachments, setAttachments] = useState([])
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [showAllTeamMembers, setShowAllTeamMembers] = useState(false)
 
   // Fetch task types when modal opens
   useEffect(() => {
@@ -82,6 +107,27 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       loadTaskTypes()
     }
   }, [showNewTaskModal])
+
+  // Check write permissions on mount
+  useEffect(() => {
+    const checkPermissions = async () => {
+      try {
+        console.log('[RBAC DEBUG] ProjectDetail: Starting permission check for Project')
+        setCheckingProjectPermissions(true)
+        const hasWrite = await hasWritePermission('Project')
+        console.log('[RBAC DEBUG] ProjectDetail: Permission check result:', hasWrite)
+        console.log('[RBAC DEBUG] ProjectDetail: Setting canEditProject to:', hasWrite)
+        setCanEditProject(hasWrite)
+      } catch (error) {
+        console.error('[RBAC DEBUG] ProjectDetail: Error checking project permissions:', error)
+        setCanEditProject(false)
+      } finally {
+        setCheckingProjectPermissions(false)
+      }
+    }
+
+    checkPermissions()
+  }, [hasWritePermission])
 
   const loadTaskTypes = async () => {
     try {
@@ -207,12 +253,37 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       } catch (err) {
         console.error('[ProjectDetail] Error fetching metrics:', err)
       }
+
+      // Fetch attachments
+      try {
+        await loadProjectFiles()
+      } catch (err) {
+        console.error('[ProjectDetail] Error fetching attachments:', err)
+      }
     } catch (error) {
       console.error('[ProjectDetail] Unexpected error loading project data:', error)
       setError('Failed to load project data')
       message.error('Failed to load project data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadProjectFiles = async () => {
+    setAttachmentsLoading(true)
+    try {
+      const result = await getProjectFiles(projectId)
+      if (result.success) {
+        setAttachments(result.files || [])
+      } else {
+        console.error('[ProjectDetail] Failed to load attachments:', result.error)
+        setAttachments([])
+      }
+    } catch (error) {
+      console.error('[ProjectDetail] Error loading attachments:', error)
+      setAttachments([])
+    } finally {
+      setAttachmentsLoading(false)
     }
   }
 
@@ -429,6 +500,44 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
     }
   }
 
+  const handleFileUpload = async (file) => {
+    setUploading(true)
+    try {
+      const result = await uploadProjectFile(projectId, file)
+      if (result.success) {
+        message.success('File uploaded successfully')
+        await loadProjectFiles()
+      } else {
+        const errorMsg = result.error || 'Failed to upload file'
+        message.error(errorMsg)
+      }
+    } catch (error) {
+      const errorMsg = error?.message || error?.response?.data?.message || 'Failed to upload file'
+      message.error(`Error uploading file: ${errorMsg}`)
+      console.error('[ProjectDetail] File upload error:', error)
+    } finally {
+      setUploading(false)
+    }
+    return false // Prevent default upload
+  }
+
+  const handleDeleteFile = async (fileName) => {
+    try {
+      const result = await deleteProjectFile(fileName)
+      if (result.success) {
+        message.success('File deleted successfully')
+        await loadProjectFiles()
+      } else {
+        const errorMsg = result.error || 'Failed to delete file'
+        message.error(errorMsg)
+      }
+    } catch (error) {
+      const errorMsg = error?.message || error?.response?.data?.message || 'Failed to delete file'
+      message.error(`Error deleting file: ${errorMsg}`)
+      console.error('[ProjectDetail] File delete error:', error)
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ 
@@ -486,13 +595,16 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           </Col>
           <Col>
             <Space>
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={() => navigateToRoute('project-edit', projectId)}
-              >
-                Edit Project
-              </Button>
+              <Tooltip title={canEditProject ? "Edit Project" : "You don't have permission to edit Projects"}>
+                <Button
+                  type="primary"
+                  icon={canEditProject ? <EditOutlined /> : <LockOutlined />}
+                  onClick={() => navigateToRoute('project-edit', projectId)}
+                  disabled={!canEditProject}
+                >
+                  Edit Project
+                </Button>
+              </Tooltip>
               <Button type="default" icon={<PlusOutlined />} onClick={handleOpenNewTaskModal}>
                 New Task
               </Button>
@@ -758,9 +870,74 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         </div>
       </div>
 
+      {/* Project Manager Header - Prominent Position */}
+      <Card
+        style={{
+          marginBottom: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+        }}
+      >
+        <Row gutter={[24, 24]} align="middle">
+          <Col xs={24} sm={12} md={8}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <div>
+                <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Project Manager
+                </Text>
+              </div>
+              {projectManager ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Avatar
+                    size={48}
+                    src={projectManager.image}
+                    icon={<UserOutlined />}
+                  />
+                  <div>
+                    <Text strong style={{ fontSize: '15px', display: 'block' }}>{projectManager.full_name}</Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>{projectManager.email}</Text>
+                  </div>
+                </div>
+              ) : (
+                <Text type="secondary">No project manager assigned</Text>
+              )}
+            </Space>
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Status & Priority
+              </Text>
+              <div>
+                <Tag color={getStatusColor(projectData?.project_status || projectData?.status)} style={{ fontSize: '13px', marginRight: '8px' }}>
+                  {projectData?.project_status || projectData?.status || 'Unknown'}
+                </Tag>
+                <Tag color={getPriorityColor(projectData?.priority)} style={{ fontSize: '13px' }}>
+                  {projectData?.priority || 'Normal'}
+                </Tag>
+              </div>
+            </Space>
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Timeline
+              </Text>
+              <div>
+                <Text style={{ fontSize: '13px', display: 'block', color: (projectData?.expected_start_date || projectData?.actual_start_date || projectData?.expected_end_date || projectData?.actual_end_date) ? 'inherit' : '#999' }}>
+                  <CalendarOutlined style={{ marginRight: '6px' }} />
+                  {formatDateWithRelativeTime(projectData?.expected_start_date || projectData?.actual_start_date)} to {formatDateWithRelativeTime(projectData?.expected_end_date || projectData?.actual_end_date)}
+                </Text>
+              </div>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
       {/* Main Content */}
       <Row gutter={[24, 24]}>
-        {/* Left Column */}
+        {/* Left Column - Project Info & Tasks */}
         <Col xs={24} lg={16}>
           {/* Project Status & Info */}
           <Card
@@ -791,13 +968,17 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               <Col xs={24} sm={12}>
                 <Space direction="vertical" size="small">
                   <Text type="secondary">Start Date</Text>
-                  <Text><CalendarOutlined /> {projectData?.expected_start_date || projectData?.actual_start_date || 'N/A'}</Text>
+                  <Text style={{ color: (projectData?.expected_start_date || projectData?.actual_start_date) ? 'inherit' : '#999' }}>
+                    <CalendarOutlined /> {formatDateWithRelativeTime(projectData?.expected_start_date || projectData?.actual_start_date)}
+                  </Text>
                 </Space>
               </Col>
               <Col xs={24} sm={12}>
                 <Space direction="vertical" size="small">
                   <Text type="secondary">End Date</Text>
-                  <Text><CalendarOutlined /> {projectData?.expected_end_date || projectData?.actual_end_date || 'N/A'}</Text>
+                  <Text style={{ color: (projectData?.expected_end_date || projectData?.actual_end_date) ? 'inherit' : '#999' }}>
+                    <CalendarOutlined /> {formatDateWithRelativeTime(projectData?.expected_end_date || projectData?.actual_end_date)}
+                  </Text>
                 </Space>
               </Col>
               <Col xs={24} sm={12}>
@@ -815,15 +996,24 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             </Row>
           </Card>
 
-          {/* DevSecOps Timeline - Task Progression by Type */}
-          <Card
-            title="DevSecOps Timeline"
+          {/* Collapsible Sections - DevSecOps Timeline & Milestones */}
+          <Collapse
             style={{
               marginBottom: '24px',
               borderRadius: '12px',
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
             }}
-          >
+            items={[
+              {
+                key: 'timeline',
+                label: (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+                    <BarChartOutlined style={{ color: '#1890ff' }} />
+                    <span>DevSecOps Timeline</span>
+                  </div>
+                ),
+                children: (
+                  <div>
             {projectData?.tasks && projectData.tasks.length > 0 ? (
               <Steps
                 direction="vertical"
@@ -902,20 +1092,22 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                   }
                 })}
               />
-            ) : (
-              <Empty description="No tasks found" />
-            )}
-          </Card>
-
-          {/* Milestones Steps */}
-          <Card
-            title="Project Milestones"
-            style={{
-              marginBottom: '24px',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-            }}
-          >
+                    ) : (
+                      <Empty description="No tasks found" />
+                    )}
+                  </div>
+                )
+              },
+              {
+                key: 'milestones',
+                label: (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+                    <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                    <span>Project Milestones</span>
+                  </div>
+                ),
+                children: (
+                  <div>
             {milestones && milestones.length > 0 ? (
               <Steps
                 direction="vertical"
@@ -937,14 +1129,14 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                           <Tag color={getStatusColor(milestone.status)}>
                             {milestone.status || 'Open'}
                           </Tag>
-                          <Text type="secondary" style={{ marginLeft: '8px', fontSize: '12px' }}>
-                            Expected: {formatMilestoneDate(milestone.exp_end_date)}
+                          <Text type="secondary" style={{ marginLeft: '8px', fontSize: '12px', color: milestone.exp_end_date ? 'inherit' : '#999' }}>
+                            Expected: {formatDateWithRelativeTime(milestone.exp_end_date)}
                           </Text>
                         </div>
                         {milestone.completed_on && (
                           <div>
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                              Completed: {formatMilestoneDate(milestone.completed_on)}
+                            <Text type="secondary" style={{ fontSize: '12px', color: milestone.completed_on ? 'inherit' : '#999' }}>
+                              Completed: {formatDateWithRelativeTime(milestone.completed_on)}
                             </Text>
                           </div>
                         )}
@@ -962,51 +1154,25 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                   )
                 }))}
               />
-            ) : (
-              <Empty
-                description="No milestones defined for this project"
-                style={{ marginTop: '24px', marginBottom: '24px' }}
-              >
-                <Text type="secondary" style={{ fontSize: '12px' }}>
-                  Mark tasks as milestones to track key project deliverables
-                </Text>
-              </Empty>
-            )}
-          </Card>
+                  ) : (
+                    <Empty
+                      description="No milestones defined for this project"
+                      style={{ marginTop: '24px', marginBottom: '24px' }}
+                    >
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        Mark tasks as milestones to track key project deliverables
+                      </Text>
+                    </Empty>
+                  )}
+                  </div>
+                )
+              }
+            ]}
+          />
         </Col>
 
-        {/* Right Column */}
+        {/* Right Column - Team & Activity */}
         <Col xs={24} lg={8}>
-          {/* Project Manager */}
-          <Card
-            title="Project Manager"
-            style={{
-              marginBottom: '24px',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-            }}
-          >
-            {projectManager ? (
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <Avatar
-                    size={64}
-                    src={projectManager.image}
-                    icon={<UserOutlined />}
-                    style={{ marginBottom: '12px' }}
-                  />
-                  <div>
-                    <Text strong style={{ fontSize: '16px' }}>{projectManager.full_name}</Text>
-                    <br />
-                    <Text type="secondary">{projectManager.email}</Text>
-                  </div>
-                </div>
-              </Space>
-            ) : (
-              <Empty description="No project manager assigned" />
-            )}
-          </Card>
-
           {/* Team Members */}
           <Card
             title={`Team Members (${teamMembers.length})`}
@@ -1018,7 +1184,8 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           >
             {teamMembers && teamMembers.length > 0 ? (
               <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                {teamMembers.map((member, index) => (
+                {/* Show first 5 members or all if less than 5 */}
+                {(showAllTeamMembers ? teamMembers : teamMembers.slice(0, 5)).map((member, index) => (
                   <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Avatar
                       src={member.image}
@@ -1031,6 +1198,20 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                     </div>
                   </div>
                 ))}
+
+                {/* Show More / Show Less button if more than 5 members */}
+                {teamMembers.length > 5 && (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f0f0f0' }}>
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => setShowAllTeamMembers(!showAllTeamMembers)}
+                      style={{ padding: 0 }}
+                    >
+                      {showAllTeamMembers ? `Show Less (${teamMembers.length - 5} hidden)` : `Show More (${teamMembers.length - 5} more)`}
+                    </Button>
+                  </div>
+                )}
               </Space>
             ) : (
               <Empty description="No team members assigned" />
@@ -1057,8 +1238,8 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                         {activity.reference_doctype}
                       </Text>
                       <br />
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        by {activity.owner_name || activity.owner} • {formatDate(activity.creation)}
+                      <Text type="secondary" style={{ fontSize: '12px', color: activity.creation ? 'inherit' : '#999' }}>
+                        by {activity.owner_name || activity.owner} • {formatDateWithRelativeTime(activity.creation)}
                       </Text>
                       <br />
                       <Text style={{ fontSize: '12px' }}>
@@ -1070,6 +1251,115 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               </Timeline>
             ) : (
               <Empty description="No recent activity" />
+            )}
+          </Card>
+
+          {/* Attachments */}
+          <Card
+            title={
+              <Space>
+                <PaperClipOutlined style={{ color: '#1890ff' }} />
+                <span>Attachments ({attachments.length})</span>
+              </Space>
+            }
+            style={{
+              marginTop: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+          >
+            {/* Upload Section */}
+            <div style={{ marginBottom: '16px' }}>
+              <Upload
+                beforeUpload={handleFileUpload}
+                multiple
+                disabled={uploading}
+              >
+                <Button
+                  size="small"
+                  icon={uploading ? <LoadingOutlined /> : <UploadOutlined />}
+                  loading={uploading}
+                >
+                  {uploading ? 'Uploading...' : 'Upload Files'}
+                </Button>
+              </Upload>
+            </div>
+
+            {/* Files List */}
+            {attachmentsLoading ? (
+              <Spin size="small" />
+            ) : attachments && attachments.length > 0 ? (
+              <List
+                size="small"
+                dataSource={attachments}
+                renderItem={(file) => (
+                  <List.Item
+                    key={file.name}
+                    style={{
+                      padding: '8px 0',
+                      borderBottom: '1px solid #f0f0f0'
+                    }}
+                  >
+                    <List.Item.Meta
+                      avatar={<span style={{ fontSize: '16px' }}>{getFileIcon(file.file_name || file.name)}</span>}
+                      title={
+                        <a
+                          href={file.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: '12px' }}
+                        >
+                          {file.file_name || file.name}
+                        </a>
+                      }
+                      description={
+                        <Space size="small" style={{ fontSize: '11px', color: file.creation ? '#999' : '#ccc' }}>
+                          <span>{formatFileSize(file.file_size)}</span>
+                          <span>•</span>
+                          <span>{formatDateWithRelativeTime(file.creation)}</span>
+                        </Space>
+                      }
+                    />
+                    <Space size="small">
+                      <Tooltip title="Download">
+                        <a
+                          href={file.file_url}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<DownloadOutlined />}
+                          />
+                        </a>
+                      </Tooltip>
+                      <Popconfirm
+                        title="Delete File"
+                        description="Are you sure you want to delete this file?"
+                        onConfirm={() => handleDeleteFile(file.name)}
+                        okText="Yes"
+                        cancelText="No"
+                      >
+                        <Tooltip title="Delete">
+                          <Button
+                            type="text"
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                          />
+                        </Tooltip>
+                      </Popconfirm>
+                    </Space>
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <Empty
+                description="No attachments"
+                style={{ marginTop: '16px', marginBottom: '16px' }}
+              />
             )}
           </Card>
         </Col>

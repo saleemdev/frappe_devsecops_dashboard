@@ -13,13 +13,26 @@ import {
   Row,
   Col,
   Space,
-  message
+  message,
+  Divider,
+  Badge,
+  Tag,
+  Collapse
 } from 'antd'
+import {
+  CheckCircleFilled,
+  CloseCircleFilled,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined
+} from '@ant-design/icons'
 import Swal from 'sweetalert2'
 import dayjs from 'dayjs'
 import useAuthStore from '../stores/authStore'
 import useNavigationStore from '../stores/navigationStore'
 import RichTextEditor from './RichTextEditor'
+import ApprovalTrackingComponent from './ApprovalTrackingComponent'
+import ApprovalActionModal from './ApprovalActionModal'
+import ApproversTable from './ApproversTable'
 
 const { Title } = Typography
 const { Option } = Select
@@ -59,10 +72,64 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
   const [activeTab, setActiveTab] = useState('1')
   const [projects, setProjects] = useState([])
   const [notFound, setNotFound] = useState(false)
+  const [approvers, setApprovers] = useState([])
+  const [users, setUsers] = useState([])
+  const [approvalModalVisible, setApprovalModalVisible] = useState(false)
+  const [approvalAction, setApprovalAction] = useState('approve')
+  const [selectedApproverIndex, setSelectedApproverIndex] = useState(null)
+  const [selectedApprover, setSelectedApprover] = useState(null)
+  const [submittingApproval, setSubmittingApproval] = useState(false)
+  const [approvalStatus, setApprovalStatus] = useState('Pending Review')
+  const [syncingApprovers, setSyncingApprovers] = useState(false)
+  const [originatorSearchResults, setOriginatorSearchResults] = useState([])
+  const [originatorSearchLoading, setOriginatorSearchLoading] = useState(false)
+  const [managerSearchResults, setManagerSearchResults] = useState([])
+  const [managerSearchLoading, setManagerSearchLoading] = useState(false)
+  const [managerAutoPopulated, setManagerAutoPopulated] = useState(false)
+  const [originatorFullName, setOriginatorFullName] = useState('')
+  const [managerFullName, setManagerFullName] = useState('')
 
-  const { hasPermission, isAuthenticated } = useAuthStore()
+  const { hasPermission, isAuthenticated, user } = useAuthStore()
   const { navigateToRoute } = useNavigationStore()
   const canWrite = isAuthenticated === true ? hasPermission('write:change-requests') : false
+
+  // Helper function to get status configuration
+  const getStatusConfig = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'approved for implementation':
+        return {
+          color: '#52c41a',
+          icon: <CheckCircleFilled style={{ color: '#52c41a', marginRight: 8 }} />,
+          label: 'Approved for Implementation',
+          tagColor: 'success'
+        }
+      case 'not accepted':
+      case 'rejected':
+      case 'withdrawn':
+        return {
+          color: '#ff4d4f',
+          icon: <CloseCircleFilled style={{ color: '#ff4d4f', marginRight: 8 }} />,
+          label: status,
+          tagColor: 'error'
+        }
+      case 'rework':
+      case 'deferred':
+        return {
+          color: '#faad14',
+          icon: <ExclamationCircleOutlined style={{ color: '#faad14', marginRight: 8 }} />,
+          label: status,
+          tagColor: 'warning'
+        }
+      case 'pending review':
+      default:
+        return {
+          color: '#1890ff',
+          icon: <ClockCircleOutlined style={{ color: '#1890ff', marginRight: 8 }} />,
+          label: 'Pending Review',
+          tagColor: 'processing'
+        }
+    }
+  }
 
   // Protect route: wait until auth is resolved to avoid false negatives
   useEffect(() => {
@@ -98,6 +165,26 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
     load()
   }, [])
 
+  // Load users for approvers table
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/method/frappe.client.get_list?doctype=User&fields=["name","full_name"]&limit_page_length=500', {
+          credentials: 'include'
+        })
+        if (res.ok) {
+          const response = await res.json()
+          setUsers(response.message || [])
+        } else {
+          setUsers([])
+        }
+      } catch {
+        setUsers([])
+      }
+    }
+    load()
+  }, [])
+
   // Load record in edit mode
   useEffect(() => {
     if (mode !== 'edit' || !id) return
@@ -120,6 +207,39 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         }
 
         const r = data.data
+        // Extract approvers from the response
+        if (r.change_approvers && Array.isArray(r.change_approvers)) {
+          setApprovers(r.change_approvers)
+        }
+        // Set approval status for the status indicator
+        setApprovalStatus(r.approval_status || 'Pending Review')
+
+        // Set full names from the response
+        if (r.originator_full_name) {
+          setOriginatorFullName(r.originator_full_name)
+        }
+        if (r.originator_manager_full_name) {
+          setManagerFullName(r.originator_manager_full_name)
+        }
+
+        // Populate search results for existing selections (for edit mode)
+        if (r.originator_name) {
+          setOriginatorSearchResults([{
+            name: r.originator_name,
+            employee_name: r.originator_full_name || r.originator_name,
+            reports_to: r.originators_manager || null,
+            reports_to_full_name: r.originator_manager_full_name || r.originators_manager || null
+          }])
+        }
+        if (r.originators_manager) {
+          setManagerSearchResults([{
+            name: r.originators_manager,
+            employee_name: r.originator_manager_full_name || r.originators_manager,
+            reports_to: null,
+            reports_to_full_name: null
+          }])
+        }
+
         form.setFieldsValue({
           ...r,
           // Provide defaults for required fields that might be null in the database
@@ -129,7 +249,8 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           // Optional fields - keep as null if not set
           implementation_date: r.implementation_date ? dayjs(r.implementation_date) : null,
           implementation_time: r.implementation_time ? dayjs(r.implementation_time, 'HH:mm:ss') : null,
-          downtime_expected: r.downtime_expected ? true : false
+          downtime_expected: r.downtime_expected ? true : false,
+          change_approvers: r.change_approvers || []
         })
       } catch (e) {
         message.error('Unable to load Change Request: ' + (e?.message || 'Not found'))
@@ -141,6 +262,25 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
     loadRecord()
   }, [mode, id, form, navigateToRoute])
 
+  // Update approvers when form data changes
+  useEffect(() => {
+    const changeApprovers = form.getFieldValue('change_approvers')
+    if (changeApprovers && Array.isArray(changeApprovers)) {
+      setApprovers(changeApprovers)
+    }
+  }, [form])
+
+  // Update approval status when form field changes
+  useEffect(() => {
+    const subscription = form.getFieldInstance('approval_status')
+    if (subscription) {
+      const status = form.getFieldValue('approval_status')
+      if (status) {
+        setApprovalStatus(status)
+      }
+    }
+  }, [form])
+
   // Unsaved changes warning (simple)
   useEffect(() => {
     const handler = (e) => {
@@ -151,6 +291,254 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [form])
+
+  // Handle approvers table change
+  const handleApproversChange = (newApprovers) => {
+    setApprovers(newApprovers)
+    form.setFieldValue('change_approvers', newApprovers)
+  }
+
+  // Handle approve action
+  const handleApproveClick = (index, approver) => {
+    setSelectedApproverIndex(index)
+    setSelectedApprover(approver)
+    setApprovalAction('approve')
+    setApprovalModalVisible(true)
+  }
+
+  // Handle reject action
+  const handleRejectClick = (index, approver) => {
+    setSelectedApproverIndex(index)
+    setSelectedApprover(approver)
+    setApprovalAction('reject')
+    setApprovalModalVisible(true)
+  }
+
+  // Handle approval submission
+  const handleApprovalSubmit = async (data) => {
+    try {
+      setSubmittingApproval(true)
+
+      // Validate required data
+      if (selectedApproverIndex === null || selectedApproverIndex === undefined) {
+        message.error('Error: Approver index not set. Please try again.')
+        return
+      }
+
+      if (!id) {
+        message.error('Error: Change Request ID not found. Please refresh and try again.')
+        return
+      }
+
+      console.log('Submitting approval:', {
+        change_request_name: id,
+        approver_index: selectedApproverIndex,
+        approval_status: data.action === 'approve' ? 'Approved' : 'Rejected',
+        remarks: data.remarks
+      })
+
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.change_request.update_change_request_approval', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include',
+        body: new URLSearchParams({
+          change_request_name: id,
+          approver_index: String(selectedApproverIndex),
+          approval_status: data.action === 'approve' ? 'Approved' : 'Rejected',
+          remarks: data.remarks
+        }).toString()
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      const responseData = result.message || result
+
+      if (responseData.success) {
+        message.success(`Change Request ${data.action === 'approve' ? 'approved' : 'rejected'} successfully`)
+        setApprovalModalVisible(false)
+        // Reload the form to get updated data
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
+      } else {
+        message.error(responseData.error || 'Failed to update approval')
+      }
+    } catch (error) {
+      console.error('Approval submission error:', error)
+      message.error(error?.message || 'Failed to submit approval')
+    } finally {
+      setSubmittingApproval(false)
+    }
+  }
+
+  // Handle sync approvers from project
+  const handleSyncApprovers = async () => {
+    try {
+      setSyncingApprovers(true)
+
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.change_request.sync_approvers_from_project', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include',
+        body: new URLSearchParams({
+          change_request_name: id
+        }).toString()
+      })
+
+      const result = await response.json()
+      const responseData = result.message || result
+
+      if (responseData.success) {
+        message.success(`${responseData.data.approvers_added} approver(s) synced from Project`)
+        // Reload the form to get updated approvers
+        window.location.reload()
+      } else {
+        message.error(responseData.error || 'Failed to sync approvers')
+      }
+    } catch (error) {
+      message.error(error?.message || 'Failed to sync approvers')
+    } finally {
+      setSyncingApprovers(false)
+    }
+  }
+
+  // Handle originator search
+  const handleOriginatorSearch = async (searchValue) => {
+    if (!searchValue || searchValue.length < 1) {
+      setOriginatorSearchResults([])
+      return
+    }
+
+    try {
+      setOriginatorSearchLoading(true)
+      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.change_request.search_employees?query=${encodeURIComponent(searchValue)}`, {
+        method: 'GET',
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include'
+      })
+
+      const result = await response.json()
+      console.log('Originator search response:', result)
+
+      // Frappe wraps the response in a 'message' property
+      const responseData = result.message || result
+      console.log('Parsed response data:', responseData)
+
+      if (responseData && responseData.success && responseData.data && Array.isArray(responseData.data)) {
+        console.log('Setting search results:', responseData.data)
+        setOriginatorSearchResults(responseData.data)
+      } else {
+        console.warn('Invalid response structure:', responseData)
+        setOriginatorSearchResults([])
+      }
+    } catch (error) {
+      console.error('Error searching employees:', error)
+      setOriginatorSearchResults([])
+    } finally {
+      setOriginatorSearchLoading(false)
+    }
+  }
+
+  // Handle originator selection
+  const handleOriginatorSelect = (value, option) => {
+    const selectedEmployee = originatorSearchResults.find(emp => emp.name === value)
+
+    if (selectedEmployee) {
+      // Set the originator full name
+      setOriginatorFullName(selectedEmployee.employee_name)
+
+      // Auto-populate manager if available
+      if (selectedEmployee.reports_to) {
+        form.setFieldValue('originators_manager', selectedEmployee.reports_to)
+        setManagerAutoPopulated(true)
+        // Set manager full name from the reports_to_full_name field
+        setManagerFullName(selectedEmployee.reports_to_full_name || selectedEmployee.reports_to)
+        message.info(`Manager auto-populated: ${selectedEmployee.reports_to_full_name || selectedEmployee.reports_to}`)
+      } else {
+        // Clear manager field if no reports_to
+        form.setFieldValue('originators_manager', null)
+        setManagerAutoPopulated(false)
+        setManagerFullName('')
+        setManagerSearchResults([])
+      }
+    }
+  }
+
+  // Handle originator field clear
+  const handleOriginatorClear = () => {
+    setOriginatorFullName('')
+    setManagerFullName('')
+    setManagerAutoPopulated(false)
+    setManagerSearchResults([])
+    setOriginatorSearchResults([])
+  }
+
+  // Handle manager field clear
+  const handleManagerClear = () => {
+    setManagerFullName('')
+    setManagerAutoPopulated(false)
+    setManagerSearchResults([])
+  }
+
+  // Handle manager search
+  const handleManagerSearch = async (searchValue) => {
+    if (!searchValue || searchValue.length < 1) {
+      setManagerSearchResults([])
+      return
+    }
+
+    try {
+      setManagerSearchLoading(true)
+      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.change_request.search_employees?query=${encodeURIComponent(searchValue)}`, {
+        method: 'GET',
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include'
+      })
+
+      const result = await response.json()
+      console.log('Manager search response:', result)
+
+      // Frappe wraps the response in a 'message' property
+      const responseData = result.message || result
+      console.log('Parsed response data:', responseData)
+
+      if (responseData && responseData.success && responseData.data && Array.isArray(responseData.data)) {
+        console.log('Setting manager search results:', responseData.data)
+        setManagerSearchResults(responseData.data)
+      } else {
+        console.warn('Invalid response structure:', responseData)
+        setManagerSearchResults([])
+      }
+    } catch (error) {
+      console.error('Error searching employees:', error)
+      setManagerSearchResults([])
+    } finally {
+      setManagerSearchLoading(false)
+    }
+  }
+
+  // Handle manager selection
+  const handleManagerSelect = (value, option) => {
+    setManagerAutoPopulated(false)
+    // Find the selected manager and set their full name
+    const selectedManager = managerSearchResults.find(emp => emp.name === value)
+    if (selectedManager) {
+      setManagerFullName(selectedManager.employee_name)
+    }
+  }
 
   // Actual submission logic (called after confirmation)
   const performSubmit = async (values) => {
@@ -428,6 +816,32 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         </Title>
       </Space>
 
+      {/* Status Indicator - Prominent display of Change Request Acceptance status */}
+      {mode === 'edit' && (
+        <div style={{
+          marginBottom: 24,
+          padding: '12px 16px',
+          backgroundColor: '#fafafa',
+          borderRadius: '4px',
+          border: `2px solid ${getStatusConfig(approvalStatus).color}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          {getStatusConfig(approvalStatus).icon}
+          <div>
+            <span style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Change Request Acceptance:</span>
+            <span style={{
+              fontSize: '16px',
+              fontWeight: 'bold',
+              color: getStatusConfig(approvalStatus).color
+            }}>
+              {getStatusConfig(approvalStatus).label}
+            </span>
+          </div>
+        </div>
+      )}
+
       <Form form={form} layout="vertical" onFinish={onSubmit} onFinishFailed={onFinishFailed} validateTrigger="onSubmit">
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="Basic Information" key="1">
@@ -467,7 +881,23 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
               </Col>
               <Col span={12}>
                 <Form.Item name="originator_name" label="Originator Name" rules={[{ required: true }]}>
-                  <Input placeholder="Enter originator name" />
+                  <Select
+                    placeholder="Search and select originator"
+                    showSearch
+                    allowClear
+                    loading={originatorSearchLoading}
+                    onSearch={handleOriginatorSearch}
+                    onSelect={handleOriginatorSelect}
+                    onClear={handleOriginatorClear}
+                    filterOption={false}
+                    notFoundContent={originatorSearchLoading ? 'Searching...' : 'No employees found'}
+                  >
+                    {originatorSearchResults.map(emp => (
+                      <Option key={emp.name} value={emp.name}>
+                        {emp.employee_name} ({emp.name})
+                      </Option>
+                    ))}
+                  </Select>
                 </Form.Item>
               </Col>
             </Row>
@@ -479,10 +909,62 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
               </Col>
               <Col span={12}>
                 <Form.Item name="originators_manager" label="Originator's Manager">
-                  <Input placeholder="Enter manager name" />
+                  <Select
+                    placeholder="Search and select manager"
+                    showSearch
+                    allowClear
+                    loading={managerSearchLoading}
+                    onSearch={handleManagerSearch}
+                    onSelect={handleManagerSelect}
+                    onClear={handleManagerClear}
+                    filterOption={false}
+                    notFoundContent={managerSearchLoading ? 'Searching...' : 'No employees found'}
+                  >
+                    {managerSearchResults.map(emp => (
+                      <Option key={emp.name} value={emp.name}>
+                        {emp.employee_name} ({emp.name})
+                      </Option>
+                    ))}
+                  </Select>
                 </Form.Item>
               </Col>
             </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="Originator Full Name">
+                  <Input
+                    disabled
+                    value={originatorFullName}
+                    placeholder="Auto-populated when originator is selected"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="Manager Full Name">
+                  <Input
+                    disabled
+                    value={managerFullName}
+                    placeholder="Auto-populated when manager is selected"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            {managerAutoPopulated && (
+              <Row gutter={16}>
+                <Col span={24}>
+                  <div style={{
+                    padding: '8px 12px',
+                    backgroundColor: '#e6f7ff',
+                    border: '1px solid #91d5ff',
+                    borderRadius: '4px',
+                    color: '#0050b3',
+                    fontSize: '12px'
+                  }}>
+                    ℹ️ Manager was auto-populated from the selected originator's reporting structure. You can change it if needed.
+                  </div>
+                </Col>
+              </Row>
+            )}
           </TabPane>
 
           <TabPane tab="Change Details" key="2">
@@ -503,12 +985,29 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="detailed_description" label="Detailed Description of Proposed Change" rules={[{ required: true }]}>
-              <RichTextEditor placeholder="Describe the proposed change in detail..." />
-            </Form.Item>
-            <Form.Item name="release_notes" label="Release Notes">
-              <RichTextEditor placeholder="Enter release notes..." />
-            </Form.Item>
+            <Collapse
+              items={[
+                {
+                  key: '1',
+                  label: 'Detailed Description of Proposed Change',
+                  children: (
+                    <Form.Item name="detailed_description" rules={[{ required: true }]} style={{ marginBottom: 0 }}>
+                      <RichTextEditor placeholder="Describe the proposed change in detail..." />
+                    </Form.Item>
+                  )
+                },
+                {
+                  key: '2',
+                  label: 'Release Notes',
+                  children: (
+                    <Form.Item name="release_notes" style={{ marginBottom: 0 }}>
+                      <RichTextEditor placeholder="Enter release notes..." />
+                    </Form.Item>
+                  )
+                }
+              ]}
+              defaultActiveKey={['1']}
+            />
           </TabPane>
 
           <TabPane tab="Implementation" key="3">
@@ -524,43 +1023,96 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item name="testing_plan" label="Testing and Validation Plan">
-              <RichTextEditor placeholder="Describe the testing and validation plan..." />
-            </Form.Item>
-            <Form.Item name="rollback_plan" label="Rollback/Backout Plan">
-              <RichTextEditor placeholder="Describe the rollback/backout plan..." />
-            </Form.Item>
+            <Collapse
+              items={[
+                {
+                  key: '1',
+                  label: 'Testing and Validation Plan',
+                  children: (
+                    <Form.Item name="testing_plan" style={{ marginBottom: 0 }}>
+                      <RichTextEditor placeholder="Describe the testing and validation plan..." />
+                    </Form.Item>
+                  )
+                },
+                {
+                  key: '2',
+                  label: 'Rollback/Backout Plan',
+                  children: (
+                    <Form.Item name="rollback_plan" style={{ marginBottom: 0 }}>
+                      <RichTextEditor placeholder="Describe the rollback/backout plan..." />
+                    </Form.Item>
+                  )
+                }
+              ]}
+              defaultActiveKey={['1']}
+            />
           </TabPane>
 
-          <TabPane tab="Approval" key="4">
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="approval_status" label="Change Request Acceptance" rules={[{ required: true }]} initialValue="Pending Review">
-                  <Select placeholder="Select approval status">
-                    <Option value="">None</Option>
-                    <Option value="Pending Review">Pending Review</Option>
-                    <Option value="Rework">Rework</Option>
-                    <Option value="Not Accepted">Not Accepted</Option>
-                    <Option value="Withdrawn">Withdrawn</Option>
-                    <Option value="Deferred">Deferred</Option>
-                    <Option value="Approved for Implementation">Approved for Implementation</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="workflow_state" label="Workflow State">
-                  <Select placeholder="Select workflow state">
-                    <Option value="">None</Option>
-                    <Option value="Draft">Draft</Option>
-                    <Option value="Pending Approval">Pending Approval</Option>
-                    <Option value="Approved">Approved</Option>
-                    <Option value="Rejected">Rejected</Option>
-                    <Option value="Implemented">Implemented</Option>
-                    <Option value="Closed">Closed</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
+          <TabPane tab="Approvers & Approval" key="4">
+            {/* Sync Button - Only in edit mode */}
+            {mode === 'edit' && (
+              <div style={{ marginBottom: '24px' }}>
+                <Button
+                  type="primary"
+                  onClick={handleSyncApprovers}
+                  loading={syncingApprovers}
+                >
+                  Sync Approvers from Project
+                </Button>
+              </div>
+            )}
+
+            {/* Approval Status Section */}
+            <div style={{ marginBottom: '24px' }}>
+              <Title level={5} style={{ marginBottom: '12px' }}>Change Request Acceptance</Title>
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Form.Item name="approval_status" rules={[{ required: true }]} initialValue="Pending Review" style={{ marginBottom: 0 }}>
+                    <Select placeholder="Select approval status" disabled>
+                      <Option value="">None</Option>
+                      <Option value="Pending Review">Pending Review</Option>
+                      <Option value="Rework">Rework</Option>
+                      <Option value="Not Accepted">Not Accepted</Option>
+                      <Option value="Withdrawn">Withdrawn</Option>
+                      <Option value="Deferred">Deferred</Option>
+                      <Option value="Approved for Implementation">Approved for Implementation</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+
+            <Divider />
+
+            {/* Approvers Section */}
+            <div style={{ marginBottom: '24px' }}>
+              <Title level={5} style={{ marginBottom: '12px' }}>Approvers</Title>
+              <ApproversTable
+                approvers={approvers}
+                currentUser={user?.name || user?.email}
+                onApproveClick={handleApproveClick}
+                onRejectClick={handleRejectClick}
+                loading={loading}
+              />
+            </div>
+
+            {/* Approval Tracking Section - Only in edit mode */}
+            {mode === 'edit' && approvers && approvers.length > 0 && (
+              <>
+                <Divider />
+                <div>
+                  <Title level={5} style={{ marginBottom: '12px' }}>Approval Tracking</Title>
+                  <ApprovalTrackingComponent
+                    approvers={approvers}
+                    currentUser={user?.name || user?.email}
+                    onApproveClick={handleApproveClick}
+                    onRejectClick={handleRejectClick}
+                    loading={loading}
+                    changeRequestName={id}
+                  />
+                </div>
+              </>
+            )}
           </TabPane>
         </Tabs>
 
@@ -573,6 +1125,17 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           </Space>
         </Form.Item>
       </Form>
+
+      {/* Approval Action Modal */}
+      <ApprovalActionModal
+        visible={approvalModalVisible}
+        action={approvalAction}
+        approverName={selectedApprover?.user || 'Unknown'}
+        changeRequestName={id}
+        onSubmit={handleApprovalSubmit}
+        onCancel={() => setApprovalModalVisible(false)}
+        loading={submittingApproval}
+      />
     </Card>
   )
 }

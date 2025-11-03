@@ -1,0 +1,114 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-11-02 05:13:33.047676",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "dashboard_name",
+  "dashboard_url",
+  "dashboard_type",
+  "category",
+  "is_active",
+  "column_break_1",
+  "description",
+  "section_break_2",
+  "access_level",
+  "project",
+  "sort_order"
+ ],
+ "fields": [
+  {
+   "fieldname": "dashboard_name",
+   "fieldtype": "Data",
+   "label": "Dashboard Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "dashboard_url",
+   "fieldtype": "Data",
+   "label": "Dashboard URL",
+   "reqd": 1
+  },
+  {
+   "fieldname": "dashboard_type",
+   "fieldtype": "Select",
+   "label": "Dashboard Type",
+   "options": "Grafana\nKibana\nPrometheus\nCustom",
+   "default": "Custom"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "Infrastructure\nApplication\nSecurity\nPerformance\nOther",
+   "default": "Other"
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active",
+   "default": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break",
+   "label": "Access Control"
+  },
+  {
+   "fieldname": "access_level",
+   "fieldtype": "Select",
+   "label": "Access Level",
+   "options": "Public\nInternal\nRestricted",
+   "default": "Internal"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "sort_order",
+   "fieldtype": "Int",
+   "label": "Sort Order",
+   "default": 0
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-11-02 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe Devsecops Dashboard",
+ "name": "DevSecops Dashboard URL",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

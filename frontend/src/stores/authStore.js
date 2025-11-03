@@ -16,6 +16,8 @@ const useAuthStore = create(
         user: null,
         loading: false,
         error: null,
+        permissions: {}, // Cached permissions by DocType
+        permissionsLoading: false,
 
         // Actions
         setLoading: (loading) => set({ loading }),
@@ -127,13 +129,81 @@ const useAuthStore = create(
         },
 
         /**
-         * Get user permissions
+         * Check if user has write permission for a DocType
+         */
+        hasWritePermission: async (doctype) => {
+          try {
+            const { permissions } = get()
+
+            // Check cache first
+            if (permissions[doctype]) {
+              return permissions[doctype].write === true || permissions[doctype].write === 1
+            }
+
+            // Fetch from permissions service
+            const { permissionsService } = await import('../services/api/index.js')
+            const hasWrite = await permissionsService.hasWritePermission(doctype)
+
+            // Cache the result
+            set((state) => ({
+              permissions: {
+                ...state.permissions,
+                [doctype]: {
+                  ...state.permissions[doctype],
+                  write: hasWrite
+                }
+              }
+            }))
+
+            return hasWrite
+          } catch (error) {
+            console.error(`Error checking write permission for ${doctype}:`, error)
+            return false
+          }
+        },
+
+        /**
+         * Check if user has read permission for a DocType
+         */
+        hasReadPermission: async (doctype) => {
+          try {
+            const { permissions } = get()
+
+            // Check cache first
+            if (permissions[doctype]) {
+              return permissions[doctype].read === true || permissions[doctype].read === 1
+            }
+
+            // Fetch from permissions service
+            const { permissionsService } = await import('../services/api/index.js')
+            const hasRead = await permissionsService.hasReadPermission(doctype)
+
+            // Cache the result
+            set((state) => ({
+              permissions: {
+                ...state.permissions,
+                [doctype]: {
+                  ...state.permissions[doctype],
+                  read: hasRead
+                }
+              }
+            }))
+
+            return hasRead
+          } catch (error) {
+            console.error(`Error checking read permission for ${doctype}:`, error)
+            return false
+          }
+        },
+
+        /**
+         * Get user permissions (legacy method for backward compatibility)
          */
         getUserPermissions: () => {
           const { user } = get()
-          
+
           if (!user) return []
-          
+
           // In a real implementation, this would come from the user object
           // For now, return mock permissions based on user role
           const mockPermissions = [
@@ -146,12 +216,12 @@ const useAuthStore = create(
             'read:change-requests',
             'write:change-requests'
           ]
-          
+
           return mockPermissions
         },
 
         /**
-         * Check if user has specific permission
+         * Check if user has specific permission (legacy method)
          */
         hasPermission: (permission) => {
           const permissions = get().getUserPermissions()
@@ -159,7 +229,7 @@ const useAuthStore = create(
         },
 
         /**
-         * Check if user has any of the specified permissions
+         * Check if user has any of the specified permissions (legacy method)
          */
         hasAnyPermission: (permissions) => {
           const userPermissions = get().getUserPermissions()
@@ -167,7 +237,7 @@ const useAuthStore = create(
         },
 
         /**
-         * Check if user has all of the specified permissions
+         * Check if user has all of the specified permissions (legacy method)
          */
         hasAllPermissions: (permissions) => {
           const userPermissions = get().getUserPermissions()
@@ -181,7 +251,9 @@ const useAuthStore = create(
           isAuthenticated: null,
           user: null,
           loading: false,
-          error: null
+          error: null,
+          permissions: {},
+          permissionsLoading: false
         })
       }),
       {

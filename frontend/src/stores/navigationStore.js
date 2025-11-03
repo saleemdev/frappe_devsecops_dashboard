@@ -232,6 +232,21 @@ const useNavigationStore = create(
             window.location.hash = 'devops-config'
             break
 
+          case 'ask-ai':
+            set({
+              currentRoute: 'ask-ai',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'ask-ai'
+            break
+
 
 
           case 'project-detail':
@@ -408,6 +423,8 @@ const useNavigationStore = create(
           get().navigateToRoute('devops-config')
         } else if (hash === 'system-test') {
           get().navigateToRoute('system-test')
+        } else if (hash === 'ask-ai') {
+          get().navigateToRoute('ask-ai')
 
         // General patterns after specific ones
         } else if (hash.startsWith('project/')) {

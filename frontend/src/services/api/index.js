@@ -8,6 +8,7 @@ import applicationsService from './applications.js'
 import incidentsService from './incidents.js'
 import swaggerCollectionsService from './swaggerCollections.js'
 import zenhubService from './zenhub.js'
+import permissionsService from './permissions.js'
 
 // Projects service
 import projectsService from './projects.js'
@@ -303,6 +304,7 @@ class ApiService {
     this.swaggerCollections = swaggerCollectionsService
     this.zenhub = zenhubService
     this.auth = authService
+    this.permissions = permissionsService
   }
 
   /**
@@ -387,7 +389,8 @@ export {
   projectsService,
   dashboardService,
   changeRequestsService,
-  authService
+  authService,
+  permissionsService
 }
 
 // Configuration exports

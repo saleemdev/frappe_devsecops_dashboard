@@ -13,7 +13,8 @@ import {
   BuildOutlined,
   HomeOutlined,
   ProjectOutlined,
-  MenuOutlined
+  MenuOutlined,
+  RobotOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
@@ -38,6 +39,7 @@ import SwaggerCollectionDetail from './components/SwaggerCollectionDetail'
 import SystemTest from './components/SystemTest'
 import ApiTestRunner from './components/ApiTestRunner'
 import ApiDiagnostics from './components/ApiDiagnostics'
+import AskAI from './components/AskAI'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -367,6 +369,8 @@ function AppContent({
         return <ApiTestRunner />
       case 'api-diagnostics':
         return <ApiDiagnostics />
+      case 'ask-ai':
+        return <AskAI />
 
       case 'project-edit':
         return (
@@ -437,23 +441,16 @@ function AppContent({
       children: [
         {
           key: 'project-apps',
-          label: 'Project Apps'
+          label: 'Project Apps',
+          disabled: true
         },
         {
           key: 'change-requests',
           label: 'Change Requests'
         },
         {
-          key: 'change-requests-dashboard',
-          label: 'CR Dashboard'
-        },
-        {
           key: 'incidents',
           label: 'Incidents'
-        },
-        {
-          key: 'incidents-dashboard',
-          label: 'Incidents Dashboard'
         },
         {
           key: 'monitoring-dashboards',
@@ -461,9 +458,15 @@ function AppContent({
         },
         {
           key: 'swagger-collections',
-          label: 'Swagger Collections'
+          label: 'Swagger Collections',
+          disabled: true
         }
       ]
+    },
+    {
+      key: 'ask-ai',
+      icon: <RobotOutlined />,
+      label: 'Ask AI'
     },
     {
       key: 'settings-menu',

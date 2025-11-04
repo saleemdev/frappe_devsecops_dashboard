@@ -629,3 +629,206 @@ def get_doctype_permissions(doctype: str) -> Dict[str, Any]:
             }
         }
 
+
+@frappe.whitelist()
+def submit_devops_resolution(change_request_name: str, resolution_status: str, version: str, notes: str) -> Dict[str, Any]:
+	"""
+	Submit DevOps Resolution for a Change Request
+	Updates workflow_state and adds a comment with resolution details
+
+	Args:
+		change_request_name: Name of the Change Request document
+		resolution_status: The workflow state to set (valid values: Awaiting Approval, Started Deployment, Declined, Implemented, Deployment Completed, Deployed, Deployment Failed)
+		version: Version number/identifier for the resolution
+		notes: Resolution notes to add as a comment
+
+	Returns:
+		Dict with success status and message
+	"""
+	try:
+		# Valid workflow state options
+		VALID_WORKFLOW_STATES = [
+			'Awaiting Approval',
+			'Started Deployment',
+			'Declined',
+			'Implemented',
+			'Deployment Completed',
+			'Deployed',
+			'Deployment Failed'
+		]
+
+		# Log the request
+		frappe.logger().info(f"[DevOps Resolution] Submitting resolution for CR: {change_request_name}, Status: {resolution_status}, Version: {version}")
+
+		# Validate inputs
+		if not change_request_name or not resolution_status or not version or not notes:
+			error_msg = 'All fields (resolution_status, version, notes) are required'
+			frappe.logger().warning(f"[DevOps Resolution] Validation failed: {error_msg}")
+			return {
+				'success': False,
+				'error': error_msg
+			}
+
+		# Validate resolution_status is a valid workflow state
+		if resolution_status not in VALID_WORKFLOW_STATES:
+			error_msg = f'Invalid resolution status: {resolution_status}. Valid options are: {", ".join(VALID_WORKFLOW_STATES)}'
+			frappe.logger().warning(f"[DevOps Resolution] Invalid status: {error_msg}")
+			return {
+				'success': False,
+				'error': error_msg
+			}
+
+		# Get the Change Request document
+		try:
+			cr_doc = frappe.get_doc('Change Request', change_request_name)
+		except frappe.DoesNotExistError:
+			error_msg = f'Change Request {change_request_name} not found'
+			frappe.logger().error(f"[DevOps Resolution] {error_msg}")
+			return {
+				'success': False,
+				'error': error_msg
+			}
+
+		# Check if user has permission to write
+		if not frappe.has_permission('Change Request', 'write', cr_doc):
+			error_msg = 'You do not have permission to update this Change Request'
+			frappe.logger().warning(f"[DevOps Resolution] Permission denied for user {frappe.session.user}: {error_msg}")
+			frappe.throw(_(error_msg), frappe.PermissionError)
+
+		# Update workflow_state
+		frappe.logger().info(f"[DevOps Resolution] Updating workflow_state from '{cr_doc.workflow_state}' to '{resolution_status}'")
+		cr_doc.workflow_state = resolution_status
+		cr_doc.save(ignore_permissions=False)
+		frappe.logger().info(f"[DevOps Resolution] Successfully updated workflow_state for {change_request_name}")
+
+		# Add comment with resolution details
+		comment_text = f"DevOps Resolution - Version: {version}\n\n{notes}"
+		frappe.logger().info(f"[DevOps Resolution] Adding comment to {change_request_name}")
+
+		comment_doc = frappe.get_doc({
+			'doctype': 'Comment',
+			'comment_type': 'Comment',
+			'reference_doctype': 'Change Request',
+			'reference_name': change_request_name,
+			'content': comment_text
+		})
+		comment_doc.insert(ignore_permissions=True)
+		frappe.logger().info(f"[DevOps Resolution] Successfully added comment to {change_request_name}")
+
+		frappe.db.commit()
+		frappe.logger().info(f"[DevOps Resolution] Successfully submitted resolution for {change_request_name}")
+
+		return {
+			'success': True,
+			'message': 'DevOps resolution submitted successfully'
+		}
+
+	except frappe.PermissionError as e:
+		error_msg = f"Permission denied for DevOps resolution: {str(e)}"
+		frappe.logger().error(f"[DevOps Resolution] {error_msg}")
+		return {
+			'success': False,
+			'error': 'You do not have permission to perform this action'
+		}
+	except Exception as e:
+		error_msg = f"Error submitting DevOps resolution: {str(e)}"
+		frappe.logger().error(f"[DevOps Resolution] {error_msg}")
+		frappe.log_error(error_msg, "DevOps Resolution API")
+		return {
+			'success': False,
+			'error': str(e)
+		}
+
+
+
+@frappe.whitelist()
+def get_change_request_activity(change_request_name: str, limit: int = 10) -> Dict[str, Any]:
+	"""
+	Get comments for a Change Request
+	Fetches Comment entries where reference_doctype = "Change Request" and reference_name = <change_request_name>
+
+	Args:
+		change_request_name: Name of the Change Request document
+		limit: Maximum number of comment entries to return (default: 10)
+
+	Returns:
+		Dict with success status and comment entries
+	"""
+	try:
+		from frappe.utils import cint
+
+		limit = cint(limit)
+
+		# Check read permission on Change Request
+		if not frappe.has_permission("Change Request", ptype="read", doc=change_request_name):
+			frappe.logger().warning(f"[Change Request Comments] Permission denied for {change_request_name}")
+			return {
+				'success': False,
+				'error': 'You do not have permission to access this Change Request'
+			}
+
+		# Fetch Comment entries for this Change Request
+		comments = frappe.get_list(
+			"Comment",
+			filters={
+				"reference_doctype": "Change Request",
+				"reference_name": change_request_name,
+				"comment_type": "Comment"  # Only fetch user comments, not system comments
+			},
+			fields=[
+				"name",
+				"subject",
+				"content",
+				"comment_by",
+				"comment_email",
+				"creation",
+				"modified",
+				"reference_doctype",
+				"reference_name"
+			],
+			order_by="creation desc",
+			limit_page_length=limit
+		)
+
+		# Enhance comment data with user information
+		for comment in comments:
+			try:
+				# Try to get full name from User DocType using comment_email
+				user_email = comment.get("comment_email")
+				if user_email:
+					user_doc = frappe.get_doc("User", user_email)
+					comment["owner_name"] = user_doc.full_name or user_email
+				else:
+					comment["owner_name"] = comment.get("comment_by") or "Unknown"
+			except:
+				comment["owner_name"] = comment.get("comment_by") or comment.get("comment_email") or "Unknown"
+
+		frappe.logger().info(f"[Change Request Comments] Retrieved {len(comments)} comments for {change_request_name}")
+
+		return {
+			'success': True,
+			'activity_logs': comments
+		}
+
+	except frappe.DoesNotExistError:
+		error_msg = f"Change Request '{change_request_name}' does not exist"
+		frappe.logger().warning(f"[Change Request Comments] {error_msg}")
+		return {
+			'success': False,
+			'error': error_msg
+		}
+	except frappe.PermissionError as e:
+		error_msg = f"Permission denied for Change Request {change_request_name}: {str(e)}"
+		frappe.logger().warning(f"[Change Request Comments] {error_msg}")
+		return {
+			'success': False,
+			'error': 'You do not have permission to access this Change Request'
+		}
+	except Exception as e:
+		error_msg = f"Error fetching Change Request comments: {str(e)}"
+		frappe.logger().error(f"[Change Request Comments] {error_msg}")
+		frappe.log_error(error_msg, "Change Request Comments API")
+		return {
+			'success': False,
+			'error': 'An error occurred while fetching comments'
+		}

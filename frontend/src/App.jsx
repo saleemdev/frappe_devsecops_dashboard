@@ -14,7 +14,8 @@ import {
   HomeOutlined,
   ProjectOutlined,
   MenuOutlined,
-  RobotOutlined
+  RobotOutlined,
+  LockOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
@@ -30,6 +31,7 @@ import ProjectEdit from './components/ProjectEdit'
 import ProjectCreateForm from './components/ProjectCreateForm'
 import DevOpsConfig from './components/DevOpsConfig'
 import MonitoringDashboards from './components/MonitoringDashboards'
+import PasswordVault from './components/PasswordVault'
 import Incidents from './components/Incidents'
 import IncidentDetail from './components/IncidentDetail'
 import IncidentsDashboard from './components/IncidentsDashboard'
@@ -359,6 +361,8 @@ function AppContent({
         return <IncidentsDashboard />
       case 'monitoring-dashboards':
         return <MonitoringDashboards />
+      case 'password-vault':
+        return <PasswordVault />
       case 'swagger-collections':
         return <SwaggerCollections />
       case 'devops-config':
@@ -455,6 +459,11 @@ function AppContent({
         {
           key: 'monitoring-dashboards',
           label: 'Monitoring Dashboards'
+        },
+        {
+          key: 'password-vault',
+          icon: <LockOutlined />,
+          label: 'Password Vault'
         },
         {
           key: 'swagger-collections',

@@ -23,6 +23,7 @@
   {
    "fieldname": "dashboard_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Dashboard Name",
    "reqd": 1,
    "unique": 1
@@ -30,28 +31,29 @@
   {
    "fieldname": "dashboard_url",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Dashboard URL",
    "reqd": 1
   },
   {
+   "default": "Custom",
    "fieldname": "dashboard_type",
    "fieldtype": "Select",
    "label": "Dashboard Type",
-   "options": "Grafana\nKibana\nPrometheus\nCustom",
-   "default": "Custom"
+   "options": "Frappe Insights\nGrafana\nKibana\nPrometheus\nCustom"
   },
   {
+   "default": "Other",
    "fieldname": "category",
    "fieldtype": "Select",
    "label": "Category",
-   "options": "Infrastructure\nApplication\nSecurity\nPerformance\nOther",
-   "default": "Other"
+   "options": "Infrastructure\nApplication\nSecurity\nPerformance\nOther"
   },
   {
+   "default": "1",
    "fieldname": "is_active",
    "fieldtype": "Check",
-   "label": "Is Active",
-   "default": 1
+   "label": "Is Active"
   },
   {
    "fieldname": "column_break_1",
@@ -68,11 +70,11 @@
    "label": "Access Control"
   },
   {
+   "default": "Internal",
    "fieldname": "access_level",
    "fieldtype": "Select",
    "label": "Access Level",
-   "options": "Public\nInternal\nRestricted",
-   "default": "Internal"
+   "options": "Public\nInternal\nRestricted"
   },
   {
    "fieldname": "project",
@@ -81,15 +83,15 @@
    "options": "Project"
   },
   {
+   "default": "0",
    "fieldname": "sort_order",
    "fieldtype": "Int",
-   "label": "Sort Order",
-   "default": 0
+   "label": "Sort Order"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-11-02 10:00:00.000000",
+ "modified": "2025-11-03 13:15:18.336021",
  "modified_by": "Administrator",
  "module": "Frappe Devsecops Dashboard",
  "name": "DevSecops Dashboard URL",

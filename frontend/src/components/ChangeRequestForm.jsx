@@ -17,22 +17,34 @@ import {
   Divider,
   Badge,
   Tag,
-  Collapse
+  Collapse,
+  Modal,
+  Tooltip,
+  Timeline,
+  Empty,
+  Skeleton
 } from 'antd'
 import {
   CheckCircleFilled,
   CloseCircleFilled,
   ClockCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  ToolOutlined,
+  FileTextOutlined
 } from '@ant-design/icons'
 import Swal from 'sweetalert2'
 import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
 import useAuthStore from '../stores/authStore'
 import useNavigationStore from '../stores/navigationStore'
 import RichTextEditor from './RichTextEditor'
 import ApprovalTrackingComponent from './ApprovalTrackingComponent'
 import ApprovalActionModal from './ApprovalActionModal'
 import ApproversTable from './ApproversTable'
+import { getChangeRequestActivity } from '../utils/projectAttachmentsApi'
+
+// Extend dayjs with relativeTime plugin
+dayjs.extend(relativeTime)
 
 const { Title } = Typography
 const { Option } = Select
@@ -88,6 +100,12 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
   const [managerAutoPopulated, setManagerAutoPopulated] = useState(false)
   const [originatorFullName, setOriginatorFullName] = useState('')
   const [managerFullName, setManagerFullName] = useState('')
+  const [devopsResolutionModalVisible, setDevopsResolutionModalVisible] = useState(false)
+  const [devopsResolutionForm] = Form.useForm()
+  const [submittingDevopsResolution, setSubmittingDevopsResolution] = useState(false)
+  const [workflowState, setWorkflowState] = useState('Draft')
+  const [activityLogs, setActivityLogs] = useState([])
+  const [activityLogsLoading, setActivityLogsLoading] = useState(false)
 
   const { hasPermission, isAuthenticated, user } = useAuthStore()
   const { navigateToRoute } = useNavigationStore()
@@ -127,6 +145,68 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           icon: <ClockCircleOutlined style={{ color: '#1890ff', marginRight: 8 }} />,
           label: 'Pending Review',
           tagColor: 'processing'
+        }
+    }
+  }
+
+  // Helper function to get workflow state configuration
+  const getWorkflowStateConfig = (state) => {
+    switch (state?.toLowerCase()) {
+      case 'awaiting approval':
+        return {
+          color: '#faad14',
+          icon: <ExclamationCircleOutlined style={{ color: '#faad14', marginRight: 8 }} />,
+          label: 'Awaiting Approval',
+          tagColor: 'warning'
+        }
+      case 'started deployment':
+        return {
+          color: '#1890ff',
+          icon: <CheckCircleFilled style={{ color: '#1890ff', marginRight: 8 }} />,
+          label: 'Started Deployment',
+          tagColor: 'processing'
+        }
+      case 'declined':
+        return {
+          color: '#ff4d4f',
+          icon: <CloseCircleFilled style={{ color: '#ff4d4f', marginRight: 8 }} />,
+          label: 'Declined',
+          tagColor: 'error'
+        }
+      case 'implemented':
+        return {
+          color: '#52c41a',
+          icon: <CheckCircleFilled style={{ color: '#52c41a', marginRight: 8 }} />,
+          label: 'Implemented',
+          tagColor: 'success'
+        }
+      case 'deployment completed':
+        return {
+          color: '#52c41a',
+          icon: <CheckCircleFilled style={{ color: '#52c41a', marginRight: 8 }} />,
+          label: 'Deployment Completed',
+          tagColor: 'success'
+        }
+      case 'deployed':
+        return {
+          color: '#52c41a',
+          icon: <CheckCircleFilled style={{ color: '#52c41a', marginRight: 8 }} />,
+          label: 'Deployed',
+          tagColor: 'success'
+        }
+      case 'deployment failed':
+        return {
+          color: '#ff4d4f',
+          icon: <CloseCircleFilled style={{ color: '#ff4d4f', marginRight: 8 }} />,
+          label: 'Deployment Failed',
+          tagColor: 'error'
+        }
+      default:
+        return {
+          color: '#8c8c8c',
+          icon: <ClockCircleOutlined style={{ color: '#8c8c8c', marginRight: 8 }} />,
+          label: state || 'Unknown',
+          tagColor: 'default'
         }
     }
   }
@@ -213,6 +293,8 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         }
         // Set approval status for the status indicator
         setApprovalStatus(r.approval_status || 'Pending Review')
+        // Set workflow state for the status indicator
+        setWorkflowState(r.workflow_state || 'Draft')
 
         // Set full names from the response
         if (r.originator_full_name) {
@@ -728,6 +810,94 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
     }
   }
 
+  // Handle DevOps Resolution button click
+  const handleDevopsResolutionClick = () => {
+    devopsResolutionForm.resetFields()
+    setDevopsResolutionModalVisible(true)
+  }
+
+  // Handle DevOps Resolution form submission
+  const handleDevopsResolutionSubmit = async (values) => {
+    try {
+      setSubmittingDevopsResolution(true)
+
+      console.log('[ChangeRequestForm] Submitting DevOps Resolution:', {
+        change_request_name: id,
+        resolution_status: values.resolution_status,
+        version: values.version,
+        notes: values.notes
+      })
+
+      const response = await fetch(
+        `/api/method/frappe_devsecops_dashboard.api.change_request.submit_devops_resolution`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token
+          },
+          body: JSON.stringify({
+            change_request_name: id,
+            resolution_status: values.resolution_status,
+            version: values.version,
+            notes: values.notes
+          })
+        }
+      )
+
+      const data = await response.json()
+      console.log('[ChangeRequestForm] DevOps Resolution API Response:', data)
+
+      // Check if response is successful
+      // Frappe wraps the return value in a 'message' field
+      const result = data.message
+
+      if (result?.success) {
+        message.success(result.message || 'DevOps resolution submitted successfully')
+        setDevopsResolutionModalVisible(false)
+        devopsResolutionForm.resetFields()
+        // Reload the change request data and activity logs
+        await loadChangeRequest()
+        await loadActivityLog()
+      } else {
+        const errorMsg = result?.error || data?.exc || 'Failed to submit DevOps resolution'
+        console.error('[ChangeRequestForm] DevOps Resolution Error:', errorMsg)
+        message.error(errorMsg)
+      }
+    } catch (error) {
+      console.error('[ChangeRequestForm] Error submitting DevOps resolution:', error)
+      message.error('Failed to submit DevOps resolution: ' + error.message)
+    } finally {
+      setSubmittingDevopsResolution(false)
+    }
+  }
+
+  // Load activity logs for the Change Request
+  const loadActivityLog = async () => {
+    if (!id) return // Only load for edit mode
+
+    setActivityLogsLoading(true)
+    try {
+      const response = await getChangeRequestActivity(id, 10)
+      if (response.success) {
+        setActivityLogs(response.activity_logs || [])
+      } else {
+        console.error('[ChangeRequestForm] Error loading activity logs:', response.error)
+      }
+    } catch (error) {
+      console.error('[ChangeRequestForm] Error fetching activity logs:', error)
+    } finally {
+      setActivityLogsLoading(false)
+    }
+  }
+
+  // Load activity logs when component mounts or when id changes
+  useEffect(() => {
+    if (mode === 'edit' && id) {
+      loadActivityLog()
+    }
+  }, [mode, id])
+
   // Show confirmation dialog before submitting
   const onSubmit = async (values) => {
     const isEdit = mode === 'edit' && id
@@ -816,29 +986,61 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         </Title>
       </Space>
 
-      {/* Status Indicator - Prominent display of Change Request Acceptance status */}
+      {/* Status Indicator - Prominent display of Change Request Acceptance and Workflow State */}
       {mode === 'edit' && (
         <div style={{
           marginBottom: 24,
-          padding: '12px 16px',
+          padding: '16px',
           backgroundColor: '#fafafa',
           borderRadius: '4px',
-          border: `2px solid ${getStatusConfig(approvalStatus).color}`,
+          border: '2px solid #e8e8e8',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
+          justifyContent: 'space-between',
+          gap: '24px',
+          flexWrap: 'wrap'
         }}>
-          {getStatusConfig(approvalStatus).icon}
-          <div>
-            <span style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Change Request Acceptance:</span>
-            <span style={{
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: getStatusConfig(approvalStatus).color
-            }}>
-              {getStatusConfig(approvalStatus).label}
-            </span>
+          {/* Change Request Acceptance Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '250px' }}>
+            {getStatusConfig(approvalStatus).icon}
+            <div>
+              <span style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Change Request Acceptance:</span>
+              <span style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: getStatusConfig(approvalStatus).color
+              }}>
+                {getStatusConfig(approvalStatus).label}
+              </span>
+            </div>
           </div>
+
+          {/* Implementation Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '250px' }}>
+            {getWorkflowStateConfig(workflowState).icon}
+            <div>
+              <span style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Implementation Status:</span>
+              <span style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: getWorkflowStateConfig(workflowState).color
+              }}>
+                {getWorkflowStateConfig(workflowState).label}
+              </span>
+            </div>
+          </div>
+
+          {/* DevOps Resolution Button */}
+          <Tooltip title={approvalStatus !== 'Approved for Implementation' ? 'DevOps Resolution is only available when Change Request Acceptance is "Approved for Implementation"' : ''}>
+            <Button
+              type="primary"
+              icon={<ToolOutlined />}
+              onClick={handleDevopsResolutionClick}
+              disabled={approvalStatus !== 'Approved for Implementation'}
+            >
+              DevOps Resolution
+            </Button>
+          </Tooltip>
         </div>
       )}
 
@@ -1082,6 +1284,26 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
               </Row>
             </div>
 
+            {/* Implementation Status Section */}
+            <div style={{ marginBottom: '24px' }}>
+              <Title level={5} style={{ marginBottom: '12px' }}>Implementation Status</Title>
+              <Row gutter={16}>
+                <Col span={24}>
+                  <Form.Item name="workflow_state" rules={[{ required: true }]} initialValue="Awaiting Approval" style={{ marginBottom: 0 }}>
+                    <Select placeholder="Select implementation status" disabled>
+                      <Option value="Awaiting Approval">Awaiting Approval</Option>
+                      <Option value="Started Deployment">Started Deployment</Option>
+                      <Option value="Declined">Declined</Option>
+                      <Option value="Implemented">Implemented</Option>
+                      <Option value="Deployment Completed">Deployment Completed</Option>
+                      <Option value="Deployed">Deployed</Option>
+                      <Option value="Deployment Failed">Deployment Failed</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+
             <Divider />
 
             {/* Approvers Section */}
@@ -1126,6 +1348,51 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         </Form.Item>
       </Form>
 
+      {/* Activity Log Section - Only in edit mode */}
+      {mode === 'edit' && (
+        <Card
+          title="Activity Log"
+          style={{
+            marginTop: '24px',
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          }}
+        >
+          {activityLogsLoading ? (
+            <Skeleton active paragraph={{ rows: 4 }} />
+          ) : activityLogs && activityLogs.length > 0 ? (
+            <Timeline size="small">
+              {activityLogs.map((activity) => (
+                <Timeline.Item
+                  key={activity.name}
+                  dot={<FileTextOutlined style={{ color: '#1890ff' }} />}
+                >
+                  <div>
+                    <span style={{ fontSize: '13px', fontWeight: '500' }}>
+                      {activity.subject || 'Activity'}
+                    </span>
+                    <br />
+                    <span style={{ fontSize: '12px', color: '#666' }}>
+                      by {activity.owner_name || activity.owner} • {dayjs(activity.creation).fromNow()}
+                    </span>
+                    {activity.content && (
+                      <>
+                        <br />
+                        <span style={{ fontSize: '12px', color: '#999' }}>
+                          {activity.content.substring(0, 150)}{activity.content.length > 150 ? '...' : ''}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </Timeline.Item>
+              ))}
+            </Timeline>
+          ) : (
+            <Empty description="No activity recorded yet" />
+          )}
+        </Card>
+      )}
+
       {/* Approval Action Modal */}
       <ApprovalActionModal
         visible={approvalModalVisible}
@@ -1136,6 +1403,67 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         onCancel={() => setApprovalModalVisible(false)}
         loading={submittingApproval}
       />
+
+      {/* DevOps Resolution Modal */}
+      <Modal
+        title="DevOps Resolution"
+        open={devopsResolutionModalVisible}
+        onCancel={() => setDevopsResolutionModalVisible(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setDevopsResolutionModalVisible(false)}>
+            Cancel
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={submittingDevopsResolution}
+            onClick={() => devopsResolutionForm.submit()}
+          >
+            Submit Resolution
+          </Button>
+        ]}
+      >
+        <Form
+          form={devopsResolutionForm}
+          layout="vertical"
+          onFinish={handleDevopsResolutionSubmit}
+        >
+          <Form.Item
+            name="resolution_status"
+            label="Implementation Status"
+            rules={[{ required: true, message: 'Please select an implementation status' }]}
+          >
+            <Select placeholder="Select implementation status">
+              <Option value="Awaiting Approval">Awaiting Approval</Option>
+              <Option value="Started Deployment">Started Deployment</Option>
+              <Option value="Declined">Declined</Option>
+              <Option value="Implemented">Implemented</Option>
+              <Option value="Deployment Completed">Deployment Completed</Option>
+              <Option value="Deployed">Deployed</Option>
+              <Option value="Deployment Failed">Deployment Failed</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="version"
+            label="Version"
+            rules={[{ required: true, message: 'Please enter a version' }]}
+          >
+            <Input placeholder="e.g., v1.2.3" />
+          </Form.Item>
+
+          <Form.Item
+            name="notes"
+            label="Resolution Notes"
+            rules={[{ required: true, message: 'Please enter resolution notes' }]}
+          >
+            <Input.TextArea
+              placeholder="Enter resolution notes..."
+              rows={4}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Card>
   )
 }

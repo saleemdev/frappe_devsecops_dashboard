@@ -535,3 +535,24 @@ export const getProjectTasks = async (projectName) => {
     throw error
   }
 }
+
+
+/**
+ * Get activity log for a Change Request
+ */
+export const getChangeRequestActivity = async (changeRequestName, limit = 10) => {
+  try {
+    const api = await getApiClient()
+    const response = await api.get('/api/method/frappe_devsecops_dashboard.api.change_request.get_change_request_activity', {
+      params: {
+        change_request_name: changeRequestName,
+        limit: limit,
+        _t: Date.now()  // Cache-busting parameter
+      }
+    })
+    return response.data
+  } catch (error) {
+    console.error('[getChangeRequestActivity] Error:', error)
+    throw error
+  }
+}

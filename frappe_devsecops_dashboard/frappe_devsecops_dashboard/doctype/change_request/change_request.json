@@ -258,7 +258,7 @@
    "fieldtype": "Select",
    "in_standard_filter": 1,
    "label": "Workflow State",
-   "options": "\nDraft\nPending Approval\nApproved\nRejected\nImplemented\nClosed"
+   "options": "Awaiting Approval\nStarted Deployment\nDeclined\nImplemented\nDeployment Completed\nDeployed\nDeployment Failed"
   },
   {
    "fieldname": "amended_from",
@@ -296,7 +296,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-10-31 11:03:50.375149",
+ "modified": "2025-11-04 05:21:58.123148",
  "modified_by": "Administrator",
  "module": "Frappe Devsecops Dashboard",
  "name": "Change Request",

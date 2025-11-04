@@ -202,6 +202,21 @@ const useNavigationStore = create(
             window.location.hash = 'monitoring-dashboards'
             break
 
+          case 'password-vault':
+            set({
+              currentRoute: 'password-vault',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'password-vault'
+            break
+
           case 'swagger-collections':
             set({
               currentRoute: 'swagger-collections',
@@ -417,6 +432,8 @@ const useNavigationStore = create(
           get().navigateToRoute('incidents')
         } else if (hash === 'monitoring-dashboards') {
           get().navigateToRoute('monitoring-dashboards')
+        } else if (hash === 'password-vault') {
+          get().navigateToRoute('password-vault')
         } else if (hash === 'swagger-collections') {
           get().navigateToRoute('swagger-collections')
         } else if (hash === 'devops-config') {
@@ -643,6 +660,12 @@ const useNavigationStore = create(
               items.push(
                 { title: 'Ops' },
                 { title: 'Monitoring Dashboards' }
+              )
+              break
+            case 'password-vault':
+              items.push(
+                { title: 'Ops' },
+                { title: 'Password Vault' }
               )
               break
             case 'swagger-collections':

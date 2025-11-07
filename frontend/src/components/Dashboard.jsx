@@ -53,9 +53,6 @@ function Dashboard({ navigateToRoute }) {
   const [recentIncidents, setRecentIncidents] = useState([])
   const [recentChangeRequests, setRecentChangeRequests] = useState([])
 
-  // Task distribution state
-  const [taskDistribution, setTaskDistribution] = useState({})
-
   // Fetch dashboard metrics on mount
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -101,39 +98,13 @@ function Dashboard({ navigateToRoute }) {
         // Aggregate tasks from all projects (if available in project data)
         let totalTasks = 0
         let openTasks = 0
-        const taskTypeDistribution = {}
 
-        console.log('🔄 Processing projects for task aggregation:', projects.length, 'projects')
-
-        projects.forEach((project, idx) => {
-          console.log(`📌 Project ${idx}:`, {
-            name: project.name,
-            hasTasks: !!project.tasks,
-            tasksIsArray: Array.isArray(project.tasks),
-            tasksLength: project.tasks?.length || 0,
-            tasks: project.tasks
-          })
-
+        projects.forEach((project) => {
           if (project.tasks && Array.isArray(project.tasks)) {
             totalTasks += project.tasks.length
             const openCount = project.tasks.filter(t => (t.status || '').toLowerCase() !== 'completed').length
             openTasks += openCount
-
-            console.log(`  ✓ Project ${project.name}: ${project.tasks.length} total, ${openCount} open`)
-
-            // Aggregate task types
-            project.tasks.forEach(task => {
-              const taskType = task.task_type || 'Untyped'
-              taskTypeDistribution[taskType] = (taskTypeDistribution[taskType] || 0) + 1
-              console.log(`    - Task: ${task.name}, Type: ${taskType}, Status: ${task.status}`)
-            })
           }
-        })
-
-        console.log('📊 Task Aggregation Results:', {
-          totalTasks,
-          openTasks,
-          taskTypeDistribution
         })
 
         setMetrics({
@@ -142,9 +113,6 @@ function Dashboard({ navigateToRoute }) {
           changeRequests: { pending: pendingCR, total: totalCR, trend: 0 },
           tasks: { total: totalTasks, open: openTasks, trend: 0 }
         })
-
-        // Set task distribution
-        setTaskDistribution(taskTypeDistribution)
 
         // Set recent items (last 5)
         setRecentIncidents(incidents.slice(0, 5))
@@ -176,20 +144,7 @@ function Dashboard({ navigateToRoute }) {
     return <BugOutlined style={{ color: token.colorInfo }} />
   }
 
-  // Helper function to get task type color
-  const getTaskTypeColor = (_, index) => {
-    const colors = [
-      token.colorPrimary,
-      token.colorSuccess,
-      token.colorWarning,
-      token.colorError,
-      token.colorInfo,
-      '#722ED1',
-      '#EB2F96',
-      '#13C2C2'
-    ]
-    return colors[index % colors.length]
-  }
+
 
   return (
     <div style={{ padding: isMobile ? '16px' : '24px', backgroundColor: token.colorBgLayout, minHeight: '100vh' }}>
@@ -274,54 +229,6 @@ function Dashboard({ navigateToRoute }) {
         </Row>
       </div>
 
-      {/* Section 1.5: Task Distribution */}
-      <div style={{ marginBottom: '32px' }}>
-        <Title level={4} style={{ marginBottom: '16px', color: token.colorTextHeading }}>
-          Task Distribution by Type
-        </Title>
-        <Card>
-          {loading ? (
-            <Spin />
-          ) : Object.keys(taskDistribution).length === 0 ? (
-            <Empty
-              description="No tasks to display"
-              style={{ marginTop: '24px', marginBottom: '24px' }}
-            />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {Object.entries(taskDistribution)
-                .sort((a, b) => b[1] - a[1])
-                .map(([taskType, count], index) => {
-                  const totalCount = Object.values(taskDistribution).reduce((a, b) => a + b, 0)
-                  const percentage = Math.round((count / totalCount) * 100)
-                  const color = getTaskTypeColor(taskType, index)
-
-                  return (
-                    <div key={taskType} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ minWidth: '120px' }}>
-                        <Text strong style={{ fontSize: '13px' }}>{taskType}</Text>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <Progress
-                          percent={percentage}
-                          strokeColor={color}
-                          size="small"
-                          format={percent => `${percent}%`}
-                        />
-                      </div>
-                      <div style={{ minWidth: '60px', textAlign: 'right' }}>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {count} task{count !== 1 ? 's' : ''}
-                        </Text>
-                      </div>
-                    </div>
-                  )
-                })}
-            </div>
-          )}
-        </Card>
-      </div>
-
       {/* Section 2: Quick Actions */}
       <div style={{ marginBottom: '32px' }}>
         <Title level={4} style={{ marginBottom: '16px', color: token.colorTextHeading }}>
@@ -370,7 +277,7 @@ function Dashboard({ navigateToRoute }) {
               block
               size="middle"
               icon={<ArrowRightOutlined />}
-              onClick={() => navigateToRoute?.('change-requests-dashboard')}
+              onClick={() => navigateToRoute?.('monitoring-dashboards')}
               style={{ height: '36px', fontSize: '13px' }}
             >
               View Dashboards

@@ -282,6 +282,10 @@ class ProjectsService {
         requestBody.department = projectData.department
       }
 
+      if (projectData.project_template) {
+        requestBody.project_template = projectData.project_template
+      }
+
       // Make API call
       const response = await fetch('/api/method/frappe_devsecops_dashboard.api.dashboard.create_project', {
         method: 'POST',

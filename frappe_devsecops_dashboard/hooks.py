@@ -117,10 +117,8 @@ app_license = "MIT"
 # Hook on document methods and events
 
 # doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
+# 	"Project": {
+# 		"after_save": "frappe_devsecops_dashboard.doc_hooks.project_user_permissions.handle_project_user_permissions"
 # 	}
 # }
 

@@ -63,6 +63,7 @@ function ProjectCreateForm({ navigateToRoute }) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [projectTypes, setProjectTypes] = useState([])
+  const [projectTemplates, setProjectTemplates] = useState([])
   const [departments, setDepartments] = useState([])
   const [teamMembers, setTeamMembers] = useState([])
   const [userSearchResults, setUserSearchResults] = useState([])
@@ -74,6 +75,7 @@ function ProjectCreateForm({ navigateToRoute }) {
   const [showEditMemberModal, setShowEditMemberModal] = useState(false)
   const [memberBeingEdited, setMemberBeingEdited] = useState(null)
   const [editBusinessFunction, setEditBusinessFunction] = useState(null)
+  const [selectedTemplate, setSelectedTemplate] = useState(null)
   const userSearchTimeoutRef = useRef(null)
 
   const { hasPermission, isAuthenticated } = useAuthStore()
@@ -89,18 +91,24 @@ function ProjectCreateForm({ navigateToRoute }) {
     }
   }, [isAuthenticated, canWrite, navigateToRoute])
 
-  // Load project types and departments
+  // Load project types, templates, and departments
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [typesRes, deptsRes] = await Promise.all([
+        const [typesRes, templatesRes, deptsRes] = await Promise.all([
           fetch('/api/resource/Project Type', { credentials: 'include' }),
+          fetch('/api/resource/Project Template', { credentials: 'include' }),
           fetch('/api/resource/Department', { credentials: 'include' })
         ])
 
         if (typesRes.ok) {
           const data = await typesRes.json()
           setProjectTypes((data.data || []).map(t => ({ label: t.name, value: t.name })))
+        }
+
+        if (templatesRes.ok) {
+          const data = await templatesRes.json()
+          setProjectTemplates((data.data || []).map(t => ({ label: t.name, value: t.name })))
         }
 
         if (deptsRes.ok) {
@@ -262,6 +270,10 @@ function ProjectCreateForm({ navigateToRoute }) {
         projectData.notes = values.notes
       }
 
+      if (selectedTemplate) {
+        projectData.project_template = selectedTemplate
+      }
+
       // Create project
       const response = await projectsService.createProject(projectData)
 
@@ -342,6 +354,20 @@ function ProjectCreateForm({ navigateToRoute }) {
                   placeholder="Select project type"
                   options={projectTypes}
                   loading={projectTypes.length === 0}
+                />
+              </Form.Item>
+
+              {/* Project Template */}
+              <Form.Item
+                label="Project Template (Optional)"
+                name="project_template"
+              >
+                <Select
+                  placeholder="Select a template to auto-populate tasks"
+                  options={projectTemplates}
+                  allowClear
+                  onChange={setSelectedTemplate}
+                  value={selectedTemplate}
                 />
               </Form.Item>
 

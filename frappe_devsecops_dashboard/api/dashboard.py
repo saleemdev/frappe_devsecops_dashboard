@@ -2295,9 +2295,9 @@ def get_projects_data_for_metrics(filters=None):
 
 @frappe.whitelist()
 def create_project(project_name, project_type, expected_start_date, expected_end_date,
-                   team_members=None, notes=None, priority=None, department=None):
+                   team_members=None, notes=None, priority=None, department=None, project_template=None):
     """
-    Create a new project with team members.
+    Create a new project with team members and optional template.
 
     Args:
         project_name (str): Name of the project (required, must be unique)
@@ -2308,6 +2308,7 @@ def create_project(project_name, project_type, expected_start_date, expected_end
         notes (str): Project notes/description (optional)
         priority (str): Project priority - Low, Medium, High (optional, defaults to Medium)
         department (str): Department link (optional)
+        project_template (str): Project Template name to use for auto-populating tasks (optional)
 
     Returns:
         dict: JSON response with success status and project details or error information
@@ -2321,7 +2322,8 @@ def create_project(project_name, project_type, expected_start_date, expected_end
             "expected_end_date": "2024-12-31",
             "team_members": [{"user": "user1@example.com"}, {"user": "user2@example.com"}],
             "notes": "Project description",
-            "priority": "High"
+            "priority": "High",
+            "project_template": "Template Name"
         }
     """
     try:
@@ -2409,6 +2411,17 @@ def create_project(project_name, project_type, expected_start_date, expected_end
 
         if notes:
             project.notes = notes
+
+        # Set project template if provided
+        if project_template:
+            # Validate template exists
+            if frappe.db.exists("Project Template", project_template):
+                project.project_template = project_template
+            else:
+                frappe.log_error(
+                    f"Project Template '{project_template}' does not exist",
+                    "Create Project - Invalid Template"
+                )
 
         # Add team members if provided
         if team_members and isinstance(team_members, list):

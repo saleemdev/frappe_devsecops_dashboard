@@ -117,6 +117,12 @@ const createApiClient = async () => {
   // Request interceptor for CSRF token
   client.interceptors.request.use(
     (config) => {
+      // SECURITY: Validate CSRF token exists before making request
+      if (!window.csrf_token) {
+        console.warn('[SECURITY] CSRF token is missing or undefined. Request may be rejected by server.')
+        // Don't block the request, let server handle it
+      }
+
       // Add CSRF token if available
       if (window.csrf_token) {
         config.headers['X-Frappe-CSRF-Token'] = window.csrf_token
@@ -156,10 +162,15 @@ const createApiClient = async () => {
 
         switch (status) {
           case 401:
-            // Unauthorized - don't auto-redirect, let the app handle it
+            // SECURITY: Unauthorized - session expired or invalid
+            console.error('[SECURITY] 401 Unauthorized - Session may have expired. User should re-authenticate.')
+            // Dispatch event for app to handle re-authentication
+            window.dispatchEvent(new CustomEvent('session-expired', { detail: { status: 401 } }))
             break
           case 403:
-            // Forbidden - show permission error
+            // SECURITY: Forbidden - user lacks permissions
+            console.error('[SECURITY] 403 Forbidden - User lacks required permissions.')
+            window.dispatchEvent(new CustomEvent('permission-denied', { detail: { status: 403 } }))
             break
           case 404:
             // Not found

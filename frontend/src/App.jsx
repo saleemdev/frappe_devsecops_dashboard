@@ -129,13 +129,38 @@ function App() {
 
   // Initialize CSRF token from window object (injected by Frappe)
   useEffect(() => {
-    if (window.csrf_token) {
+    // SECURITY: Validate CSRF token is available
+    if (!window.csrf_token) {
+      console.error('[SECURITY] CSRF token is not available. Frappe may not have injected it properly.')
+    } else {
+      console.log('[SECURITY] CSRF token initialized successfully')
       // Set up axios defaults for CSRF token
       import('axios').then(axiosModule => {
         axiosModule.default.defaults.headers.common['X-Frappe-CSRF-Token'] = window.csrf_token
       })
     }
   }, [])
+
+  // Listen for session expiry events from API interceptor
+  useEffect(() => {
+    const handleSessionExpired = (event) => {
+      console.warn('[SECURITY] Session expired event received. Triggering re-authentication.')
+      checkAuthentication()
+    }
+
+    const handlePermissionDenied = (event) => {
+      console.warn('[SECURITY] Permission denied event received.')
+      // Could show a toast notification here
+    }
+
+    window.addEventListener('session-expired', handleSessionExpired)
+    window.addEventListener('permission-denied', handlePermissionDenied)
+
+    return () => {
+      window.removeEventListener('session-expired', handleSessionExpired)
+      window.removeEventListener('permission-denied', handlePermissionDenied)
+    }
+  }, [checkAuthentication])
 
   // Update document theme attribute when dark mode changes
   useEffect(() => {

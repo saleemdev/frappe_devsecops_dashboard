@@ -278,6 +278,10 @@ function ProjectCreateForm({ navigateToRoute }) {
       const response = await projectsService.createProject(projectData)
 
       if (response.status === 200 && response.data?.success) {
+        const projectId = response.data?.project_id
+        console.log('[ProjectCreateForm] Created project, response:', response)
+        console.log('[ProjectCreateForm] Project ID:', projectId)
+
         await Swal.fire({
           icon: 'success',
           title: 'Project Created',
@@ -289,9 +293,15 @@ function ProjectCreateForm({ navigateToRoute }) {
         })
 
         // Navigate to project detail (use route helper so hash and state are set consistently)
-        console.log('[ProjectCreateForm] Created project, navigating to detail:', response?.data?.project_id)
-        navigateToRoute('project-detail', response.data.project_id)
+        if (projectId) {
+          console.log('[ProjectCreateForm] Navigating to project detail:', projectId)
+          navigateToRoute('project-detail', projectId)
+        } else {
+          console.error('[ProjectCreateForm] No project_id in response:', response.data)
+          message.error('Project created but could not navigate to detail page')
+        }
       } else {
+        console.error('[ProjectCreateForm] Create failed:', response)
         message.error(response.message || 'Failed to create project')
       }
     } catch (error) {

@@ -33,7 +33,9 @@ class PermissionsService {
         {
           credentials: 'include',
           headers: {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            // SECURITY: Include CSRF token for consistency (GET requests don't require it, but good practice)
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
           }
         }
       )

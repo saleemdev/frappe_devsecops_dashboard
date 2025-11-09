@@ -1059,9 +1059,16 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
                                 <div style={{ flex: 1 }}>
-                                  <Text strong style={{ fontSize: '13px' }}>
-                                    {task.subject || task.name}
-                                  </Text>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Text strong style={{ fontSize: '13px' }}>
+                                      {task.subject || task.name}
+                                    </Text>
+                                    {task.custom_priority !== undefined && task.custom_priority !== null && (
+                                      <Tag color="blue" style={{ fontSize: '10px', fontWeight: '600' }}>
+                                        P{task.custom_priority}
+                                      </Tag>
+                                    )}
+                                  </div>
                                   {task.description && (
                                     <div style={{ marginTop: '4px', color: '#666', fontSize: '11px' }}>
                                       {task.description.substring(0, 80)}...

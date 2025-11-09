@@ -16,6 +16,7 @@ export const stripHtmlTags = (html) => {
 
 /**
  * Group tasks by Task Type and order chronologically
+ * Tasks within each group are sorted by custom_priority (ascending - lower numbers first)
  * @param {Array} tasks - Array of task objects
  * @returns {Array} Array of grouped tasks with type, tasks array, and earliest date
  */
@@ -32,9 +33,18 @@ export const groupTasksByType = (tasks) => {
     grouped[taskType].push(task)
   })
 
-  // Sort tasks within each group by creation date (oldest first)
+  // Sort tasks within each group by custom_priority (ascending), then by creation date
   Object.keys(grouped).forEach(type => {
     grouped[type].sort((a, b) => {
+      // First, sort by custom_priority (ascending - lower numbers first)
+      const priorityA = a.custom_priority !== undefined && a.custom_priority !== null ? parseInt(a.custom_priority) : Infinity
+      const priorityB = b.custom_priority !== undefined && b.custom_priority !== null ? parseInt(b.custom_priority) : Infinity
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB
+      }
+
+      // If priorities are equal, sort by creation date (oldest first)
       const dateA = new Date(a.creation || a.exp_start_date || 0)
       const dateB = new Date(b.creation || b.exp_start_date || 0)
       return dateA - dateB

@@ -3,7 +3,7 @@
  * Central export point for all API services
  */
 
-import { API_CONFIG, clearCache } from './config.js'
+import { API_CONFIG, clearCache, isMockEnabled } from './config.js'
 import applicationsService from './applications.js'
 import incidentsService from './incidents.js'
 import swaggerCollectionsService from './swaggerCollections.js'

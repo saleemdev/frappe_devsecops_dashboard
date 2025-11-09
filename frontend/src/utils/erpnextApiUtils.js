@@ -357,6 +357,14 @@ export const getProjectTasksWithTypes = async (projectId) => {
 // Export the main function for backward compatibility
 export const getProjectsWithTasks = getDashboardData
 
+/**
+ * Create API client for use in other modules
+ * Returns the configured axios instance
+ */
+export const createApiClient = async () => {
+  return apiClient
+}
+
 // Default export
 export default {
   getDashboardData,
@@ -364,5 +372,6 @@ export default {
   getTaskTypes,
   getProjects,
   getProjectsWithTasks: getDashboardData,
-  getProjectTasksWithTypes
+  getProjectTasksWithTypes,
+  createApiClient
 }

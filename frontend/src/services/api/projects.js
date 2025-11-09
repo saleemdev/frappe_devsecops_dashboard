@@ -34,35 +34,22 @@ class ProjectsService {
     try {
       // Use the backend API that returns projects with tasks
       // This endpoint calls get_projects_with_tasks() which enhances projects with task data
-      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.dashboard.get_dashboard_data', {
-        method: 'GET',
-        headers: {
-          'X-Frappe-CSRF-Token': window.csrf_token || '',
-          'Content-Type': 'application/json'
-        }
-      })
+      const { createApiClient } = await loadErpNextUtils()
+      const client = await createApiClient()
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
-      }
+      const response = await client.get('frappe_devsecops_dashboard.api.dashboard.get_dashboard_data')
 
-      const data = await response.json()
+      // Normalize Frappe response: unwrap message if present
+      const payload = response?.data?.message ?? response?.data
 
-      // DEBUG: Log raw response
-      console.log('🔍 Projects Service - Raw API Response:', data)
-
-      // The backend returns { message: { success, projects, metrics, ... } }
-      if (data.message && data.message.success && data.message.projects) {
-        console.log('✅ Projects Service - Extracted projects:', data.message.projects)
-        console.log('📊 Projects Service - First project structure:', data.message.projects[0])
-
+      if (payload && payload.success && Array.isArray(payload.projects)) {
         return {
           success: true,
-          data: data.message.projects || []
+          data: payload.projects
         }
       }
 
-      console.error('❌ Projects Service - Invalid response format:', data)
+      console.error('❌ Projects Service - Invalid response format:', response.data)
       return {
         success: false,
         error: 'Invalid response format',
@@ -286,55 +273,37 @@ class ProjectsService {
         requestBody.project_template = projectData.project_template
       }
 
-      // Make API call
-      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.dashboard.create_project', {
-        method: 'POST',
-        headers: {
-          'X-Frappe-CSRF-Token': window.csrf_token || '',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody),
-        credentials: 'include'
-      })
+      // Make API call using axios client (includes CSRF token automatically)
+      const { createApiClient } = await loadErpNextUtils()
+      const client = await createApiClient()
 
-      if (!response.ok) {
-        const errorData = await response.json()
+      const response = await client.post('frappe_devsecops_dashboard.api.dashboard.create_project', requestBody)
+
+      console.log('[ProjectsService] Create project response:', response)
+
+      // Frappe wraps the response in response.data.message
+      const payload = response?.data?.message ?? response?.data
+      console.log('[ProjectsService] Payload:', payload)
+
+      if (payload && payload.success) {
         return {
-          status: response.status,
-          message: errorData.message || `API error: ${response.status}`,
+          status: 200,
+          message: payload.message || 'Project created successfully',
+          data: payload
+        }
+      } else {
+        const errorMsg = payload?.error || response.data?.error || 'Failed to create project'
+        console.error('[ProjectsService] Create failed:', errorMsg, payload)
+        return {
+          status: 400,
+          message: errorMsg,
           data: null
         }
-      }
-
-      const data = await response.json()
-
-      // Handle Frappe response format
-      if (data.message) {
-        const result = data.message
-        if (result.success) {
-          return {
-            status: 200,
-            message: result.message || 'Project created successfully',
-            data: result
-          }
-        } else {
-          return {
-            status: 400,
-            message: result.error || 'Failed to create project',
-            data: null
-          }
-        }
-      }
-
-      return {
-        status: 200,
-        message: 'Project created successfully',
-        data: data
       }
     } catch (error) {
       console.error('Error creating project:', error)
       return {
-        status: 500,
+        status: error.status || 500,
         message: error.message || 'An error occurred while creating the project',
         data: null
       }

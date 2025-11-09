@@ -33,6 +33,11 @@ const useAuthStore = create(
           set({ loading: true, error: null })
 
           try {
+            // SECURITY: Validate CSRF token exists before checking auth
+            if (!window.csrf_token) {
+              console.warn('[SECURITY] CSRF token not available during authentication check')
+            }
+
             // Get current user info from API service
             const response = await apiService.auth.getCurrentUser()
 
@@ -65,6 +70,19 @@ const useAuthStore = create(
             })
             return false
           }
+        },
+
+        /**
+         * Handle session expiry (called when 401 error is detected)
+         */
+        handleSessionExpiry: () => {
+          console.warn('[SECURITY] Session has expired. Clearing authentication state.')
+          set({
+            isAuthenticated: false,
+            user: null,
+            error: 'Your session has expired. Please log in again.',
+            loading: false
+          })
         },
 
         /**

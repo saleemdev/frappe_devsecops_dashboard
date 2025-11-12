@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Swal from 'sweetalert2'
+import dayjs from 'dayjs'
 import {
   Card,
   Row,
@@ -100,6 +101,10 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [attachmentsLoading, setAttachmentsLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [showAllTeamMembers, setShowAllTeamMembers] = useState(false)
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
+  const [editTaskFormLoading, setEditTaskFormLoading] = useState(false)
+  const [editForm] = Form.useForm()
 
   // Fetch task types when modal opens
   useEffect(() => {
@@ -497,6 +502,60 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       })
     } finally {
       setTaskFormLoading(false)
+    }
+  }
+
+  const handleEditTask = (task) => {
+    setEditingTask(task)
+    editForm.setFieldsValue({
+      subject: task.subject,
+      status: task.status,
+      priority: task.priority,
+      description: task.description,
+      exp_start_date: task.exp_start_date ? dayjs(task.exp_start_date) : null,
+      exp_end_date: task.exp_end_date ? dayjs(task.exp_end_date) : null,
+      progress: task.progress || 0
+    })
+    setShowEditTaskModal(true)
+  }
+
+  const handleCloseEditTaskModal = () => {
+    setShowEditTaskModal(false)
+    setEditingTask(null)
+    editForm.resetFields()
+  }
+
+  const handleUpdateTask = async (values) => {
+    if (!editingTask) return
+
+    setEditTaskFormLoading(true)
+    try {
+      const { updateTask } = await import('../utils/projectAttachmentsApi.js')
+
+      const taskData = {
+        subject: values.subject,
+        status: values.status,
+        priority: values.priority,
+        description: values.description || '',
+        exp_start_date: values.exp_start_date ? values.exp_start_date.format('YYYY-MM-DD') : null,
+        exp_end_date: values.exp_end_date ? values.exp_end_date.format('YYYY-MM-DD') : null,
+        progress: values.progress || 0
+      }
+
+      const response = await updateTask(editingTask.name, taskData)
+
+      if (response.success) {
+        message.success('Task updated successfully')
+        handleCloseEditTaskModal()
+        loadProjectData()
+      } else {
+        message.error(response.error || 'Failed to update task')
+      }
+    } catch (error) {
+      message.error('Failed to update task')
+      console.error('[ProjectDetail] Task update error:', error)
+    } finally {
+      setEditTaskFormLoading(false)
     }
   }
 
@@ -1088,6 +1147,13 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                                     )}
                                   </div>
                                 </div>
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  icon={<EditOutlined />}
+                                  onClick={() => handleEditTask(task)}
+                                  style={{ color: '#1890ff' }}
+                                />
                               </div>
                             </div>
                           ))}
@@ -1498,6 +1564,107 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             initialValue={false}
           >
             <Checkbox>Mark this task as a milestone</Checkbox>
+          </Form.Item>
+
+          <Form.Item
+            label="Description"
+            name="description"
+          >
+            <Input.TextArea
+              placeholder="Enter task description"
+              rows={4}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Task Modal */}
+      <Modal
+        title="Edit Task"
+        open={showEditTaskModal}
+        onCancel={handleCloseEditTaskModal}
+        onOk={() => editForm.submit()}
+        confirmLoading={editTaskFormLoading}
+        style={{ minWidth: '300px' }}
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleUpdateTask}
+          autoComplete="off"
+        >
+          <Form.Item
+            label="Task Subject"
+            name="subject"
+            rules={[{ required: true, message: 'Please enter task subject' }]}
+          >
+            <Input placeholder="Enter task subject" />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Priority"
+                name="priority"
+                rules={[{ required: true, message: 'Please select priority' }]}
+              >
+                <Select
+                  placeholder="Select priority"
+                  options={[
+                    { label: 'Low', value: 'Low' },
+                    { label: 'Medium', value: 'Medium' },
+                    { label: 'High', value: 'High' },
+                    { label: 'Urgent', value: 'Urgent' }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Status"
+                name="status"
+                rules={[{ required: true, message: 'Please select status' }]}
+              >
+                <Select
+                  placeholder="Select status"
+                  options={[
+                    { label: 'Open', value: 'Open' },
+                    { label: 'Working', value: 'Working' },
+                    { label: 'Pending Review', value: 'Pending Review' },
+                    { label: 'Overdue', value: 'Overdue' },
+                    { label: 'Template', value: 'Template' },
+                    { label: 'Completed', value: 'Completed' },
+                    { label: 'Cancelled', value: 'Cancelled' }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Expected Start Date"
+                name="exp_start_date"
+              >
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Expected End Date"
+                name="exp_end_date"
+              >
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            label="Progress (%)"
+            name="progress"
+          >
+            <Input type="number" min={0} max={100} placeholder="0-100" />
           </Form.Item>
 
           <Form.Item

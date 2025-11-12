@@ -1,12 +1,11 @@
 {
   "index.html": {
-    "file": "assets/index-AD5j2b9p.js",
+    "file": "assets/index-BXmv8IN0.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
     "dynamicImports": [
       "node_modules/axios/index.js",
-      "src/utils/erpnextApiUtils.js",
       "src/utils/erpnextApiUtils.js",
       "node_modules/axios/index.js"
     ],
@@ -21,7 +20,7 @@
     "isDynamicEntry": true
   },
   "src/utils/erpnextApiUtils.js": {
-    "file": "assets/erpnextApiUtils-DxX2OLxk.js",
+    "file": "assets/erpnextApiUtils-Cz4YrsPf.js",
     "name": "erpnextApiUtils",
     "src": "src/utils/erpnextApiUtils.js",
     "isDynamicEntry": true,

@@ -343,6 +343,41 @@ const useNavigationStore = create(
             }
             break
 
+          case 'incident-create':
+            console.log('[Navigation] Setting route to incident-create')
+            set({
+              currentRoute: 'incident-create',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            console.log('[Navigation] Hash set to incident/create')
+            window.location.hash = 'incident/create'
+            break
+
+          case 'incident-edit':
+            if (appId) { // appId parameter is used for incidentId in this case
+              console.log('[Navigation] Setting route to incident-edit for:', appId)
+              set({
+                currentRoute: 'incident-edit',
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: appId,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
+              })
+              window.location.hash = `incident/${appId}/edit`
+            }
+            break
+
           case 'swagger-detail':
             if (appId) { // appId parameter is used for swaggerId in this case
               set({
@@ -368,6 +403,89 @@ const useNavigationStore = create(
         if (state.mobileMenuVisible) {
           set({ mobileMenuVisible: false })
         }
+      },
+
+      /**
+       * Navigation Helper Methods (no prop drilling needed)
+       */
+
+      /**
+       * Navigate to incidents list
+       */
+      goToIncidents: () => {
+        get().navigateToRoute('incidents')
+      },
+
+      /**
+       * Navigate to incident detail view
+       */
+      viewIncident: (incidentId) => {
+        if (!incidentId) {
+          console.warn('[Navigation] viewIncident called without incidentId')
+          return
+        }
+        get().navigateToRoute('incident-detail', null, incidentId)
+      },
+
+      /**
+       * Navigate to create incident form
+       */
+      createIncident: () => {
+        get().navigateToRoute('incident-create')
+      },
+
+      /**
+       * Navigate to edit incident form
+       */
+      editIncident: (incidentId) => {
+        if (!incidentId) {
+          console.warn('[Navigation] editIncident called without incidentId')
+          return
+        }
+        get().navigateToRoute('incident-edit', null, incidentId)
+      },
+
+      /**
+       * Navigate to projects list
+       */
+      goToProjects: () => {
+        get().navigateToRoute('projects')
+      },
+
+      /**
+       * Navigate to project detail
+       */
+      viewProject: (projectId) => {
+        if (!projectId) {
+          console.warn('[Navigation] viewProject called without projectId')
+          return
+        }
+        get().navigateToRoute('project-detail', projectId)
+      },
+
+      /**
+       * Navigate to create project form
+       */
+      createProject: () => {
+        get().navigateToRoute('project-create')
+      },
+
+      /**
+       * Navigate to edit project form
+       */
+      editProject: (projectId) => {
+        if (!projectId) {
+          console.warn('[Navigation] editProject called without projectId')
+          return
+        }
+        get().navigateToRoute('project-edit', projectId)
+      },
+
+      /**
+       * Navigate to dashboard
+       */
+      goToDashboard: () => {
+        get().navigateToRoute('dashboard')
       },
 
       /**
@@ -490,18 +608,50 @@ const useNavigationStore = create(
             showSwaggerDetail: false
           })
         } else if (hash.startsWith('incident/')) {
-          const incidentId = hash.split('/')[1]
-          set({
-            currentRoute: 'incidents',
-            selectedProjectId: null,
-            showProjectDetail: false,
-            selectedAppId: null,
-            showAppDetail: false,
-            selectedIncidentId: incidentId,
-            showIncidentDetail: true,
-            selectedSwaggerId: null,
-            showSwaggerDetail: false
-          })
+          const parts = hash.split('/')
+          const incidentId = parts[1]
+          const action = parts[2] // 'edit' or undefined
+
+          if (incidentId === 'create') {
+            // Handle incident create route
+            set({
+              currentRoute: 'incident-create',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          } else if (action === 'edit') {
+            // Handle incident edit route
+            set({
+              currentRoute: 'incident-edit',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: incidentId,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          } else {
+            // Handle incident detail route
+            set({
+              currentRoute: 'incidents',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: incidentId,
+              showIncidentDetail: true,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          }
         } else if (hash.startsWith('swagger/')) {
           const swaggerId = hash.split('/')[1]
           set({

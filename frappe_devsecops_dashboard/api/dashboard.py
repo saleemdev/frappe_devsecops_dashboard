@@ -1374,6 +1374,93 @@ def create_project_task(project_name, task_data):
         }
 
 
+@frappe.whitelist()
+def update_task(task_name, data):
+    """
+    Update an existing task
+
+    Args:
+        task_name (str): Name of the task to update
+        data (str): JSON string with fields to update
+
+    Returns:
+        dict: Success status and updated task details
+    """
+    try:
+        # Parse data if it's a string (from JSON)
+        if isinstance(data, str):
+            import json
+            data = json.loads(data)
+
+        # Get the task document
+        task = frappe.get_doc("Task", task_name)
+
+        # Check write permission
+        if not task.has_permission("write"):
+            frappe.log_error(f"Permission denied for task {task_name}", "DevSecOps Dashboard")
+            return {
+                "success": False,
+                "error": "You don't have permission to update this task"
+            }
+
+        # Update allowed fields
+        allowed_fields = [
+            "subject",
+            "status",
+            "priority",
+            "description",
+            "exp_start_date",
+            "exp_end_date",
+            "progress",
+            "type",
+            "is_milestone"
+        ]
+
+        for field in allowed_fields:
+            if field in data:
+                setattr(task, field, data[field])
+
+        # Save the task
+        task.save(ignore_permissions=False)
+
+        return {
+            "success": True,
+            "message": "Task updated successfully",
+            "data": {
+                "name": task.name,
+                "subject": task.subject,
+                "status": task.status,
+                "priority": task.priority,
+                "exp_end_date": task.exp_end_date,
+                "progress": task.progress,
+                "description": task.description
+            }
+        }
+
+    except frappe.DoesNotExistError:
+        return {
+            "success": False,
+            "error": f"Task '{task_name}' does not exist"
+        }
+    except frappe.PermissionError:
+        frappe.log_error(f"Permission denied for task {task_name}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "You don't have permission to update this task"
+        }
+    except frappe.ValidationError as e:
+        return {
+            "success": False,
+            "error": f"Validation error: {str(e)}"
+        }
+    except Exception as e:
+        frappe.log_error(f"Update Task Error: {str(e)}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "An error occurred while updating the task"
+        }
+
+
 @frappe.whitelist(allow_guest=True)
 def get_frontend_assets():
     """
@@ -2503,4 +2590,97 @@ def create_project(project_name, project_type, expected_start_date, expected_end
             "success": False,
             "error": f"An unexpected error occurred: {str(e)}",
             "error_type": "api_error"
+        }
+
+
+@frappe.whitelist(allow_guest=True)
+def get_dashboard_metrics():
+    """
+    Get optimized dashboard metrics with efficient database queries
+    Uses frappe.db.count() and aggregation for performance
+
+    Returns:
+        dict: Dashboard metrics with project, task, incident, and change request counts
+    """
+    try:
+        # Count projects by status using optimized queries
+        total_projects = len(frappe.get_list("Project", fields=["name"]))
+        active_projects = len(frappe.get_list("Project", filters=[["status", "=", "Open"]], fields=["name"]))
+        completed_projects = len(frappe.get_list("Project", filters=[["status", "=", "Completed"]], fields=["name"]))
+
+        # Count tasks by status using optimized queries
+        total_tasks = len(frappe.get_list("Task", fields=["name"]))
+        completed_tasks = len(frappe.get_list("Task", filters=[["status", "=", "Completed"]], fields=["name"]))
+        in_progress_tasks = len(frappe.get_list("Task", filters=[["status", "in", ["Open", "Working"]]], fields=["name"]))
+        overdue_tasks = len(frappe.get_list("Task", filters=[["status", "=", "Overdue"]], fields=["name"]))
+
+        # Count incidents by status using optimized queries
+        total_incidents = len(frappe.get_list("Devsecops Dashboard Incident", fields=["name"]))
+        open_incidents = len(frappe.get_list("Devsecops Dashboard Incident", filters=[["status", "in", ["Open", "Acknowledged", "In Progress"]]], fields=["name"]))
+        critical_incidents = len(frappe.get_list("Devsecops Dashboard Incident", filters=[["severity", "=", "S1 - Critical"]], fields=["name"]))
+
+        # Count change requests by approval status using optimized queries
+        total_change_requests = len(frappe.get_list("Change Request", fields=["name"]))
+        pending_approvals = len(frappe.get_list("Change Request", filters=[["approval_status", "=", "Pending"]], fields=["name"]))
+        approved_requests = len(frappe.get_list("Change Request", filters=[["approval_status", "=", "Approved"]], fields=["name"]))
+
+        # Calculate completion rates
+        task_completion_rate = flt((completed_tasks / total_tasks * 100), 2) if total_tasks > 0 else 0
+        project_completion_rate = flt((completed_projects / total_projects * 100), 2) if total_projects > 0 else 0
+
+        return {
+            "success": True,
+            "metrics": {
+                "projects": {
+                    "total": total_projects or 0,
+                    "active": active_projects or 0,
+                    "completed": completed_projects or 0,
+                    "completion_rate": project_completion_rate or 0
+                },
+                "tasks": {
+                    "total": total_tasks or 0,
+                    "completed": completed_tasks or 0,
+                    "in_progress": in_progress_tasks or 0,
+                    "overdue": overdue_tasks or 0,
+                    "completion_rate": task_completion_rate or 0
+                },
+                "incidents": {
+                    "total": total_incidents or 0,
+                    "open": open_incidents or 0,
+                    "critical": critical_incidents or 0
+                },
+                "change_requests": {
+                    "total": total_change_requests or 0,
+                    "pending_approvals": pending_approvals or 0,
+                    "approved": approved_requests or 0
+                }
+            },
+            "timestamp": frappe.utils.now()
+        }
+
+    except frappe.PermissionError:
+        frappe.log_error("Permission denied for dashboard metrics", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "You don't have permission to access dashboard metrics",
+            "metrics": {
+                "projects": {"total": 0, "active": 0, "completed": 0, "completion_rate": 0},
+                "tasks": {"total": 0, "completed": 0, "in_progress": 0, "overdue": 0, "completion_rate": 0},
+                "incidents": {"total": 0, "open": 0, "critical": 0},
+                "change_requests": {"total": 0, "pending_approvals": 0, "approved": 0}
+            }
+        }
+    except Exception as e:
+        import traceback
+        error_msg = f"Error fetching dashboard metrics: {str(e)}\n{traceback.format_exc()}"
+        frappe.log_error(error_msg, "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": str(e),
+            "metrics": {
+                "projects": {"total": 0, "active": 0, "completed": 0, "completion_rate": 0},
+                "tasks": {"total": 0, "completed": 0, "in_progress": 0, "overdue": 0, "completion_rate": 0},
+                "incidents": {"total": 0, "open": 0, "critical": 0},
+                "change_requests": {"total": 0, "pending_approvals": 0, "approved": 0}
+            }
         }

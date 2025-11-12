@@ -56,7 +56,7 @@ apiClient.interceptors.response.use(
  */
 export const getDashboardData = async () => {
   try {
-    const response = await apiClient.get('/frappe_devsecops_dashboard.api.dashboard.get_dashboard_data')
+    const response = await apiClient.get('frappe_devsecops_dashboard.api.dashboard.get_dashboard_data')
     
     if (response.data && response.data.message) {
       const data = response.data.message
@@ -100,7 +100,7 @@ export const getDashboardData = async () => {
  */
 export const getProjectDetails = async (projectName) => {
   try {
-    const response = await apiClient.get('/frappe_devsecops_dashboard.api.dashboard.get_project_details', {
+    const response = await apiClient.get('frappe_devsecops_dashboard.api.dashboard.get_project_details', {
       params: { project_name: projectName }
     })
     

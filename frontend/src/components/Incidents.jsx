@@ -1,11 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Card,
   Button,
-  Modal,
-  Form,
-  Input,
-  Select,
   Table,
   Typography,
   Space,
@@ -17,7 +13,12 @@ import {
   Row,
   Col,
   DatePicker,
-  Tooltip
+  Tooltip,
+  Input,
+  Select,
+  Drawer,
+  Descriptions,
+  Divider
 } from 'antd'
 import {
   PlusOutlined,
@@ -30,22 +31,57 @@ import {
   ReloadOutlined
 } from '@ant-design/icons'
 import IncidentDetail from './IncidentDetail'
+import useIncidentsStore from '../stores/incidentsStore'
+import useNavigationStore from '../stores/navigationStore'
 
 const { Title, Text } = Typography
-const { Option } = Select
-const { TextArea } = Input
 const { RangePicker } = DatePicker
+const { Option } = Select
 
 const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) => {
-  const [incidents, setIncidents] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [isModalVisible, setIsModalVisible] = useState(false)
-  const [editingIncident, setEditingIncident] = useState(null)
-  const [form] = Form.useForm()
-  const [searchText, setSearchText] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [severityFilter, setSeverityFilter] = useState('all')
-  const [dateRange, setDateRange] = useState(null)
+  const [isViewDrawerVisible, setIsViewDrawerVisible] = useState(false)
+  const [viewingRecord, setViewingRecord] = useState(null)
+  // Use store state instead of local state
+  const {
+    incidents,
+    loading,
+    error,
+    filters,
+    setFilters,
+    fetchIncidents,
+    closeIncident
+  } = useIncidentsStore()
+
+  const {
+    viewIncident,
+    editIncident,
+    createIncident
+  } = useNavigationStore()
+
+  // Fallback to prop-based navigation if store navigation not available
+  const handleViewIncident = (id) => {
+    if (viewIncident && typeof viewIncident === 'function') {
+      viewIncident(id)
+    } else if (navigateToRoute && typeof navigateToRoute === 'function') {
+      navigateToRoute('incident-detail', null, id)
+    }
+  }
+
+  const handleEditIncident = (id) => {
+    if (editIncident && typeof editIncident === 'function') {
+      editIncident(id)
+    } else if (navigateToRoute && typeof navigateToRoute === 'function') {
+      navigateToRoute('incident-edit', null, id)
+    }
+  }
+
+  const handleCreateIncident = () => {
+    if (createIncident && typeof createIncident === 'function') {
+      createIncident()
+    } else if (navigateToRoute && typeof navigateToRoute === 'function') {
+      navigateToRoute('incident-create')
+    }
+  }
 
   // Show incident detail view if selectedIncidentId is provided
   if (showIncidentDetail && selectedIncidentId) {
@@ -54,150 +90,72 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
         incidentId={selectedIncidentId}
         navigateToRoute={navigateToRoute}
         onIncidentUpdate={(updatedIncident) => {
-          // Update the incident in the list
-          setIncidents(prev => prev.map(incident =>
-            incident.id === updatedIncident.id ? updatedIncident : incident
-          ))
+          // Store handles updating the incidents list automatically
+          // This callback is kept for backward compatibility but the store updates happen automatically
+          console.log('[Incidents] Incident updated via modal:', updatedIncident)
         }}
       />
     )
   }
 
-  // Mock data for demonstration
-  const mockIncidents = [
-    {
-      id: 'INC-001',
-      title: 'SQL Injection Vulnerability in Login API',
-      description: 'Critical security vulnerability discovered in the authentication endpoint allowing potential data breach.',
-      severity: 'Critical',
-      status: 'Open',
-      category: 'Security',
-      assignedTo: 'John Smith',
-      createdDate: '2024-01-15',
-      updatedDate: '2024-01-15'
-    },
-    {
-      id: 'INC-002',
-      title: 'Unauthorized Access to Admin Panel',
-      description: 'Multiple failed login attempts detected from suspicious IP addresses.',
-      severity: 'High',
-      status: 'In Progress',
-      category: 'Security',
-      assignedTo: 'Sarah Johnson',
-      createdDate: '2024-01-14',
-      updatedDate: '2024-01-15'
-    },
-    {
-      id: 'INC-003',
-      title: 'Data Encryption Key Rotation Failure',
-      description: 'Automated key rotation process failed, requiring manual intervention.',
-      severity: 'Medium',
-      status: 'Open',
-      category: 'Infrastructure',
-      assignedTo: 'Mike Davis',
-      createdDate: '2024-01-13',
-      updatedDate: '2024-01-14'
-    },
-    {
-      id: 'INC-004',
-      title: 'Compliance Audit Finding - Missing Logs',
-      description: 'Security audit identified missing audit logs for user access events.',
-      severity: 'Medium',
-      status: 'Closed',
-      category: 'Compliance',
-      assignedTo: 'Lisa Chen',
-      createdDate: '2024-01-10',
-      updatedDate: '2024-01-12'
-    },
-    {
-      id: 'INC-005',
-      title: 'Suspicious Network Traffic Detected',
-      description: 'Anomalous network patterns detected in production environment.',
-      severity: 'Low',
-      status: 'In Progress',
-      category: 'Monitoring',
-      assignedTo: 'Tom Wilson',
-      createdDate: '2024-01-12',
-      updatedDate: '2024-01-13'
-    }
-  ]
-
+  // Load incidents on component mount
   useEffect(() => {
-    loadIncidents()
-  }, [])
+    fetchIncidents()
+  }, [fetchIncidents])
 
-  const loadIncidents = async () => {
-    setLoading(true)
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setIncidents(mockIncidents)
-    } catch (error) {
-      message.error('Failed to load incidents')
-    } finally {
-      setLoading(false)
-    }
+  // Handle filter changes - sync with store
+  const handleStatusFilterChange = (value) => {
+    setFilters({ status: value === 'all' ? '' : value })
   }
 
-  const handleAddIncident = () => {
-    setEditingIncident(null)
-    form.resetFields()
-    setIsModalVisible(true)
+  const handleSeverityFilterChange = (value) => {
+    setFilters({ severity: value === 'all' ? '' : value })
   }
 
-  const handleEditIncident = (incident) => {
-    if (navigateToRoute) {
-      navigateToRoute('incident-detail', null, incident.id)
-    }
+  const handleSearchChange = (e) => {
+    setFilters({ search: e.target.value })
   }
 
   const handleViewDetails = (incident) => {
-    if (navigateToRoute) {
-      navigateToRoute('incident-detail', null, incident.id)
+    handleViewIncident(incident.id || incident.name)
+  }
+
+  const handleView = async (record) => {
+    try {
+      // Fetch the full record with all details
+      const res = await fetch(`/api/method/frappe_devsecops_dashboard.api.incident.get_incident?name=${encodeURIComponent(record.name)}`, {
+        credentials: 'include'
+      })
+
+      if (!res.ok) {
+        message.error('Failed to load Incident details')
+        return
+      }
+
+      const response = await res.json()
+      const fullRecord = response.message?.data || record
+
+      setViewingRecord(fullRecord)
+      setIsViewDrawerVisible(true)
+    } catch (error) {
+      console.error('Error fetching Incident:', error)
+      // Fallback to the record from the list
+      setViewingRecord(record)
+      setIsViewDrawerVisible(true)
     }
   }
 
   const handleMarkAsClosed = async (incidentId) => {
     try {
-      setIncidents(prev => prev.map(incident => 
-        incident.id === incidentId 
-          ? { ...incident, status: 'Closed', updatedDate: new Date().toISOString().split('T')[0] }
-          : incident
-      ))
+      console.log('[Incidents] Marking incident as closed:', incidentId)
+      await closeIncident(incidentId)
       message.success('Incident marked as closed')
     } catch (error) {
-      message.error('Failed to update incident status')
+      console.error('[Incidents] Error closing incident:', error)
+      message.error(error?.message || 'Failed to update incident status')
     }
   }
 
-  const handleSubmit = async (values) => {
-    try {
-      if (editingIncident) {
-        // Update existing incident
-        setIncidents(prev => prev.map(incident => 
-          incident.id === editingIncident.id 
-            ? { ...incident, ...values, updatedDate: new Date().toISOString().split('T')[0] }
-            : incident
-        ))
-        message.success('Incident updated successfully')
-      } else {
-        // Add new incident
-        const newIncident = {
-          id: `INC-${String(incidents.length + 1).padStart(3, '0')}`,
-          ...values,
-          status: 'Open',
-          createdDate: new Date().toISOString().split('T')[0],
-          updatedDate: new Date().toISOString().split('T')[0]
-        }
-        setIncidents(prev => [newIncident, ...prev])
-        message.success('Incident created successfully')
-      }
-      setIsModalVisible(false)
-      form.resetFields()
-    } catch (error) {
-      message.error('Failed to save incident')
-    }
-  }
 
   const getSeverityColor = (severity) => {
     switch (severity) {
@@ -218,31 +176,38 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
     }
   }
 
-  // Filter incidents based on search and filters
+  // Filter incidents based on search and filters from store
   const filteredIncidents = incidents.filter(incident => {
-    const matchesSearch = incident.title.toLowerCase().includes(searchText.toLowerCase()) ||
-                         incident.description.toLowerCase().includes(searchText.toLowerCase()) ||
-                         incident.id.toLowerCase().includes(searchText.toLowerCase())
-    
-    const matchesStatus = statusFilter === 'all' || incident.status === statusFilter
-    const matchesSeverity = severityFilter === 'all' || incident.severity === severityFilter
-    
+    // Search filter - matches title, description, or name
+    const searchTerm = filters.search || ''
+    const matchesSearch = !searchTerm ||
+                         incident.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         incident.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         incident.name.toLowerCase().includes(searchTerm.toLowerCase())
+
+    // Status filter - empty string means 'all'
+    const matchesStatus = !filters.status || incident.status === filters.status
+
+    // Severity filter - empty string means 'all'
+    const matchesSeverity = !filters.severity || incident.severity === filters.severity
+
+    // Date range filter
     let matchesDate = true
-    if (dateRange && dateRange.length === 2) {
+    if (filters.dateRange && filters.dateRange.length === 2) {
       const incidentDate = new Date(incident.createdDate)
-      matchesDate = incidentDate >= dateRange[0].toDate() && incidentDate <= dateRange[1].toDate()
+      matchesDate = incidentDate >= filters.dateRange[0].toDate() && incidentDate <= filters.dateRange[1].toDate()
     }
-    
+
     return matchesSearch && matchesStatus && matchesSeverity && matchesDate
   })
 
   const columns = [
     {
       title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
+      dataIndex: 'name',
+      key: 'name',
       width: 100,
-      sorter: (a, b) => a.id.localeCompare(b.id)
+      sorter: (a, b) => (a.name || '').localeCompare(b.name || '')
     },
     {
       title: 'Title',
@@ -303,21 +268,21 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
             <Button
               type="text"
               icon={<EyeOutlined />}
-              onClick={() => handleViewDetails(record)}
+              onClick={() => handleView(record)}
             />
           </Tooltip>
           <Tooltip title="Edit">
             <Button
               type="text"
               icon={<EditOutlined />}
-              onClick={() => handleEditIncident(record)}
+              onClick={() => handleEditIncident(record.name)}
             />
           </Tooltip>
           {record.status !== 'Closed' && (
             <Tooltip title="Mark as Closed">
               <Popconfirm
                 title="Mark this incident as closed?"
-                onConfirm={() => handleMarkAsClosed(record.id)}
+                onConfirm={() => handleMarkAsClosed(record.name)}
                 okText="Yes"
                 cancelText="No"
               >
@@ -342,7 +307,7 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
             <Col>
               <Title level={3} style={{ margin: 0 }}>
                 <ExclamationCircleOutlined style={{ marginRight: 8, color: '#ff4d4f' }} />
-                Security Incidents
+                Incidents
               </Title>
             </Col>
             <Col>
@@ -350,13 +315,13 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
-                  onClick={handleAddIncident}
+                  onClick={handleCreateIncident}
                 >
                   Add Incident
                 </Button>
                 <Button
                   icon={<ReloadOutlined />}
-                  onClick={loadIncidents}
+                  onClick={fetchIncidents}
                   loading={loading}
                 >
                   Refresh
@@ -372,16 +337,16 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
             <Input
               placeholder="Search incidents..."
               prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              value={filters.search || ''}
+              onChange={handleSearchChange}
               allowClear
             />
           </Col>
           <Col xs={12} sm={4} md={3}>
             <Select
               placeholder="Status"
-              value={statusFilter}
-              onChange={setStatusFilter}
+              value={filters.status || 'all'}
+              onChange={handleStatusFilterChange}
               style={{ width: '100%' }}
             >
               <Option value="all">All Status</Option>
@@ -393,8 +358,8 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
           <Col xs={12} sm={4} md={3}>
             <Select
               placeholder="Severity"
-              value={severityFilter}
-              onChange={setSeverityFilter}
+              value={filters.severity || 'all'}
+              onChange={handleSeverityFilterChange}
               style={{ width: '100%' }}
             >
               <Option value="all">All Severity</Option>
@@ -407,8 +372,8 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
           <Col xs={24} sm={8} md={6}>
             <RangePicker
               placeholder={['Start Date', 'End Date']}
-              value={dateRange}
-              onChange={setDateRange}
+              value={filters.dateRange || null}
+              onChange={(dateRange) => setFilters({ dateRange })}
               style={{ width: '100%' }}
             />
           </Col>
@@ -417,7 +382,7 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
         <Table
           columns={columns}
           dataSource={filteredIncidents}
-          rowKey="id"
+          rowKey="name"
           loading={loading}
           pagination={{
             pageSize: 10,
@@ -436,90 +401,92 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
         />
       </Card>
 
-      {/* Add/Edit Incident Modal */}
-      <Modal
-        title={editingIncident ? 'Edit Incident' : 'Add New Incident'}
-        open={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
-        footer={null}
-        width={600}
+      {/* View Details Drawer */}
+      <Drawer
+        title="Incident Details"
+        placement="right"
+        onClose={() => setIsViewDrawerVisible(false)}
+        open={isViewDrawerVisible}
+        width={1000}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
-          <Form.Item
-            name="title"
-            label="Title"
-            rules={[{ required: true, message: 'Please enter incident title' }]}
-          >
-            <Input placeholder="Enter incident title" />
-          </Form.Item>
+        {viewingRecord && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Title and Status */}
+            <div>
+              <Title level={3} style={{ margin: '0 0 12px 0' }}>{viewingRecord.title}</Title>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>Incident ID</Text>
+                    <div style={{ fontSize: '14px', fontWeight: '500', marginTop: '4px' }}>
+                      {viewingRecord.name}
+                    </div>
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>Status</Text>
+                    <div style={{ marginTop: '4px' }}>
+                      <Tag color={getStatusColor(viewingRecord.status)}>
+                        {viewingRecord.status}
+                      </Tag>
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+            </div>
 
-          <Form.Item
-            name="description"
-            label="Description"
-            rules={[{ required: true, message: 'Please enter incident description' }]}
-          >
-            <TextArea
-              rows={4}
-              placeholder="Describe the incident in detail"
-            />
-          </Form.Item>
+            <Divider style={{ margin: '0' }} />
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="severity"
-                label="Severity"
-                rules={[{ required: true, message: 'Please select severity' }]}
-              >
-                <Select placeholder="Select severity">
-                  <Option value="Critical">Critical</Option>
-                  <Option value="High">High</Option>
-                  <Option value="Medium">Medium</Option>
-                  <Option value="Low">Low</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="category"
-                label="Category"
-                rules={[{ required: true, message: 'Please select category' }]}
-              >
-                <Select placeholder="Select category">
-                  <Option value="Security">Security</Option>
-                  <Option value="Infrastructure">Infrastructure</Option>
-                  <Option value="Compliance">Compliance</Option>
-                  <Option value="Monitoring">Monitoring</Option>
-                  <Option value="Other">Other</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+            {/* Quick Details */}
+            <div>
+              <Title level={5} style={{ margin: '0 0 12px 0' }}>Quick Details</Title>
+              <Descriptions bordered column={1} size="small">
+                <Descriptions.Item label="Severity">
+                  <Tag color={getSeverityColor(viewingRecord.severity)}>
+                    {viewingRecord.severity || '-'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Priority">{viewingRecord.priority || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Category">{viewingRecord.category || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Assigned To">{viewingRecord.assigned_to || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Reported By">{viewingRecord.reported_by || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Reported Date">{viewingRecord.reported_date || '-'}</Descriptions.Item>
+              </Descriptions>
+            </div>
 
-          <Form.Item
-            name="assignedTo"
-            label="Assigned To"
-            rules={[{ required: true, message: 'Please enter assigned user' }]}
-          >
-            <Input placeholder="Enter assigned user name" />
-          </Form.Item>
+            {/* Description */}
+            {viewingRecord.description && (
+              <div>
+                <Title level={5} style={{ margin: '0 0 12px 0' }}>Description</Title>
+                <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '4px', lineHeight: '1.6' }}>
+                  {viewingRecord.description}
+                </div>
+              </div>
+            )}
 
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setIsModalVisible(false)}>
-                Cancel
-              </Button>
-              <Button type="primary" htmlType="submit">
-                {editingIncident ? 'Update' : 'Create'} Incident
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+            {/* Affected Systems */}
+            {viewingRecord.affected_systems && (
+              <div>
+                <Title level={5} style={{ margin: '0 0 12px 0' }}>Affected Systems</Title>
+                <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
+                  {viewingRecord.affected_systems}
+                </div>
+              </div>
+            )}
+
+            {/* Impact Description */}
+            {viewingRecord.impact_description && (
+              <div>
+                <Title level={5} style={{ margin: '0 0 12px 0' }}>Impact Description</Title>
+                <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
+                  {viewingRecord.impact_description}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
     </div>
   )
 }

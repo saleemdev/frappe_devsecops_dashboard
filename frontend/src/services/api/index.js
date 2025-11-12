@@ -15,7 +15,7 @@ import projectsService from './projects.js'
 
 // Dashboard service (simplified for now)
 class DashboardService {
-  async getDashboardMetrics() {
+  async getMetrics() {
     if (isMockEnabled('dashboard')) {
       const { mockProjects, mockTaskTypes, simulateDelay } = await import('./mockData.js')
       await simulateDelay(500)
@@ -23,24 +23,69 @@ class DashboardService {
       // Return mock dashboard data with proper structure
       const result = {
         success: true,
-        projects: mockProjects,
         metrics: {
-          total_projects: mockProjects.length,
-          active_projects: mockProjects.filter(p => p.status === 'Active').length,
-          total_tasks: mockProjects.reduce((sum, p) => sum + (p.tasks?.total || 0), 0),
-          completed_tasks: mockProjects.reduce((sum, p) => sum + (p.tasks?.completed || 0), 0),
-          average_completion: Math.round(mockProjects.reduce((sum, p) => sum + (p.progress || 0), 0) / mockProjects.length),
-          team_capacity: 85,
-          completion_rate: 75
+          projects: {
+            total: mockProjects.length,
+            active: mockProjects.filter(p => p.status === 'Active').length,
+            completed: mockProjects.filter(p => p.status === 'Completed').length,
+            completion_rate: 75
+          },
+          tasks: {
+            total: mockProjects.reduce((sum, p) => sum + (p.tasks?.total || 0), 0),
+            completed: mockProjects.reduce((sum, p) => sum + (p.tasks?.completed || 0), 0),
+            in_progress: mockProjects.reduce((sum, p) => sum + (p.tasks?.in_progress || 0), 0),
+            overdue: 0,
+            completion_rate: 75
+          },
+          incidents: {
+            total: 5,
+            open: 2,
+            critical: 1
+          },
+          change_requests: {
+            total: 8,
+            pending_approvals: 3,
+            approved: 5
+          }
         },
-        lifecycle_phases: mockTaskTypes.map(t => ({ name: t.name, custom_priority: t.custom_priority })),
         timestamp: new Date().toISOString()
       }
       return result
     }
 
-    const { getDashboardData } = await import('../../utils/erpnextApiUtils.js')
-    return getDashboardData()
+    // Real API call to optimized endpoint
+    try {
+      const { createApiClient } = await import('./config.js')
+      const client = await createApiClient()
+      const response = await client.get(API_CONFIG.endpoints.dashboard.metrics)
+
+      return response.data || {
+        success: false,
+        metrics: {
+          projects: { total: 0, active: 0, completed: 0, completion_rate: 0 },
+          tasks: { total: 0, completed: 0, in_progress: 0, overdue: 0, completion_rate: 0 },
+          incidents: { total: 0, open: 0, critical: 0 },
+          change_requests: { total: 0, pending_approvals: 0, approved: 0 }
+        },
+        error: 'Failed to fetch metrics'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        metrics: {
+          projects: { total: 0, active: 0, completed: 0, completion_rate: 0 },
+          tasks: { total: 0, completed: 0, in_progress: 0, overdue: 0, completion_rate: 0 },
+          incidents: { total: 0, open: 0, critical: 0 },
+          change_requests: { total: 0, pending_approvals: 0, approved: 0 }
+        },
+        error: error.message || 'An error occurred'
+      }
+    }
+  }
+
+  async getDashboardMetrics() {
+    // Legacy method for backward compatibility
+    return this.getMetrics()
   }
 
   /**
@@ -283,8 +328,25 @@ class AuthService {
   }
 
   async logout() {
-    // This would integrate with Frappe's logout system
-    window.location.href = '/logout'
+    // Call Frappe's logout API endpoint to properly invalidate the session
+    // Then redirect to home page
+    try {
+      // Call the logout endpoint - this clears the Frappe session
+      const response = await fetch('/api/method/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
+      })
+      console.log('[AuthService] Logout API response:', response.status)
+    } catch (error) {
+      // Continue with logout even if API call fails
+      console.warn('[AuthService] Logout API call failed, proceeding with redirect:', error)
+    } finally {
+      // Redirect to home page after logout
+      window.location.href = '/'
+    }
   }
 }
 

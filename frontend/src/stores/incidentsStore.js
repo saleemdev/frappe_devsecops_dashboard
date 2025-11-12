@@ -30,6 +30,11 @@ const useIncidentsStore = create(
       },
       stats: null,
 
+      // Form state management
+      formMode: null, // 'create', 'edit', or null
+      formData: null, // Current form data being edited
+      formErrors: {}, // Form validation errors
+
       // Actions
       setLoading: (loading) => set({ loading }),
       
@@ -257,6 +262,58 @@ const useIncidentsStore = create(
       },
 
       /**
+       * Initialize form for creation
+       */
+      initializeCreateForm: () => {
+        set({
+          formMode: 'create',
+          formData: null,
+          formErrors: {},
+          selectedIncident: null
+        })
+      },
+
+      /**
+       * Initialize form for editing
+       */
+      initializeEditForm: async (incidentId) => {
+        try {
+          set({ formMode: 'edit', formErrors: {} })
+          // Load the incident data
+          const incident = await get().fetchIncident(incidentId)
+          set({ formData: incident })
+          return incident
+        } catch (error) {
+          set({ formMode: null, formData: null })
+          throw error
+        }
+      },
+
+      /**
+       * Set form data
+       */
+      setFormData: (data) => set({ formData: data }),
+
+      /**
+       * Set form errors
+       */
+      setFormErrors: (errors) => set({ formErrors: errors }),
+
+      /**
+       * Clear form errors
+       */
+      clearFormErrors: () => set({ formErrors: {} }),
+
+      /**
+       * Reset form to initial state
+       */
+      resetForm: () => set({
+        formMode: null,
+        formData: null,
+        formErrors: {}
+      }),
+
+      /**
        * Reset store to initial state
        */
       reset: () => set({
@@ -277,7 +334,10 @@ const useIncidentsStore = create(
           pageSize: 10,
           total: 0
         },
-        stats: null
+        stats: null,
+        formMode: null,
+        formData: null,
+        formErrors: {}
       })
     }),
     {
@@ -292,7 +352,10 @@ const useIncidentsStore = create(
             error: true,
             filters: true,
             pagination: true,
-            stats: true
+            stats: true,
+            formMode: true,
+            formData: true,
+            formErrors: true
           }
         }
       }

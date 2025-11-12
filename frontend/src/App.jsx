@@ -34,6 +34,8 @@ import MonitoringDashboards from './components/MonitoringDashboards'
 import PasswordVault from './components/PasswordVault'
 import Incidents from './components/Incidents'
 import IncidentDetail from './components/IncidentDetail'
+import IncidentCreateForm from './components/IncidentCreateForm'
+import IncidentEditForm from './components/IncidentEditForm'
 import IncidentsDashboard from './components/IncidentsDashboard'
 import TeamUtilization from './components/TeamUtilization'
 import SwaggerCollections from './components/SwaggerCollections'
@@ -382,6 +384,19 @@ function AppContent({
           showIncidentDetail={showIncidentDetail}
           selectedIncidentId={selectedIncidentId}
         />
+      case 'incident-create':
+        return (
+          <IncidentCreateForm
+            navigateToRoute={navigateToRoute}
+          />
+        )
+      case 'incident-edit':
+        return (
+          <IncidentEditForm
+            incidentId={selectedIncidentId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
       case 'incidents-dashboard':
         return <IncidentsDashboard />
       case 'monitoring-dashboards':

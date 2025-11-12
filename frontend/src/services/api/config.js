@@ -25,6 +25,11 @@ const API_CONFIG = {
       create: '/api/method/frappe_devsecops_dashboard.api.dashboard.create_project'
     },
 
+    // Tasks
+    tasks: {
+      update: '/api/method/frappe_devsecops_dashboard.api.dashboard.update_task'
+    },
+
     // Applications
     applications: {
       list: '/api/method/frappe_devsecops_dashboard.api.applications.get_applications',
@@ -36,11 +41,11 @@ const API_CONFIG = {
 
     // Incidents
     incidents: {
-      list: '/api/method/frappe_devsecops_dashboard.api.incidents.get_incidents',
-      detail: '/api/method/frappe_devsecops_dashboard.api.incidents.get_incident_detail',
-      create: '/api/method/frappe_devsecops_dashboard.api.incidents.create_incident',
-      update: '/api/method/frappe_devsecops_dashboard.api.incidents.update_incident',
-      delete: '/api/method/frappe_devsecops_dashboard.api.incidents.delete_incident'
+      list: '/api/method/frappe_devsecops_dashboard.api.incident.get_incidents',
+      detail: '/api/method/frappe_devsecops_dashboard.api.incident.get_incident',
+      create: '/api/method/frappe_devsecops_dashboard.api.incident.create_incident',
+      update: '/api/method/frappe_devsecops_dashboard.api.incident.update_incident',
+      delete: '/api/method/frappe_devsecops_dashboard.api.incident.delete_incident'
     },
 
     // Change Requests
@@ -87,7 +92,7 @@ const API_CONFIG = {
     // If an object is provided, it controls individual services.
     useMockData: {
       applications: true,
-      incidents: true,
+      incidents: false,       // ✓ Use real API data for incidents
       projects: false,        // ✓ Use real ERPNext data for projects
       changeRequests: true,
       swaggerCollections: true,

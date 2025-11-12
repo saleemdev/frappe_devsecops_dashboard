@@ -407,6 +407,22 @@ export const createProjectTask = async (projectName, taskData) => {
 }
 
 /**
+ * Update an existing task
+ */
+export const updateTask = async (taskName, taskData) => {
+  try {
+    const api = await getApiClient()
+    const response = await api.post('/api/method/frappe_devsecops_dashboard.api.dashboard.update_task', {
+      task_name: taskName,
+      data: JSON.stringify(taskData)
+    })
+    return response.data
+  } catch (error) {
+    throw error
+  }
+}
+
+/**
  * Update project details
  */
 export const updateProject = async (projectName, projectData) => {

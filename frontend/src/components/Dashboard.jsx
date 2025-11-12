@@ -60,63 +60,46 @@ function Dashboard({ navigateToRoute }) {
         setLoading(true)
         setError(null)
 
-        // Fetch all metrics in parallel
-        const [projectsRes, incidentsRes, crRes] = await Promise.all([
-          api.projects.getProjects?.() || Promise.resolve({ success: true, data: [] }),
+        // Fetch optimized dashboard metrics from backend
+        const metricsRes = await api.dashboard.getMetrics?.()
+
+        if (metricsRes?.success && metricsRes.metrics) {
+          const m = metricsRes.metrics
+
+          setMetrics({
+            projects: {
+              active: m.projects?.active || 0,
+              total: m.projects?.total || 0,
+              trend: 0
+            },
+            incidents: {
+              open: m.incidents?.open || 0,
+              critical: m.incidents?.critical || 0,
+              trend: 0
+            },
+            changeRequests: {
+              pending: m.change_requests?.pending_approvals || 0,
+              total: m.change_requests?.total || 0,
+              trend: 0
+            },
+            tasks: {
+              total: m.tasks?.total || 0,
+              open: m.tasks?.in_progress || 0,
+              trend: 0
+            }
+          })
+        } else {
+          setError('Failed to load dashboard metrics')
+        }
+
+        // Fetch recent incidents and change requests in parallel
+        const [incidentsRes, crRes] = await Promise.all([
           api.incidents.getIncidents?.() || Promise.resolve({ success: true, data: [] }),
           api.changeRequests.getChangeRequests?.() || Promise.resolve({ success: true, data: [] })
         ])
 
-        // DEBUG: Log API responses
-        console.log('🔍 Dashboard API Response:', {
-          projectsRes,
-          incidentsRes,
-          crRes
-        })
-        console.log('📊 Projects Data:', projectsRes?.data)
-        if (projectsRes?.data && projectsRes.data.length > 0) {
-          console.log('📋 First Project:', projectsRes.data[0])
-          console.log('📝 First Project Tasks:', projectsRes.data[0]?.tasks)
-        }
-
-        // Process projects
-        const projects = projectsRes?.data || []
-        const activeProjects = projects.filter(p => (p.status || '').toLowerCase() === 'active').length
-        const totalProjects = projects.length
-
-        // Process incidents
-        const incidents = incidentsRes?.data || []
-        const openIncidents = incidents.filter(i => (i.status || '').toLowerCase() !== 'closed').length
-        const criticalIncidents = incidents.filter(i => (i.severity || '').toLowerCase() === 'critical').length
-
-        // Process change requests
-        const changeRequests = crRes?.data || []
-        const pendingCR = changeRequests.filter(cr => (cr.approval_status || '').toLowerCase() === 'pending').length
-        const totalCR = changeRequests.length
-
-        // Calculate tasks overview from projects
-        // Aggregate tasks from all projects (if available in project data)
-        let totalTasks = 0
-        let openTasks = 0
-
-        projects.forEach((project) => {
-          if (project.tasks && Array.isArray(project.tasks)) {
-            totalTasks += project.tasks.length
-            const openCount = project.tasks.filter(t => (t.status || '').toLowerCase() !== 'completed').length
-            openTasks += openCount
-          }
-        })
-
-        setMetrics({
-          projects: { active: activeProjects, total: totalProjects, trend: 0 },
-          incidents: { open: openIncidents, critical: criticalIncidents, trend: 0 },
-          changeRequests: { pending: pendingCR, total: totalCR, trend: 0 },
-          tasks: { total: totalTasks, open: openTasks, trend: 0 }
-        })
-
-        // Set recent items (last 5)
-        setRecentIncidents(incidents.slice(0, 5))
-        setRecentChangeRequests(changeRequests.slice(0, 5))
+        setRecentIncidents((incidentsRes?.data || []).slice(0, 5))
+        setRecentChangeRequests((crRes?.data || []).slice(0, 5))
       } catch (err) {
         setError(err?.message || 'Failed to load dashboard metrics')
       } finally {

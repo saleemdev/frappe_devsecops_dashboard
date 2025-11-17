@@ -13,7 +13,8 @@ import {
   Divider,
   Empty,
   Collapse,
-  Tag
+  Tag,
+  DatePicker
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -21,7 +22,9 @@ import {
   ExclamationCircleOutlined
 } from '@ant-design/icons'
 import Swal from 'sweetalert2'
+import dayjs from 'dayjs'
 import incidentsService from '../services/api/incidents'
+import useIncidentNavigation from '../hooks/useIncidentNavigation'
 
 const { Title } = Typography
 const { TextArea } = Input
@@ -73,6 +76,55 @@ function IncidentCreateForm({ navigateToRoute }) {
   const [assignedToSearchResults, setAssignedToSearchResults] = useState([])
   const [assignedToSearchLoading, setAssignedToSearchLoading] = useState(false)
   const [assignedToFullName, setAssignedToFullName] = useState('')
+  const [projects, setProjects] = useState([])
+  const [projectSearchResults, setProjectSearchResults] = useState([])
+  const [projectName, setProjectName] = useState('')
+
+  // Use reliable incident navigation
+  const { goToIncidentsList, viewIncident } = useIncidentNavigation()
+
+  // Load projects on component mount
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const res = await fetch('/api/method/frappe_devsecops_dashboard.api.change_request.get_projects', {
+          credentials: 'include'
+        })
+        if (res.ok) {
+          const response = await res.json()
+          const data = response.message || response
+          setProjects(data.data || [])
+          setProjectSearchResults(data.data || [])
+        } else {
+          setProjects([])
+        }
+      } catch (error) {
+        console.error('Error loading projects:', error)
+        setProjects([])
+      }
+    }
+    loadProjects()
+  }, [])
+
+  // Disable future dates in date picker
+  const disableFutureDate = (current) => {
+    // Disable if date is after today
+    return current && current > dayjs().endOf('day')
+  }
+
+  // Generate timeline entry for "Incident Reported"
+  const generateIncidentReportedTimeline = (reportedDate) => {
+    // Use the reported date for timestamp, or current time
+    const timestamp = reportedDate || dayjs().format('YYYY-MM-DD HH:mm:ss')
+
+    return {
+      event_timestamp: timestamp,
+      event_type: 'Incident Reported',
+      description: 'Initial incident report created',
+      user: window.frappe?.session?.user || 'Administrator',
+      event_source: null
+    }
+  }
 
   // Null safety check for navigateToRoute
   if (!navigateToRoute || typeof navigateToRoute !== 'function') {
@@ -142,10 +194,48 @@ function IncidentCreateForm({ navigateToRoute }) {
     setAssignedToSearchResults([])
   }
 
+  // Handle project search - client-side filtering
+  const handleProjectSearch = (searchValue) => {
+    if (!searchValue || searchValue.length < 1) {
+      setProjectSearchResults(projects)
+      return
+    }
+
+    const filtered = projects.filter(project => {
+      const searchLower = searchValue.toLowerCase()
+      return (
+        (project.name && project.name.toLowerCase().includes(searchLower)) ||
+        (project.project_name && project.project_name.toLowerCase().includes(searchLower))
+      )
+    })
+    setProjectSearchResults(filtered)
+  }
+
+  // Handle project selection
+  const handleProjectSelect = (value) => {
+    const selectedProject = projectSearchResults.find(project => project.name === value)
+    if (selectedProject) {
+      setProjectName(selectedProject.name)
+    }
+  }
+
+  // Handle project field clear
+  const handleProjectClear = () => {
+    setProjectSearchResults([])
+    setProjectName('')
+  }
+
   // Actual submission logic (called after confirmation)
   const performSubmit = async (values) => {
     try {
       setLoading(true)
+
+      // Generate timeline entry for incident reported
+      const reportedDateFormatted = values.reported_date
+        ? values.reported_date.format('YYYY-MM-DD HH:mm:ss')
+        : dayjs().format('YYYY-MM-DD HH:mm:ss')
+
+      const incidentReportedTimeline = generateIncidentReportedTimeline(reportedDateFormatted)
 
       const payload = {
         title: values.title?.trim(),
@@ -154,10 +244,14 @@ function IncidentCreateForm({ navigateToRoute }) {
         priority: values.priority || 'Medium',
         status: values.status || 'New',
         category: values.category,
+        project: values.project?.trim() || null,
+        project_name: projectName || null,
+        reported_date: reportedDateFormatted,
         assigned_to: values.assigned_to?.trim() || null,
         reported_by: values.reported_by?.trim() || null,
         affected_systems: values.affected_systems?.trim() || null,
-        impact_description: values.impact_description?.trim() || null
+        impact_description: values.impact_description?.trim() || null,
+        incident_timeline: [incidentReportedTimeline]
       }
 
       const endpoint = '/api/method/frappe_devsecops_dashboard.api.incident.create_incident'
@@ -222,10 +316,17 @@ function IncidentCreateForm({ navigateToRoute }) {
       const response = await res.json()
       const data = response.message || response
 
-      if (!data.success) {
+      // Check if response indicates an error (success: false or contains error/exc properties)
+      if (!data.success || data.exc || (data.error && res.status === 200)) {
         let errorMessages = []
+
+        // Extract error message from various possible locations
         if (data.error) {
           errorMessages.push(data.error)
+        } else if (data.exc) {
+          errorMessages.push(data.exc)
+        } else if (data.message && !data.success) {
+          errorMessages.push(data.message)
         }
 
         Swal.close()
@@ -259,10 +360,12 @@ function IncidentCreateForm({ navigateToRoute }) {
       })
 
       const incidentId = data.data?.name
-      if (incidentId && navigateToRoute && typeof navigateToRoute === 'function') {
-        navigateToRoute('incident-detail', null, incidentId)
+      if (incidentId) {
+        console.log('[IncidentCreateForm] Incident created successfully, navigating to detail:', incidentId)
+        viewIncident(incidentId)
       } else {
-        navigateToRoute('incidents')
+        console.log('[IncidentCreateForm] Incident created but no ID returned, going to list')
+        goToIncidentsList()
       }
     } catch (e) {
       Swal.close()
@@ -331,7 +434,7 @@ function IncidentCreateForm({ navigateToRoute }) {
               <Button
                 type="text"
                 icon={<ArrowLeftOutlined />}
-                onClick={() => navigateToRoute('incidents')}
+                onClick={() => goToIncidentsList()}
                 style={{ paddingLeft: 0 }}
               >
                 Back to Incidents
@@ -387,6 +490,20 @@ function IncidentCreateForm({ navigateToRoute }) {
                   <TextArea
                     placeholder="Provide detailed information about the incident"
                     rows={5}
+                  />
+                </Form.Item>
+
+                {/* Reported Date */}
+                <Form.Item
+                  label="Reported Date"
+                  name="reported_date"
+                >
+                  <DatePicker
+                    showTime
+                    format="YYYY-MM-DD HH:mm:ss"
+                    placeholder="Select incident report date and time"
+                    disabledDate={disableFutureDate}
+                    size="large"
                   />
                 </Form.Item>
               </div>
@@ -501,7 +618,7 @@ function IncidentCreateForm({ navigateToRoute }) {
                   </Col>
                 </Row>
 
-                {/* Assigned To Full Name Display */}
+                {/* Assigned To Full Name Display and Project */}
                 <Row gutter={[16, 16]}>
                   <Col xs={24} sm={12}>
                     <Form.Item label="Assigned To Full Name">
@@ -509,6 +626,44 @@ function IncidentCreateForm({ navigateToRoute }) {
                         disabled
                         value={assignedToFullName}
                         placeholder="Auto-populated when user is selected"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label="Project"
+                      name="project"
+                      rules={[{ required: true, message: 'Project is required' }]}
+                    >
+                      <Select
+                        placeholder="Search and select project"
+                        showSearch
+                        allowClear
+                        onSearch={handleProjectSearch}
+                        onSelect={handleProjectSelect}
+                        onClear={handleProjectClear}
+                        filterOption={false}
+                        notFoundContent="No projects found"
+                        size="large"
+                      >
+                        {projectSearchResults.map(project => (
+                          <Select.Option key={project.name} value={project.name}>
+                            {project.project_name || project.name}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                {/* Project Name Display */}
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Project Name">
+                      <Input
+                        disabled
+                        value={projectName}
+                        placeholder="Auto-populated when project is selected"
                       />
                     </Form.Item>
                   </Col>
@@ -562,7 +717,7 @@ function IncidentCreateForm({ navigateToRoute }) {
                 <Col>
                   <Button
                     size="large"
-                    onClick={() => navigateToRoute('incidents')}
+                    onClick={() => goToIncidentsList()}
                   >
                     Cancel
                   </Button>
@@ -648,6 +803,28 @@ function IncidentCreateForm({ navigateToRoute }) {
                 </p>
                 <p style={{ fontSize: '12px', margin: '4px 0', color: '#666' }}>
                   Search by name or email. The system will auto-populate the full name. This helps track responsibility and accountability.
+                </p>
+              </div>
+
+              {/* Project */}
+              <div>
+                <Tag color="gold">Project</Tag>
+                <p style={{ fontSize: '12px', margin: '8px 0 4px 0', fontWeight: '500', color: '#262626' }}>
+                  Link to Project
+                </p>
+                <p style={{ fontSize: '12px', margin: '4px 0', color: '#666' }}>
+                  Select the project this incident is related to. This is required and helps organize incidents by project scope. Search by project name.
+                </p>
+              </div>
+
+              {/* Reported Date */}
+              <div>
+                <Tag color="blue">Reported Date</Tag>
+                <p style={{ fontSize: '12px', margin: '8px 0 4px 0', fontWeight: '500', color: '#262626' }}>
+                  When Was Incident Reported
+                </p>
+                <p style={{ fontSize: '12px', margin: '4px 0', color: '#666' }}>
+                  Select the date and time when the incident was initially reported. Past dates are allowed, future dates are disabled. Defaults to current date/time if not specified. This starts the incident timeline.
                 </p>
               </div>
 

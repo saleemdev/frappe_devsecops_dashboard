@@ -92,7 +92,7 @@ const API_CONFIG = {
     // If an object is provided, it controls individual services.
     useMockData: {
       applications: true,
-      incidents: false,       // ✓ Use real API data for incidents
+      incidents: false,       // Use real backend API for incidents
       projects: false,        // ✓ Use real ERPNext data for projects
       changeRequests: true,
       swaggerCollections: true,

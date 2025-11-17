@@ -13,15 +13,19 @@ import {
   Divider,
   Spin,
   Empty,
-  Tag
+  Tag,
+  DatePicker
 } from 'antd'
 import {
   ArrowLeftOutlined,
   SaveOutlined
 } from '@ant-design/icons'
 import Swal from 'sweetalert2'
+import dayjs from 'dayjs'
 import useIncidentsStore from '../stores/incidentsStore'
 import useNavigationStore from '../stores/navigationStore'
+import useIncidentNavigation from '../hooks/useIncidentNavigation'
+import { clearCache } from '../services/api/config'
 
 const { Title } = Typography
 const { TextArea } = Input
@@ -62,9 +66,13 @@ const CATEGORY_OPTIONS = [
  */
 function IncidentEditForm({ incidentId, navigateToRoute }) {
   const [form] = Form.useForm()
+  const [loadError, setLoadError] = useState(null)
   const [assignedToSearchResults, setAssignedToSearchResults] = useState([])
   const [assignedToSearchLoading, setAssignedToSearchLoading] = useState(false)
   const [assignedToFullName, setAssignedToFullName] = useState('')
+  const [projectSearchResults, setProjectSearchResults] = useState([])
+  const [projectSearchLoading, setProjectSearchLoading] = useState(false)
+  const [projectName, setProjectName] = useState('')
 
   // Use store state instead of local state
   const {
@@ -74,8 +82,8 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
     updateIncident
   } = useIncidentsStore()
 
-  // Navigation store with fallback to props
-  const { viewIncident } = useNavigationStore()
+  // Use reliable incident navigation
+  const { viewIncident: navViewIncident, goToIncidentsList } = useIncidentNavigation()
 
   // Null safety checks for required props
   if (!incidentId) {
@@ -149,6 +157,67 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
     setAssignedToSearchResults([])
   }
 
+  // Handle project search
+  const handleProjectSearch = async (searchValue) => {
+    if (!searchValue || searchValue.length < 1) {
+      setProjectSearchResults([])
+      return
+    }
+
+    try {
+      setProjectSearchLoading(true)
+      const response = await fetch(`/api/resource/Project?fields=["name","title"]&filters=[["name","like","%${searchValue}%"]]`, {
+        method: 'GET',
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include'
+      })
+
+      const result = await response.json()
+      if (result && result.data && Array.isArray(result.data)) {
+        setProjectSearchResults(result.data)
+      } else {
+        setProjectSearchResults([])
+      }
+    } catch (error) {
+      console.error('Error searching projects:', error)
+      setProjectSearchResults([])
+    } finally {
+      setProjectSearchLoading(false)
+    }
+  }
+
+  // Handle project selection
+  const handleProjectSelect = (value) => {
+    const selectedProject = projectSearchResults.find(project => project.name === value)
+    if (selectedProject) {
+      setProjectName(selectedProject.name)
+    }
+  }
+
+  // Handle project field clear
+  const handleProjectClear = () => {
+    setProjectSearchResults([])
+    setProjectName('')
+  }
+
+  // Disable future dates in date picker
+  const disableFutureDate = (current) => {
+    // Disable if date is after today
+    return current && current > dayjs().endOf('day')
+  }
+
+  // Generate timeline entry for "Incident Reported"
+  const generateIncidentReportedTimeline = (reportedDate) => {
+    return {
+      event_timestamp: reportedDate || dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      event_type: 'Incident Reported',
+      description: 'Initial incident report created',
+      user: window.frappe?.session?.user || 'System'
+    }
+  }
+
   // Load incident data on mount and populate form
   useEffect(() => {
     const loadIncident = async () => {
@@ -165,6 +234,10 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
             throw new Error('Invalid incident data received from server')
           }
 
+          console.log('[IncidentEditForm] Full incident data received:', incident)
+          console.log('[IncidentEditForm] assigned_to:', incident.assigned_to)
+          console.log('[IncidentEditForm] assigned_to_full_name:', incident.assigned_to_full_name)
+
           // Populate form with incident data (null-safe)
           form.setFieldsValue({
             title: incident.title || '',
@@ -173,6 +246,8 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
             priority: incident.priority || '',
             status: incident.status || '',
             category: incident.category || '',
+            project: incident.project || '',
+            reported_date: incident.reported_date ? dayjs(incident.reported_date) : null,
             assigned_to: incident.assigned_to || '',
             reported_by: incident.reported_by || '',
             affected_systems: incident.affected_systems || '',
@@ -182,10 +257,37 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
           })
 
           // Set assigned to full name if available
-          if (incident.assigned_to_full_name) {
+          console.log('[IncidentEditForm] Raw incident.assigned_to_full_name:', incident.assigned_to_full_name)
+          console.log('[IncidentEditForm] Raw incident.assigned_to:', incident.assigned_to)
+          console.log('[IncidentEditForm] Type of assigned_to_full_name:', typeof incident.assigned_to_full_name)
+          console.log('[IncidentEditForm] Is it the same as assigned_to?', incident.assigned_to_full_name === incident.assigned_to)
+
+          if (incident.assigned_to_full_name && incident.assigned_to_full_name !== incident.assigned_to) {
+            console.log('[IncidentEditForm] ✅ Setting assigned_to_full_name from backend:', incident.assigned_to_full_name)
             setAssignedToFullName(incident.assigned_to_full_name)
-          } else if (incident.assigned_to) {
+          } else if (incident.assigned_to_full_name === incident.assigned_to) {
+            console.log('[IncidentEditForm] ⚠️ assigned_to_full_name equals assigned_to (both are email)')
             setAssignedToFullName(incident.assigned_to)
+          } else if (incident.assigned_to) {
+            console.log('[IncidentEditForm] ⚠️ Fallback to assigned_to:', incident.assigned_to)
+            setAssignedToFullName(incident.assigned_to)
+          } else {
+            console.warn('[IncidentEditForm] ❌ No assigned_to or assigned_to_full_name found!')
+            setAssignedToFullName('')
+          }
+
+          console.log('[IncidentEditForm] After state set, assignedToFullName will be:', incident.assigned_to_full_name || incident.assigned_to || '')
+
+          // Set project name if available
+          if (incident.project_name) {
+            console.log('[IncidentEditForm] Setting projectName from backend:', incident.project_name)
+            setProjectName(incident.project_name)
+          } else if (incident.project) {
+            console.log('[IncidentEditForm] Fallback to project:', incident.project)
+            setProjectName(incident.project)
+          } else {
+            console.warn('[IncidentEditForm] No project or project_name found!')
+            setProjectName('')
           }
 
           console.log('[IncidentEditForm] Incident loaded successfully:', incident.name)
@@ -194,7 +296,9 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
         }
       } catch (error) {
         console.error('[IncidentEditForm] Error loading incident:', error)
-        message.error(error?.message || 'Failed to load incident details')
+        const errorMsg = error?.message || 'Failed to load incident details'
+        setLoadError(errorMsg)
+        message.error(errorMsg)
       }
     }
 
@@ -232,7 +336,8 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
       if (updatedIncident) {
         console.log('[IncidentEditForm] Updated incident successfully:', updatedIncident)
 
-        // Refetch the incident to ensure fresh data is available
+        // Clear cache and refetch the incident to ensure fresh data is available
+        clearCache(`incident-${selectedIncident.name || selectedIncident.id}`)
         await fetchIncident(selectedIncident.name || selectedIncident.id)
 
         await Swal.fire({
@@ -246,11 +351,8 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
         })
 
         // Navigate back to incident detail
-        if (viewIncident && typeof viewIncident === 'function') {
-          viewIncident(incidentId)
-        } else if (navigateToRoute && typeof navigateToRoute === 'function') {
-          navigateToRoute('incident-detail', null, incidentId)
-        }
+        console.log('[IncidentEditForm] Incident updated successfully, navigating back to detail')
+        navViewIncident(incidentId)
       } else {
         console.error('[IncidentEditForm] Update failed')
         await Swal.fire({
@@ -287,19 +389,23 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
 
   if (!loading && !selectedIncident) {
     const handleBackClick = () => {
-      if (navigateToRoute && typeof navigateToRoute === 'function') {
-        navigateToRoute('incidents')
-      }
+      console.log('[IncidentEditForm] Back button clicked from empty state')
+      goToIncidentsList()
     }
+
+    const errorDescription = loadError || 'Incident not found'
 
     return (
       <Empty
-        description="Incident not found"
+        description={errorDescription}
         style={{ marginTop: '50px' }}
       >
-        <Button type="primary" onClick={handleBackClick}>
-          Back to Incidents
-        </Button>
+        <Space direction="vertical" style={{ marginTop: '16px' }}>
+          <div style={{ color: '#666', fontSize: '14px' }}>{errorDescription}</div>
+          <Button type="primary" onClick={handleBackClick}>
+            Back to Incidents
+          </Button>
+        </Space>
       </Empty>
     )
   }
@@ -310,11 +416,8 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
 
   // Navigation helpers
   const handleBackToDetail = () => {
-    if (viewIncident && typeof viewIncident === 'function') {
-      viewIncident(incidentId)
-    } else if (navigateToRoute && typeof navigateToRoute === 'function') {
-      navigateToRoute('incident-detail', null, incidentId)
-    }
+    console.log('[IncidentEditForm] Back to detail button clicked')
+    navViewIncident(incidentId)
   }
 
   return (
@@ -377,6 +480,20 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
                   <TextArea
                     placeholder="Enter incident description"
                     rows={4}
+                  />
+                </Form.Item>
+
+                {/* Reported Date */}
+                <Form.Item
+                  label="Reported Date"
+                  name="reported_date"
+                >
+                  <DatePicker
+                    showTime
+                    format="YYYY-MM-DD HH:mm:ss"
+                    placeholder="Select incident report date and time"
+                    disabledDate={disableFutureDate}
+                    size="large"
                   />
                 </Form.Item>
               </div>
@@ -486,7 +603,7 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
                   </Col>
                 </Row>
 
-                {/* Assigned To Full Name Display */}
+                {/* Assigned To Full Name Display and Project */}
                 <Row gutter={[16, 16]}>
                   <Col xs={24} sm={12}>
                     <Form.Item label="Assigned To Full Name">
@@ -494,6 +611,44 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
                         disabled
                         value={assignedToFullName}
                         placeholder="Auto-populated when user is selected"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label="Project"
+                      name="project"
+                      rules={[{ required: true, message: 'Project is required' }]}
+                    >
+                      <Select
+                        placeholder="Search and select project"
+                        showSearch
+                        allowClear
+                        loading={projectSearchLoading}
+                        onSearch={handleProjectSearch}
+                        onSelect={handleProjectSelect}
+                        onClear={handleProjectClear}
+                        filterOption={false}
+                        notFoundContent={projectSearchLoading ? 'Searching...' : 'No projects found'}
+                      >
+                        {projectSearchResults.map(project => (
+                          <Select.Option key={project.name} value={project.name}>
+                            {project.title || project.name}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                {/* Project Name Display */}
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="Project Name">
+                      <Input
+                        disabled
+                        value={projectName}
+                        placeholder="Auto-populated when project is selected"
                       />
                     </Form.Item>
                   </Col>
@@ -662,6 +817,28 @@ function IncidentEditForm({ incidentId, navigateToRoute }) {
                 </p>
                 <p style={{ fontSize: '12px', margin: '4px 0', color: '#666' }}>
                   Search by name or email. The system will auto-populate the full name. This helps track responsibility and accountability.
+                </p>
+              </div>
+
+              {/* Project */}
+              <div>
+                <Tag color="gold">Project</Tag>
+                <p style={{ fontSize: '12px', margin: '8px 0 4px 0', fontWeight: '500', color: '#262626' }}>
+                  Link to Project
+                </p>
+                <p style={{ fontSize: '12px', margin: '4px 0', color: '#666' }}>
+                  Select the project this incident is related to. This is required and helps organize incidents by project scope. Search by project name.
+                </p>
+              </div>
+
+              {/* Reported Date */}
+              <div>
+                <Tag color="blue">Reported Date</Tag>
+                <p style={{ fontSize: '12px', margin: '8px 0 4px 0', fontWeight: '500', color: '#262626' }}>
+                  When Was Incident Reported
+                </p>
+                <p style={{ fontSize: '12px', margin: '4px 0', color: '#666' }}>
+                  Select the date and time when the incident was initially reported. Past dates are allowed, future dates are disabled. This is used for the incident timeline.
                 </p>
               </div>
 

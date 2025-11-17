@@ -91,20 +91,27 @@ const useIncidentsStore = create(
        */
       fetchIncident: async (id) => {
         set({ loading: true, error: null })
-        
+
         try {
+          console.log('[Store] Fetching incident:', id)
           const response = await apiService.incidents.getIncident(id)
-          
+          console.log('[Store] API Response:', response)
+          console.log('[Store] Response.success:', response.success)
+          console.log('[Store] Response.data:', response.data)
+
           if (response.success) {
+            console.log('[Store] Setting selectedIncident:', response.data)
             set({
               selectedIncident: response.data,
               loading: false
             })
+            console.log('[Store] Returning data:', response.data)
             return response.data
           } else {
             throw new Error(response.message || 'Failed to fetch incident')
           }
         } catch (error) {
+          console.error('[Store] Error fetching incident:', error)
           set({
             error: error.message || 'Failed to fetch incident',
             loading: false
@@ -153,12 +160,12 @@ const useIncidentsStore = create(
             // Update in incidents list if present
             const { incidents } = get()
             const updatedIncidents = incidents.map(incident =>
-              incident.id === id ? { ...incident, ...response.data } : incident
+              incident.name === id || incident.id === id ? { ...incident, ...response.data } : incident
             )
-            
+
             // Update selected incident if it's the one being updated
             const { selectedIncident } = get()
-            const updatedSelectedIncident = selectedIncident?.id === id
+            const updatedSelectedIncident = (selectedIncident?.name === id || selectedIncident?.id === id)
               ? { ...selectedIncident, ...response.data }
               : selectedIncident
             
@@ -193,14 +200,59 @@ const useIncidentsStore = create(
        */
       addTimelineEntry: async (id, timelineEntry) => {
         set({ loading: true, error: null })
-        
+
         try {
+          console.log('[Store] Adding timeline entry:', timelineEntry)
           const response = await apiService.incidents.addTimelineEntry(id, timelineEntry)
-          
+
+          console.log('[Store] Response from API:', response)
+          console.log('[Store] Response success:', response.success)
+
+          if (response.success) {
+            console.log('[Store] Timeline entry added successfully!')
+            // Update selected incident if it's the one being updated
+            const { selectedIncident } = get()
+            if (selectedIncident?.name === id || selectedIncident?.id === id) {
+              console.log('[Store] Updating selectedIncident with new data')
+              set({
+                selectedIncident: response.data,
+                loading: false,
+                error: null
+              })
+            } else {
+              set({ loading: false, error: null })
+            }
+
+            return response.data
+          } else {
+            const errorMsg = response.message || 'Failed to add timeline entry'
+            console.error('[Store] API returned false for success:', errorMsg)
+            throw new Error(errorMsg)
+          }
+        } catch (error) {
+          console.error('[Store] Error caught:', error.message)
+          const errorMsg = error.message || 'Failed to add timeline entry'
+          set({
+            error: errorMsg,
+            loading: false
+          })
+          throw error
+        }
+      },
+
+      /**
+       * Remove timeline entry from incident
+       */
+      removeTimelineEntry: async (id, entryIndex) => {
+        set({ loading: true, error: null })
+
+        try {
+          const response = await apiService.incidents.removeTimelineEntry(id, entryIndex)
+
           if (response.success) {
             // Update selected incident if it's the one being updated
             const { selectedIncident } = get()
-            if (selectedIncident?.id === id) {
+            if (selectedIncident?.name === id || selectedIncident?.id === id) {
               set({
                 selectedIncident: response.data,
                 loading: false
@@ -208,14 +260,14 @@ const useIncidentsStore = create(
             } else {
               set({ loading: false })
             }
-            
+
             return response.data
           } else {
-            throw new Error(response.message || 'Failed to add timeline entry')
+            throw new Error(response.message || 'Failed to remove timeline entry')
           }
         } catch (error) {
           set({
-            error: error.message || 'Failed to add timeline entry',
+            error: error.message || 'Failed to remove timeline entry',
             loading: false
           })
           throw error

@@ -2,7 +2,7 @@
  "actions": [],
  "allow_rename": 1,
  "autoname": "format:INC-{#####}",
- "creation": "2024-01-20 08:00:00.000000",
+ "creation": "2024-01-20 08:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -20,6 +20,8 @@
   "assigned_to",
   "assigned_to_name",
   "team",
+  "project",
+  "project_name",
   "column_break_assignment",
   "reported_by",
   "reported_by_name",
@@ -102,14 +104,14 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "New",
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
    "options": "New\nOpen\nAcknowledged\nIn Progress\nPending Customer\nPending Third Party\nResolved\nClosed\nReopened\nCancelled",
-   "reqd": 1,
-   "default": "New"
+   "reqd": 1
   },
   {
    "fieldname": "category",
@@ -140,9 +142,9 @@
    "options": "User"
   },
   {
+   "fetch_from": "assigned_to.full_name",
    "fieldname": "assigned_to_name",
    "fieldtype": "Data",
-   "fetch_from": "assigned_to.full_name",
    "label": "Assigned To Name",
    "read_only": 1
   },
@@ -153,30 +155,42 @@
    "options": "L1 Support\nL2 Engineering\nL3 Engineering\nDatabase Team\nNetwork Team\nSecurity Team\nDevOps Team\nApplication Team"
   },
   {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "project.name",
+   "fieldname": "project_name",
+   "fieldtype": "Data",
+   "label": "Project Name",
+   "read_only": 1
+  },
+  {
    "fieldname": "column_break_assignment",
    "fieldtype": "Column Break"
   },
   {
    "fieldname": "reported_by",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "in_standard_filter": 1,
-   "label": "Reported By",
-   "options": "User",
-   "reqd": 1
+   "label": "Reported By"
   },
   {
+   "fetch_from": "reported_by.full_name",
    "fieldname": "reported_by_name",
    "fieldtype": "Data",
-   "fetch_from": "reported_by.full_name",
    "label": "Reported By Name",
    "read_only": 1
   },
   {
+   "default": "Now",
    "fieldname": "reported_date",
    "fieldtype": "Datetime",
    "label": "Reported Date",
-   "reqd": 1,
-   "default": "Now"
+   "reqd": 1
   },
   {
    "fieldname": "section_break_description",
@@ -272,11 +286,11 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "Within SLA",
    "fieldname": "sla_status",
    "fieldtype": "Select",
    "label": "SLA Status",
-   "options": "Within SLA\nApproaching Breach\nBreached\nPaused",
-   "default": "Within SLA"
+   "options": "Within SLA\nApproaching Breach\nBreached\nPaused"
   },
   {
    "fieldname": "breach_reason",
@@ -366,7 +380,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-01-21 08:30:00.000000",
+ "modified": "2025-11-16 23:34:32.780152",
  "modified_by": "Administrator",
  "module": "Frappe Devsecops Dashboard",
  "name": "Devsecops Dashboard Incident",

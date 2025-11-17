@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import {
   Card,
   Button,
@@ -15,10 +15,7 @@ import {
   DatePicker,
   Tooltip,
   Input,
-  Select,
-  Drawer,
-  Descriptions,
-  Divider
+  Select
 } from 'antd'
 import {
   PlusOutlined,
@@ -28,19 +25,19 @@ import {
   CheckCircleOutlined,
   SearchOutlined,
   FilterOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  FilePdfOutlined
 } from '@ant-design/icons'
 import IncidentDetail from './IncidentDetail'
 import useIncidentsStore from '../stores/incidentsStore'
 import useNavigationStore from '../stores/navigationStore'
+import useIncidentNavigation from '../hooks/useIncidentNavigation'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
 const { Option } = Select
 
 const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) => {
-  const [isViewDrawerVisible, setIsViewDrawerVisible] = useState(false)
-  const [viewingRecord, setViewingRecord] = useState(null)
   // Use store state instead of local state
   const {
     incidents,
@@ -52,35 +49,29 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
     closeIncident
   } = useIncidentsStore()
 
+  // Use the reliable incident navigation hook
   const {
-    viewIncident,
-    editIncident,
-    createIncident
-  } = useNavigationStore()
+    viewIncident: navViewIncident,
+    editIncident: navEditIncident,
+    createIncident: navCreateIncident
+  } = useIncidentNavigation()
 
-  // Fallback to prop-based navigation if store navigation not available
+  // Handler for view incident - use the navigation hook
   const handleViewIncident = (id) => {
-    if (viewIncident && typeof viewIncident === 'function') {
-      viewIncident(id)
-    } else if (navigateToRoute && typeof navigateToRoute === 'function') {
-      navigateToRoute('incident-detail', null, id)
-    }
+    console.log('[Incidents] handleViewIncident called with id:', id)
+    navViewIncident(id)
   }
 
+  // Handler for edit incident - use the navigation hook
   const handleEditIncident = (id) => {
-    if (editIncident && typeof editIncident === 'function') {
-      editIncident(id)
-    } else if (navigateToRoute && typeof navigateToRoute === 'function') {
-      navigateToRoute('incident-edit', null, id)
-    }
+    console.log('[Incidents] handleEditIncident called with id:', id)
+    navEditIncident(id)
   }
 
+  // Handler for create incident - use the navigation hook
   const handleCreateIncident = () => {
-    if (createIncident && typeof createIncident === 'function') {
-      createIncident()
-    } else if (navigateToRoute && typeof navigateToRoute === 'function') {
-      navigateToRoute('incident-create')
-    }
+    console.log('[Incidents] handleCreateIncident called')
+    navCreateIncident()
   }
 
   // Show incident detail view if selectedIncidentId is provided
@@ -117,32 +108,15 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
   }
 
   const handleViewDetails = (incident) => {
-    handleViewIncident(incident.id || incident.name)
+    const incidentId = incident.name || incident.id
+    console.log('[Incidents] handleViewDetails called with incident:', incidentId)
+    handleViewIncident(incidentId)
   }
 
-  const handleView = async (record) => {
-    try {
-      // Fetch the full record with all details
-      const res = await fetch(`/api/method/frappe_devsecops_dashboard.api.incident.get_incident?name=${encodeURIComponent(record.name)}`, {
-        credentials: 'include'
-      })
-
-      if (!res.ok) {
-        message.error('Failed to load Incident details')
-        return
-      }
-
-      const response = await res.json()
-      const fullRecord = response.message?.data || record
-
-      setViewingRecord(fullRecord)
-      setIsViewDrawerVisible(true)
-    } catch (error) {
-      console.error('Error fetching Incident:', error)
-      // Fallback to the record from the list
-      setViewingRecord(record)
-      setIsViewDrawerVisible(true)
-    }
+  const handleView = (record) => {
+    const incidentId = record.name || record.id
+    console.log('[Incidents] handleView (table button) called with incident:', incidentId)
+    handleViewIncident(incidentId)
   }
 
   const handleMarkAsClosed = async (incidentId) => {
@@ -156,15 +130,30 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
     }
   }
 
+  const handlePrintPDF = (record) => {
+    try {
+      // Use Frappe's built-in PDF download endpoint
+      const pdfUrl = `/api/method/frappe.utils.print_format.download_pdf?doctype=Devsecops Dashboard Incident&name=${encodeURIComponent(record.name)}&format=Standard&no_letterhead=0`
+      window.open(pdfUrl, '_blank')
+      message.success('PDF download started')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      message.error('Failed to generate PDF')
+    }
+  }
 
   const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'Critical': return 'red'
-      case 'High': return 'orange'
-      case 'Medium': return 'yellow'
-      case 'Low': return 'green'
-      default: return 'default'
-    }
+    if (!severity) return 'default'
+
+    // Handle both formats: "S1 - Critical" and "Critical"
+    const severityStr = severity.toLowerCase()
+
+    if (severityStr.includes('critical') || severityStr.includes('s1')) return 'red'
+    if (severityStr.includes('high') || severityStr.includes('s2')) return 'orange'
+    if (severityStr.includes('medium') || severityStr.includes('s3')) return 'yellow'
+    if (severityStr.includes('low') || severityStr.includes('s4')) return 'green'
+
+    return 'default'
   }
 
   const getStatusColor = (status) => {
@@ -194,8 +183,13 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
     // Date range filter
     let matchesDate = true
     if (filters.dateRange && filters.dateRange.length === 2) {
-      const incidentDate = new Date(incident.createdDate)
-      matchesDate = incidentDate >= filters.dateRange[0].toDate() && incidentDate <= filters.dateRange[1].toDate()
+      const dateValue = incident.reported_date || incident.reportedDate || incident.creation
+      if (dateValue) {
+        const incidentDate = new Date(dateValue)
+        matchesDate = incidentDate >= filters.dateRange[0].toDate() && incidentDate <= filters.dateRange[1].toDate()
+      } else {
+        matchesDate = false
+      }
     }
 
     return matchesSearch && matchesStatus && matchesSeverity && matchesDate
@@ -225,8 +219,16 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
         <Tag color={getSeverityColor(severity)}>{severity}</Tag>
       ),
       sorter: (a, b) => {
-        const severityOrder = { 'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1 }
-        return severityOrder[a.severity] - severityOrder[b.severity]
+        const getSeverityLevel = (severity) => {
+          if (!severity) return 0
+          const s = severity.toLowerCase()
+          if (s.includes('critical') || s.includes('s1')) return 4
+          if (s.includes('high') || s.includes('s2')) return 3
+          if (s.includes('medium') || s.includes('s3')) return 2
+          if (s.includes('low') || s.includes('s4')) return 1
+          return 0
+        }
+        return getSeverityLevel(b.severity) - getSeverityLevel(a.severity)
       }
     },
     {
@@ -246,22 +248,30 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
     },
     {
       title: 'Created Date',
-      dataIndex: 'createdDate',
-      key: 'createdDate',
-      width: 120,
-      sorter: (a, b) => new Date(a.createdDate) - new Date(b.createdDate)
+      dataIndex: 'reported_date',
+      key: 'reported_date',
+      width: 140,
+      sorter: (a, b) => new Date(a.reported_date || 0) - new Date(b.reported_date || 0)
     },
     {
       title: 'Assigned To',
-      dataIndex: 'assignedTo',
-      key: 'assignedTo',
+      dataIndex: 'assigned_to_name',
+      key: 'assigned_to',
+      width: 140,
+      ellipsis: true,
+      render: (_, record) => record.assigned_to_name || record.assigned_to_full_name || record.assignedTo || record.assigned_to || '-'
+    },
+    {
+      title: 'Project',
+      dataIndex: 'project_name',
+      key: 'project_name',
       width: 140,
       ellipsis: true
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 180,
+      width: 220,
       render: (_, record) => (
         <Space size="small">
           <Tooltip title="View Details">
@@ -276,6 +286,14 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
               type="text"
               icon={<EditOutlined />}
               onClick={() => handleEditIncident(record.name)}
+            />
+          </Tooltip>
+          <Tooltip title="Download PDF">
+            <Button
+              type="text"
+              icon={<FilePdfOutlined />}
+              onClick={() => handlePrintPDF(record)}
+              style={{ color: '#ff4d4f' }}
             />
           </Tooltip>
           {record.status !== 'Closed' && (
@@ -401,92 +419,6 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
         />
       </Card>
 
-      {/* View Details Drawer */}
-      <Drawer
-        title="Incident Details"
-        placement="right"
-        onClose={() => setIsViewDrawerVisible(false)}
-        open={isViewDrawerVisible}
-        width={1000}
-      >
-        {viewingRecord && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Title and Status */}
-            <div>
-              <Title level={3} style={{ margin: '0 0 12px 0' }}>{viewingRecord.title}</Title>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>Incident ID</Text>
-                    <div style={{ fontSize: '14px', fontWeight: '500', marginTop: '4px' }}>
-                      {viewingRecord.name}
-                    </div>
-                  </div>
-                </Col>
-                <Col span={12}>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>Status</Text>
-                    <div style={{ marginTop: '4px' }}>
-                      <Tag color={getStatusColor(viewingRecord.status)}>
-                        {viewingRecord.status}
-                      </Tag>
-                    </div>
-                  </div>
-                </Col>
-              </Row>
-            </div>
-
-            <Divider style={{ margin: '0' }} />
-
-            {/* Quick Details */}
-            <div>
-              <Title level={5} style={{ margin: '0 0 12px 0' }}>Quick Details</Title>
-              <Descriptions bordered column={1} size="small">
-                <Descriptions.Item label="Severity">
-                  <Tag color={getSeverityColor(viewingRecord.severity)}>
-                    {viewingRecord.severity || '-'}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Priority">{viewingRecord.priority || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Category">{viewingRecord.category || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Assigned To">{viewingRecord.assigned_to || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Reported By">{viewingRecord.reported_by || '-'}</Descriptions.Item>
-                <Descriptions.Item label="Reported Date">{viewingRecord.reported_date || '-'}</Descriptions.Item>
-              </Descriptions>
-            </div>
-
-            {/* Description */}
-            {viewingRecord.description && (
-              <div>
-                <Title level={5} style={{ margin: '0 0 12px 0' }}>Description</Title>
-                <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '4px', lineHeight: '1.6' }}>
-                  {viewingRecord.description}
-                </div>
-              </div>
-            )}
-
-            {/* Affected Systems */}
-            {viewingRecord.affected_systems && (
-              <div>
-                <Title level={5} style={{ margin: '0 0 12px 0' }}>Affected Systems</Title>
-                <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
-                  {viewingRecord.affected_systems}
-                </div>
-              </div>
-            )}
-
-            {/* Impact Description */}
-            {viewingRecord.impact_description && (
-              <div>
-                <Title level={5} style={{ margin: '0 0 12px 0' }}>Impact Description</Title>
-                <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
-                  {viewingRecord.impact_description}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Drawer>
     </div>
   )
 }

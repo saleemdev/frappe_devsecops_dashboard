@@ -31,7 +31,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Event Type",
-   "options": "Automated\nManual\nStatus Change\nAssignment\nComment\nInvestigation\nResolution\nCommunication\nEscalation\nSLA Update",
+   "options": "Incident Reported\nAutomated\nManual\nStatus Change\nAssignment\nComment\nInvestigation\nResolution\nCommunication\nEscalation\nSLA Update",
    "reqd": 1,
    "default": "Manual"
   },

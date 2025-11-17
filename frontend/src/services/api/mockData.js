@@ -182,80 +182,98 @@ export const mockApplications = [
 export const mockIncidents = [
   {
     id: 'INC-001',
+    name: 'INC-001',
     title: 'Database Connection Timeout',
     description: 'Multiple users reporting slow response times and connection timeouts when accessing the patient database.',
     severity: 'High',
     status: 'In Progress',
     priority: 'High',
+    assigned_to: 'john.smith',
+    assigned_to_full_name: 'John Smith',
     assignedTo: 'John Smith',
+    reported_by: 'sarah.johnson',
     reportedBy: 'Sarah Johnson',
+    reported_date: '2024-01-20',
     reportedDate: '2024-01-20',
+    modified: '2024-01-21',
     updatedDate: '2024-01-21',
     category: 'Infrastructure',
+    affected_systems: 'Patient Database, ePrescription API',
     affectedSystems: ['Patient Database', 'ePrescription API'],
-    timeline: [
+    project: null,
+    project_name: null,
+    incident_timeline: [
       {
-        date: '2024-01-20 09:15',
-        action: 'Incident reported',
-        user: 'Sarah Johnson',
+        event_type: 'Incident Reported',
+        event_timestamp: '2024-01-20 09:15:00',
+        user: 'sarah.johnson',
         description: 'Initial report of database connection issues'
       },
       {
-        date: '2024-01-20 09:30',
-        action: 'Incident assigned',
+        event_type: 'Assignment',
+        event_timestamp: '2024-01-20 09:30:00',
         user: 'System',
         description: 'Assigned to John Smith for investigation'
       },
       {
-        date: '2024-01-20 10:45',
-        action: 'Investigation started',
-        user: 'John Smith',
+        event_type: 'Investigation',
+        event_timestamp: '2024-01-20 10:45:00',
+        user: 'john.smith',
         description: 'Began analysis of database connection logs'
       },
       {
-        date: '2024-01-21 08:30',
-        action: 'Root cause identified',
-        user: 'John Smith',
+        event_type: 'Resolution',
+        event_timestamp: '2024-01-21 08:30:00',
+        user: 'john.smith',
         description: 'Found connection pool exhaustion due to increased load'
       }
     ]
   },
   {
     id: 'INC-002',
+    name: 'INC-002',
     title: 'Authentication Service Outage',
     description: 'Complete outage of the authentication service affecting all user logins.',
     severity: 'Critical',
     status: 'Closed',
     priority: 'Critical',
+    assigned_to: 'mike.chen',
+    assigned_to_full_name: 'Mike Chen',
     assignedTo: 'Mike Chen',
+    reported_by: 'alex.rodriguez',
     reportedBy: 'Alex Rodriguez',
+    reported_date: '2024-01-19',
     reportedDate: '2024-01-19',
+    modified: '2024-01-19',
     updatedDate: '2024-01-19',
     category: 'Security',
+    affected_systems: 'Authentication Service, Patient Portal, Mobile App',
     affectedSystems: ['Authentication Service', 'Patient Portal', 'Mobile App'],
-    timeline: [
+    project: null,
+    project_name: null,
+    incident_timeline: [
       {
-        date: '2024-01-19 14:20',
-        action: 'Incident reported',
-        user: 'Alex Rodriguez',
+        event_type: 'Incident Reported',
+        event_timestamp: '2024-01-19 14:20:00',
+        user: 'alex.rodriguez',
         description: 'Authentication service completely down'
       },
       {
-        date: '2024-01-19 14:25',
-        action: 'Incident escalated',
+        event_type: 'Escalation',
+        event_timestamp: '2024-01-19 14:25:00',
         user: 'System',
         description: 'Auto-escalated due to critical severity'
       },
       {
-        date: '2024-01-19 15:45',
-        action: 'Service restored',
-        user: 'Mike Chen',
+        event_type: 'Resolution',
+        event_timestamp: '2024-01-19 15:45:00',
+        user: 'mike.chen',
         description: 'Restarted authentication service cluster'
       },
       {
-        date: '2024-01-19 16:00',
-        action: 'Incident closed',
-        user: 'Mike Chen',
+        event_type: 'Status Change',
+        event_timestamp: '2024-01-19 16:00:00',
+        user: 'mike.chen',
         description: 'Service fully operational, monitoring continues'
       }
     ]

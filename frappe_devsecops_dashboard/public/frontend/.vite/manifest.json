@@ -1,6 +1,6 @@
 {
   "index.html": {
-    "file": "assets/index-CLPKleCr.js",
+    "file": "assets/index-BLhX51VO.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -20,7 +20,7 @@
     "isDynamicEntry": true
   },
   "src/utils/erpnextApiUtils.js": {
-    "file": "assets/erpnextApiUtils-Cz4YrsPf.js",
+    "file": "assets/erpnextApiUtils-C-z-GOiI.js",
     "name": "erpnextApiUtils",
     "src": "src/utils/erpnextApiUtils.js",
     "isDynamicEntry": true,

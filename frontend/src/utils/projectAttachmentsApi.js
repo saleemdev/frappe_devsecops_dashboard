@@ -61,7 +61,7 @@ export const uploadProjectFile = async (projectName, file) => {
     formData.append('file', file)
     formData.append('doctype', 'Project')
     formData.append('docname', projectName)
-    formData.append('fieldname', 'attachments')
+    // formData.append('fieldname', 'attachments') // Removed to allow generic attachment to the document
 
     const response = await api.post('/api/method/frappe.client.upload_file', formData, {
       headers: {
@@ -570,5 +570,51 @@ export const getChangeRequestActivity = async (changeRequestName, limit = 10) =>
   } catch (error) {
     console.error('[getChangeRequestActivity] Error:', error)
     throw error
+  }
+}
+
+/**
+ * Search for designations
+ * Fetches designations from Frappe's Designation DocType
+ * @param {string} query - Search query (optional)
+ * @returns {Promise} Array of designation objects
+ */
+export const searchDesignations = async (query = '') => {
+  try {
+    console.log('[searchDesignations] Fetching designations with query:', query)
+    const api = await getApiClient()
+
+    const response = await api.get('/api/resource/Designation', {
+      params: {
+        fields: JSON.stringify(['name', 'designation_name']),
+        filters: query ? JSON.stringify([['name', 'like', `%${query}%`]]) : undefined,
+        limit_page_length: 50
+      }
+    })
+
+    console.log('[searchDesignations] Response:', response.data)
+
+    // Transform response to match expected format
+    const data = response.data?.data || []
+    const designations = data.map(d => ({
+      name: d.name,
+      designation_name: d.designation_name || d.name
+    }))
+
+    console.log('[searchDesignations] Found designations:', designations.length)
+
+    return {
+      success: true,
+      designations: designations
+    }
+  } catch (error) {
+    console.error('[searchDesignations] Error fetching designations:', error)
+    console.error('[searchDesignations] Error details:', error.response?.data || error.message)
+    // Return empty array on error instead of throwing
+    return {
+      success: false,
+      designations: [],
+      error: error.message
+    }
   }
 }

@@ -57,10 +57,10 @@ apiClient.interceptors.response.use(
 export const getDashboardData = async () => {
   try {
     const response = await apiClient.get('frappe_devsecops_dashboard.api.dashboard.get_dashboard_data')
-    
+
     if (response.data && response.data.message) {
       const data = response.data.message
-      
+
       // Transform data to ensure consistent field naming
       return {
         success: data.success || false,
@@ -70,9 +70,9 @@ export const getDashboardData = async () => {
         timestamp: data.timestamp
       }
     }
-    
+
     throw new Error('Invalid response format')
-    
+
   } catch (error) {
     // Return fallback data structure
     return {
@@ -103,10 +103,10 @@ export const getProjectDetails = async (projectName) => {
     const response = await apiClient.get('frappe_devsecops_dashboard.api.dashboard.get_project_details', {
       params: { project_name: projectName }
     })
-    
+
     if (response.data && response.data.message) {
       const data = response.data.message
-      
+
       if (data.success) {
         return {
           success: true,
@@ -116,7 +116,7 @@ export const getProjectDetails = async (projectName) => {
         throw new Error(data.error || 'Failed to fetch project details')
       }
     }
-    
+
     throw new Error('Invalid response format')
 
   } catch (error) {
@@ -150,41 +150,41 @@ const transformProjectData = (project) => {
     project_name: project.project_name || project.name,
     project_status: project.project_status || project.status || 'Open',
     status: project.status || project.project_status || 'Open',
-    
+
     // Client and type information
     client: project.client || project.customer || 'No Client',
     customer: project.customer || project.client,
     project_type: project.project_type || 'Standard',
     priority: project.priority || 'Medium',
-    
+
     // Progress and metrics
     progress: parseFloat(project.progress || project.percent_complete || 0),
     percent_complete: parseFloat(project.percent_complete || project.progress || 0),
     completion_rate: parseFloat(project.completion_rate || 0),
-    
+
     // Task information
     task_count: parseInt(project.task_count || 0),
     total_tasks: parseInt(project.total_tasks || project.task_count || 0),
     completed_tasks: parseInt(project.completed_tasks || 0),
-    
+
     // Phase information
     current_phase: project.current_phase || 'Planning',
     currentPhase: project.currentPhase || project.current_phase || 'Planning',
-    
+
     // Delivery phases (ERPNext Task Type based)
     delivery_phases: transformDeliveryPhases(project.delivery_phases || []),
     deliveryPhases: transformDeliveryPhases(project.delivery_phases || []),
-    
+
     // Date fields
     expected_start_date: project.expected_start_date,
     expected_end_date: project.expected_end_date,
     actual_start_date: project.actual_start_date,
     actual_end_date: project.actual_end_date,
-    
+
     // Organizational fields
     cost_center: project.cost_center,
     department: project.department,
-    
+
     // Tasks array for detailed view
     tasks: project.tasks || []
   }
@@ -203,12 +203,12 @@ const transformDeliveryPhases = (phases) => {
     section_status: phase.section_status || phase.status,
     section_progress: parseFloat(phase.section_progress || phase.progress || 0),
     section_order: parseInt(phase.section_order || 0),
-    
+
     // Task counts
     task_count: parseInt(phase.task_count || 0),
     completed_tasks: parseInt(phase.completed_tasks || 0),
     in_progress_tasks: parseInt(phase.in_progress_tasks || 0),
-    
+
     // Legacy fields for backward compatibility
     name: phase.name || phase.section_name,
     status: phase.status || phase.section_status,
@@ -227,17 +227,17 @@ const transformMetricsData = (metrics) => {
     total_projects: parseInt(metrics.total_projects || 0),
     active_projects: parseInt(metrics.active_projects || 0),
     activeProjects: parseInt(metrics.active_projects || metrics.activeProjects || 0),
-    
+
     // Task counts
     total_tasks: parseInt(metrics.total_tasks || 0),
     totalTasks: parseInt(metrics.total_tasks || metrics.totalTasks || 0),
     completed_tasks: parseInt(metrics.completed_tasks || 0),
     completedTasks: parseInt(metrics.completed_tasks || metrics.completedTasks || 0),
-    
+
     // Progress metrics
     average_completion: parseFloat(metrics.average_completion || 0),
     completion_rate: parseFloat(metrics.completion_rate || 0),
-    
+
     // Team metrics
     team_capacity: parseFloat(metrics.team_capacity || 0),
     teamCapacity: parseFloat(metrics.team_capacity || metrics.teamCapacity || 0)
@@ -250,19 +250,15 @@ const transformMetricsData = (metrics) => {
  */
 export const getTaskTypes = async () => {
   try {
-    const response = await axios.get('/api/resource/Task Type', {
-      headers: {
-        'X-Frappe-CSRF-Token': window.csrf_token || ''
-      }
-    })
-    
+    const response = await apiClient.get('/api/resource/Task Type')
+
     if (response.data && response.data.data) {
       return response.data.data.map(taskType => ({
         name: taskType.name,
         description: taskType.description || `${taskType.name} phase`
       }))
     }
-    
+
     return []
 
   } catch (error) {
@@ -276,20 +272,17 @@ export const getTaskTypes = async () => {
  */
 export const getProjects = async () => {
   try {
-    const response = await axios.get('/api/resource/Project', {
+    const response = await apiClient.get('/api/resource/Project', {
       params: {
         fields: JSON.stringify(['name', 'project_name', 'status', 'customer', 'percent_complete']),
         filters: JSON.stringify([['disabled', '=', 0]])
-      },
-      headers: {
-        'X-Frappe-CSRF-Token': window.csrf_token || ''
       }
     })
-    
+
     if (response.data && response.data.data) {
       return response.data.data
     }
-    
+
     return []
 
   } catch (error) {
@@ -305,7 +298,7 @@ export const getProjects = async () => {
 export const getProjectTasksWithTypes = async (projectId) => {
   try {
     // Query ERPNext Task doctype for tasks belonging to this project
-    const response = await axios.get('/api/resource/Task', {
+    const response = await apiClient.get('/api/resource/Task', {
       params: {
         fields: JSON.stringify([
           'name',
@@ -323,9 +316,6 @@ export const getProjectTasksWithTypes = async (projectId) => {
           ['project', '=', projectId]
         ]),
         limit_page_length: 999
-      },
-      headers: {
-        'X-Frappe-CSRF-Token': window.csrf_token || ''
       }
     })
 

@@ -18,7 +18,10 @@ import {
   Empty,
   Divider,
   InputNumber,
-  DatePicker
+  DatePicker,
+  Typography
+,
+  theme
 } from 'antd'
 import {
   PlusOutlined,
@@ -30,66 +33,65 @@ import {
   EyeInvisibleOutlined,
   ShareAltOutlined,
   LockOutlined,
-  UnlockOutlined
+  UnlockOutlined,
+  SearchOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  KeyOutlined,
+  UserOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import Swal from 'sweetalert2'
+import { createApiClient } from '../services/api/config'
+import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
-// API call helper function
-async function apiCall(endpoint, options = {}) {
-  try {
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Frappe-CSRF-Token': window.csrf_token,
-        ...options.headers
-      },
-      ...options
-    })
+const { Title, Text } = Typography
 
-    if (!response.ok) {
-      throw new Error(`API call failed: ${response.status} ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    return data.message || data
-  } catch (error) {
-    console.error('[PasswordVault] API Error:', error)
-    throw error
-  }
-}
-
-const PasswordVault = () => {
+const PasswordVault = ({ navigateToRoute }) => {
+  const { token } = theme.useToken()
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(false)
-  const [modalVisible, setModalVisible] = useState(false)
   const [shareModalVisible, setShareModalVisible] = useState(false)
-  const [editingEntry, setEditingEntry] = useState(null)
   const [selectedEntry, setSelectedEntry] = useState(null)
-  const [form] = Form.useForm()
   const [shareForm] = Form.useForm()
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [showPasswords, setShowPasswords] = useState({})
   const [shareLinks, setShareLinks] = useState([])
   const [shareLinksLoading, setShareLinksLoading] = useState(false)
+  const [apiClient, setApiClient] = useState(null)
 
-  // Load password entries on mount
+  // Initialize API client
   useEffect(() => {
-    loadEntries()
-  }, [searchQuery, categoryFilter])
+    const initClient = async () => {
+      const client = await createApiClient()
+      setApiClient(client)
+    }
+    initClient()
+  }, [])
+
+  // Load password entries when client is ready or filters change
+  useEffect(() => {
+    if (apiClient) {
+      loadEntries()
+    }
+  }, [apiClient, searchQuery, categoryFilter])
 
   const loadEntries = async () => {
+    if (!apiClient) return
     try {
       setLoading(true)
-      const response = await apiCall(
-        `/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entries?search_query=${encodeURIComponent(searchQuery)}&category=${encodeURIComponent(categoryFilter)}`
-      )
+      const response = await apiClient.get('/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entries', {
+        params: {
+          search_query: searchQuery,
+          category: categoryFilter
+        }
+      })
 
-      if (response?.success) {
-        setEntries(response.data || [])
+      if (response.data && response.data.success) {
+        setEntries(response.data.data || [])
       } else {
-        message.error(response?.error || 'Failed to load password entries')
+        // Fallback if response structure is different (handled by interceptor)
+        setEntries(response.data || [])
       }
     } catch (error) {
       console.error('[PasswordVault] Error loading entries:', error)
@@ -99,120 +101,94 @@ const PasswordVault = () => {
     }
   }
 
-  const handleAddPassword = () => {
-    setEditingEntry(null)
-    form.resetFields()
-    setModalVisible(true)
+  const handleCreate = () => {
+    navigateToRoute('password-vault-new')
   }
 
-  const handleEditPassword = async (entry) => {
-    try {
-      const response = await apiCall(
-        `/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entry?name=${encodeURIComponent(entry.name)}`
-      )
+  const handleEdit = (entry) => {
+    if (entry?.name) {
+      navigateToRoute('password-vault-edit', null, null, entry.name)
+    } else {
+      message.error('Invalid password entry')
+    }
+  }
 
-      if (response?.success && response?.data) {
-        setEditingEntry(response.data)
-        form.setFieldsValue({
-          title: response.data.title,
-          username: response.data.username,
-          password: response.data.password,
-          url: response.data.url,
-          port: response.data.port,
-          category: response.data.category,
-          project: response.data.project,
-          notes: response.data.notes,
-          tags: response.data.tags,
-          expiry_date: response.data.expiry_date ? dayjs(response.data.expiry_date) : null,
-          is_active: response.data.is_active
+  const handleCopyCredentials = async (entry) => {
+    if (!apiClient) return
+    try {
+      // Fetch full entry details including password
+      const response = await apiClient.get('/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entry', {
+        params: { name: entry.name }
+      })
+
+      const data = response.data.data || response.data
+
+      if (data) {
+        // Create credentials text
+        const credentialsText = `Username: ${data.username || 'N/A'}\nPassword: ${data.password || 'N/A'}${data.url ? `\nURL: ${data.url}` : ''}`
+
+        // Copy to clipboard
+        await navigator.clipboard.writeText(credentialsText)
+
+        // Show success with SweetAlert2
+        await Swal.fire({
+          icon: 'success',
+          title: 'Credentials Copied!',
+          html: `
+            <div style="text-align: left; padding: 12px; background: #f5f5f5; border-radius: 4px; margin-top: 12px;">
+              <strong>Username:</strong> ${data.username || 'N/A'}<br/>
+              <strong>Password:</strong> ${'*'.repeat((data.password || '').length)}<br/>
+              ${data.url ? `<strong>URL:</strong> ${data.url}` : ''}
+            </div>
+          `,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true
         })
-        setModalVisible(true)
       }
     } catch (error) {
-      console.error('[PasswordVault] Error fetching entry:', error)
-      message.error('Failed to fetch password entry')
+      console.error('[PasswordVault] Error copying credentials:', error)
+      message.error('Failed to copy credentials')
     }
   }
 
   const handleCopyPassword = async (entry) => {
+    if (!apiClient) return
     try {
-      const response = await apiCall(
-        `/api/method/frappe_devsecops_dashboard.api.password_vault.copy_vault_entry?name=${encodeURIComponent(entry.name)}`,
-        { method: 'POST' }
-      )
+      const response = await apiClient.post('/api/method/frappe_devsecops_dashboard.api.password_vault.copy_vault_entry', {
+        name: entry.name
+      })
 
-      if (response?.success) {
-        message.success('Password copied successfully')
+      if (response.data.success || response.data) {
+        message.success('Password entry duplicated successfully')
         loadEntries()
+
         // Optionally open the edit form for the new entry
         setTimeout(() => {
-          const newEntry = { name: response.data.name }
-          handleEditPassword(newEntry)
+          const newEntryName = response.data.data?.name || response.data.name
+          if (newEntryName) {
+            handleEdit({ name: newEntryName })
+          }
         }, 500)
-      } else {
-        message.error(response?.error || 'Failed to copy password')
       }
     } catch (error) {
-      console.error('[PasswordVault] Error copying password:', error)
-      message.error('Failed to copy password')
-    }
-  }
-
-  const handleSavePassword = async (values) => {
-    try {
-      const data = {
-        title: values.title,
-        username: values.username || '',
-        password: values.password,
-        url: values.url || '',
-        port: values.port || null,
-        category: values.category || 'Login',
-        project: values.project || '',
-        notes: values.notes || '',
-        tags: values.tags || '',
-        expiry_date: values.expiry_date ? values.expiry_date.format('YYYY-MM-DD') : null,
-        is_active: values.is_active ? 1 : 0
-      }
-
-      let response
-      if (editingEntry) {
-        response = await apiCall(
-          `/api/method/frappe_devsecops_dashboard.api.password_vault.update_vault_entry?name=${encodeURIComponent(editingEntry.name)}`,
-          { method: 'POST', data }
-        )
-      } else {
-        response = await apiCall(
-          `/api/method/frappe_devsecops_dashboard.api.password_vault.create_vault_entry`,
-          { method: 'POST', data }
-        )
-      }
-
-      if (response?.success) {
-        message.success(editingEntry ? 'Password updated successfully' : 'Password created successfully')
-        setModalVisible(false)
-        form.resetFields()
-        loadEntries()
-      } else {
-        message.error(response?.error || 'Failed to save password')
-      }
-    } catch (error) {
-      console.error('[PasswordVault] Error saving password:', error)
-      message.error('Failed to save password')
+      console.error('[PasswordVault] Error duplicating password:', error)
+      message.error('Failed to duplicate password entry')
     }
   }
 
   const handleDeletePassword = async (entry) => {
+    if (!apiClient) return
     try {
-      const response = await apiCall(
-        `/api/method/frappe_devsecops_dashboard.api.password_vault.delete_vault_entry?name=${encodeURIComponent(entry.name)}`,
-        { method: 'POST' }
-      )
+      const response = await apiClient.post('/api/method/frappe_devsecops_dashboard.api.password_vault.delete_vault_entry', {
+        name: entry.name
+      })
 
-      if (response?.success) {
+      if (response.data.success || response.data) {
         message.success('Password deleted successfully')
         loadEntries()
-      } else {
-        message.error(response?.error || 'Failed to delete password')
       }
     } catch (error) {
       console.error('[PasswordVault] Error deleting password:', error)
@@ -228,15 +204,15 @@ const PasswordVault = () => {
   }
 
   const loadShareLinks = async (entryName) => {
+    if (!apiClient) return
     try {
       setShareLinksLoading(true)
-      const response = await apiCall(
-        `/api/method/frappe_devsecops_dashboard.api.password_share_links.get_share_links?vault_entry_name=${encodeURIComponent(entryName)}`
-      )
+      const response = await apiClient.get('/api/method/frappe_devsecops_dashboard.api.password_share_links.get_share_links', {
+        params: { vault_entry_name: entryName }
+      })
 
-      if (response?.success) {
-        setShareLinks(response.data || [])
-      }
+      const data = response.data.data || response.data
+      setShareLinks(data || [])
     } catch (error) {
       console.error('[PasswordVault] Error loading share links:', error)
     } finally {
@@ -245,18 +221,18 @@ const PasswordVault = () => {
   }
 
   const handleCreateShareLink = async (values) => {
+    if (!apiClient) return
     try {
-      const response = await apiCall(
-        `/api/method/frappe_devsecops_dashboard.api.password_share_links.create_share_link?vault_entry_name=${encodeURIComponent(selectedEntry.name)}&expiry_hours=${values.expiry_hours || 24}&recipient_email=${values.recipient_email || ''}`,
-        { method: 'POST' }
-      )
+      const response = await apiClient.post('/api/method/frappe_devsecops_dashboard.api.password_share_links.create_share_link', {
+        vault_entry_name: selectedEntry.name,
+        expiry_hours: values.expiry_hours || 24,
+        recipient_email: values.recipient_email || ''
+      })
 
-      if (response?.success) {
+      if (response.data.success || response.data) {
         message.success('Share link created successfully')
         await loadShareLinks(selectedEntry.name)
         shareForm.resetFields()
-      } else {
-        message.error(response?.error || 'Failed to create share link')
       }
     } catch (error) {
       console.error('[PasswordVault] Error creating share link:', error)
@@ -265,17 +241,15 @@ const PasswordVault = () => {
   }
 
   const handleRevokeShareLink = async (linkName) => {
+    if (!apiClient) return
     try {
-      const response = await apiCall(
-        `/api/method/frappe_devsecops_dashboard.api.password_share_links.revoke_share_link?share_link_name=${encodeURIComponent(linkName)}`,
-        { method: 'POST' }
-      )
+      const response = await apiClient.post('/api/method/frappe_devsecops_dashboard.api.password_share_links.revoke_share_link', {
+        share_link_name: linkName
+      })
 
-      if (response?.success) {
+      if (response.data.success || response.data) {
         message.success('Share link revoked successfully')
         await loadShareLinks(selectedEntry.name)
-      } else {
-        message.error(response?.error || 'Failed to revoke share link')
       }
     } catch (error) {
       console.error('[PasswordVault] Error revoking share link:', error)
@@ -294,14 +268,19 @@ const PasswordVault = () => {
       dataIndex: 'title',
       key: 'title',
       width: '25%',
-      render: (text) => <strong>{text}</strong>
+      render: (text) => (
+        <Space>
+          <KeyOutlined style={{ color: getHeaderIconColor(token) }} />
+          <strong>{text}</strong>
+        </Space>
+      )
     },
     {
       title: 'Username',
       dataIndex: 'username',
       key: 'username',
       width: '20%',
-      render: (text) => text || '-'
+      render: (text) => text || <Text type="secondary">-</Text>
     },
     {
       title: 'Category',
@@ -323,14 +302,14 @@ const PasswordVault = () => {
       title: 'URL',
       dataIndex: 'url',
       key: 'url',
-      width: '20%',
+      width: '15%',
       render: (url) => url ? (
         <Tooltip title="Open URL">
           <a href={url} target="_blank" rel="noopener noreferrer">
             <LinkOutlined /> Open
           </a>
         </Tooltip>
-      ) : '-'
+      ) : <Text type="secondary">-</Text>
     },
     {
       title: 'Actions',
@@ -338,15 +317,23 @@ const PasswordVault = () => {
       width: '25%',
       render: (_, record) => (
         <Space size="small">
+          <Tooltip title="Copy Credentials">
+            <Button
+              type="primary"
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => handleCopyCredentials(record)}
+            />
+          </Tooltip>
           <Tooltip title="Edit">
             <Button
               type="text"
               size="small"
               icon={<EditOutlined />}
-              onClick={() => handleEditPassword(record)}
+              onClick={() => handleEdit(record)}
             />
           </Tooltip>
-          <Tooltip title="Copy">
+          <Tooltip title="Duplicate">
             <Button
               type="text"
               size="small"
@@ -384,31 +371,54 @@ const PasswordVault = () => {
   ]
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Card>
-        <Row gutter={[16, 16]} align="middle" justify="space-between">
-          <Col flex="auto">
-            <h2 style={{ margin: 0 }}>
-              <LockOutlined /> Password Vault
-            </h2>
+    <div>
+      {/* Header Section */}
+      <Card style={{
+        marginBottom: 16,
+        ...getHeaderBannerStyle(token)
+      }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Space direction="vertical" size="small">
+              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                <SafetyCertificateOutlined style={{
+                  marginRight: 16,
+                  color: getHeaderIconColor(token),
+                  fontSize: '32px'
+                }} />
+                Password Vault
+              </Title>
+              <Text type="secondary">Securely manage and share your credentials</Text>
+            </Space>
           </Col>
           <Col>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAddPassword}
-            >
-              Add Password
-            </Button>
+            <Space>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={loadEntries}
+                loading={loading}
+              >
+                Refresh
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleCreate}
+                size="large"
+              >
+                Add Password
+              </Button>
+            </Space>
           </Col>
         </Row>
+      </Card>
 
-        <Divider />
-
+      <Card>
         <Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
           <Col xs={24} sm={12} md={8}>
-            <Input.Search
+            <Input
               placeholder="Search by title, username, or tags..."
+              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               allowClear
@@ -432,149 +442,41 @@ const PasswordVault = () => {
           </Col>
         </Row>
 
-        <Spin spinning={loading}>
-          {entries.length > 0 ? (
-            <Table
-              columns={columns}
-              dataSource={entries}
-              rowKey="name"
-              pagination={{ pageSize: 10 }}
-              scroll={{ x: 800 }}
-            />
-          ) : (
-            <Empty description="No passwords found" />
-          )}
-        </Spin>
+        <Table
+          columns={columns}
+          dataSource={entries}
+          rowKey="name"
+          loading={loading}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
+          }}
+          scroll={{ x: 800 }}
+          locale={{
+            emptyText: (
+              <Empty
+                description="No passwords found"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              >
+                <Button type="primary" onClick={handleCreate}>
+                  Add First Password
+                </Button>
+              </Empty>
+            )
+          }}
+        />
       </Card>
-
-      {/* Add/Edit Password Modal */}
-      <Modal
-        title={editingEntry ? 'Edit Password' : 'Add Password'}
-        open={modalVisible}
-        onCancel={() => {
-          setModalVisible(false)
-          form.resetFields()
-          setEditingEntry(null)
-        }}
-        footer={null}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSavePassword}
-        >
-          <Form.Item
-            label="Title"
-            name="title"
-            rules={[{ required: true, message: 'Title is required' }]}
-          >
-            <Input placeholder="e.g., Gmail Account" />
-          </Form.Item>
-
-          <Form.Item
-            label="Username"
-            name="username"
-          >
-            <Input placeholder="e.g., user@example.com" />
-          </Form.Item>
-
-          <Form.Item
-            label="Password"
-            name="password"
-            rules={[{ required: true, message: 'Password is required' }]}
-          >
-            <Input.Password placeholder="Enter password" />
-          </Form.Item>
-
-          <Form.Item
-            label="URL"
-            name="url"
-          >
-            <Input placeholder="e.g., https://gmail.com" />
-          </Form.Item>
-
-          <Form.Item
-            label="Port"
-            name="port"
-          >
-            <InputNumber placeholder="e.g., 3306" min={1} max={65535} />
-          </Form.Item>
-
-          <Form.Item
-            label="Project"
-            name="project"
-          >
-            <Input placeholder="Associated project" />
-          </Form.Item>
-
-          <Form.Item
-            label="Category"
-            name="category"
-            initialValue="Login"
-          >
-            <Select
-              options={[
-                { label: 'Login', value: 'Login' },
-                { label: 'API Key', value: 'API Key' },
-                { label: 'Database', value: 'Database' },
-                { label: 'SSH Key', value: 'SSH Key' },
-                { label: 'Certificate', value: 'Certificate' },
-                { label: 'Other', value: 'Other' }
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Notes"
-            name="notes"
-          >
-            <Input.TextArea rows={3} placeholder="Additional notes..." />
-          </Form.Item>
-
-          <Form.Item
-            label="Tags"
-            name="tags"
-          >
-            <Input placeholder="Comma-separated tags" />
-          </Form.Item>
-
-          <Form.Item
-            label="Expiry Date"
-            name="expiry_date"
-          >
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-
-          <Form.Item
-            label="Active"
-            name="is_active"
-            valuePropName="checked"
-            initialValue={true}
-          >
-            <Input type="checkbox" />
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                {editingEntry ? 'Update' : 'Create'}
-              </Button>
-              <Button onClick={() => {
-                setModalVisible(false)
-                form.resetFields()
-                setEditingEntry(null)
-              }}>
-                Cancel
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
 
       {/* Share Password Modal */}
       <Modal
-        title={`Share Password: ${selectedEntry?.title}`}
+        title={
+          <Space>
+            <ShareAltOutlined />
+            {`Share Password: ${selectedEntry?.title}`}
+          </Space>
+        }
         open={shareModalVisible}
         onCancel={() => {
           setShareModalVisible(false)
@@ -590,65 +492,70 @@ const PasswordVault = () => {
             layout="vertical"
             onFinish={handleCreateShareLink}
           >
-            <Form.Item
-              label="Recipient Email (Optional)"
-              name="recipient_email"
-            >
-              <Input type="email" placeholder="recipient@example.com" />
-            </Form.Item>
-
-            <Form.Item
-              label="Expiry Time (Hours)"
-              name="expiry_hours"
-              initialValue={24}
-            >
-              <InputNumber min={1} max={720} />
-            </Form.Item>
-
-            <Form.Item>
-              <Button type="primary" htmlType="submit">
-                Generate Share Link
-              </Button>
-            </Form.Item>
+            <Row gutter={16} align="bottom">
+              <Col span={14}>
+                <Form.Item
+                  label="Recipient Email (Optional)"
+                  name="recipient_email"
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input type="email" placeholder="recipient@example.com" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item
+                  label="Expiry (Hours)"
+                  name="expiry_hours"
+                  initialValue={24}
+                  style={{ marginBottom: 0 }}
+                >
+                  <InputNumber min={1} max={720} style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col span={4}>
+                <Form.Item style={{ marginBottom: 0 }}>
+                  <Button type="primary" htmlType="submit" block>
+                    Generate
+                  </Button>
+                </Form.Item>
+              </Col>
+            </Row>
           </Form>
 
-          <Divider>Active Share Links</Divider>
+          <Divider orientation="left">Active Share Links</Divider>
 
           {shareLinks.length > 0 ? (
-            <div>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
               {shareLinks.map((link) => (
-                <Card key={link.name} size="small" style={{ marginBottom: '12px' }}>
-                  <Row gutter={[16, 16]}>
-                    <Col xs={24}>
-                      <div>
-                        <strong>Share Token:</strong>
-                        <Space>
-                          <code style={{ fontSize: '12px' }}>{link.share_token.substring(0, 8)}...</code>
+                <Card key={link.name} size="small" style={{ marginBottom: '12px', background: '#fafafa' }}>
+                  <Row gutter={[8, 8]} align="middle">
+                    <Col span={24}>
+                      <Space>
+                        <Tag color={link.status === 'Active' ? 'green' : 'red'}>{link.status}</Tag>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          Expires: {dayjs(link.expiry_datetime).format('MMM DD, YYYY HH:mm')}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          Uses: {link.current_uses}/{link.max_uses}
+                        </Text>
+                      </Space>
+                    </Col>
+                    <Col span={20}>
+                      <div style={{ display: 'flex', alignItems: 'center', background: '#fff', padding: '4px 8px', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
+                        <code style={{ fontSize: '12px', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {link.share_token}
+                        </code>
+                        <Tooltip title="Copy Token">
                           <Button
                             type="text"
                             size="small"
                             icon={<CopyOutlined />}
                             onClick={() => handleCopyToClipboard(link.share_token)}
                           />
-                        </Space>
+                        </Tooltip>
                       </div>
                     </Col>
-                    <Col xs={24}>
-                      <div>
-                        <strong>Status:</strong> <Tag color={link.status === 'Active' ? 'green' : 'red'}>{link.status}</Tag>
-                      </div>
-                    </Col>
-                    <Col xs={24}>
-                      <div>
-                        <strong>Expires:</strong> {dayjs(link.expiry_datetime).format('MMM DD, YYYY HH:mm')}
-                      </div>
-                    </Col>
-                    <Col xs={24}>
-                      <div>
-                        <strong>Uses:</strong> {link.current_uses}/{link.max_uses}
-                      </div>
-                    </Col>
-                    <Col xs={24}>
+                    <Col span={4} style={{ textAlign: 'right' }}>
                       <Popconfirm
                         title="Revoke Share Link"
                         description="Are you sure you want to revoke this share link?"
@@ -656,9 +563,9 @@ const PasswordVault = () => {
                         okText="Yes"
                         cancelText="No"
                       >
-                        <Button type="text" danger size="small" icon={<UnlockOutlined />}>
-                          Revoke
-                        </Button>
+                        <Tooltip title="Revoke">
+                          <Button type="text" danger icon={<UnlockOutlined />} />
+                        </Tooltip>
                       </Popconfirm>
                     </Col>
                   </Row>
@@ -666,7 +573,7 @@ const PasswordVault = () => {
               ))}
             </div>
           ) : (
-            <Empty description="No active share links" />
+            <Empty description="No active share links" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           )}
         </Spin>
       </Modal>
@@ -675,4 +582,3 @@ const PasswordVault = () => {
 }
 
 export default PasswordVault
-

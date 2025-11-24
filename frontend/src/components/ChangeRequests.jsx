@@ -16,6 +16,8 @@ import {
   Collapse,
   Divider,
   Timeline
+,
+  theme
 } from 'antd'
 import {
   PlusOutlined,
@@ -31,6 +33,7 @@ import {
   FilePdfOutlined
 } from '@ant-design/icons'
 import useAuthStore from '../stores/authStore'
+import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -53,20 +56,20 @@ const ChangeRequests = () => {
   // Build whitelisted API call parameters
   const buildApiParams = () => {
     const fields = [
-      'name','title','cr_number','prepared_for','submission_date','system_affected','originator_name',
-      'originator_full_name','originator_organization','originators_manager','originator_manager_full_name',
-      'change_category','downtime_expected',
-      'detailed_description','release_notes','implementation_date','implementation_time','testing_plan',
-      'rollback_plan','approval_status','workflow_state','project'
+      'name', 'title', 'cr_number', 'prepared_for', 'submission_date', 'system_affected', 'originator_name',
+      'originator_full_name', 'originator_organization', 'originators_manager', 'originator_manager_full_name',
+      'change_category', 'downtime_expected',
+      'detailed_description', 'release_notes', 'implementation_date', 'implementation_time', 'testing_plan',
+      'rollback_plan', 'approval_status', 'workflow_state', 'project'
     ]
 
     // Server-side filters for status/category
     const filters = []
     if (statusFilter !== 'all') {
-      filters.push(['Change Request','approval_status','=','' + statusFilter])
+      filters.push(['Change Request', 'approval_status', '=', '' + statusFilter])
     }
     if (categoryFilter !== 'all') {
-      filters.push(['Change Request','change_category','=','' + categoryFilter])
+      filters.push(['Change Request', 'change_category', '=', '' + categoryFilter])
     }
 
     // Pagination
@@ -83,7 +86,7 @@ const ChangeRequests = () => {
 
   useEffect(() => {
     loadChangeRequests()
-  // re-fetch when filters/pagination/search change, and on mount
+    // re-fetch when filters/pagination/search change, and on mount
   }, [statusFilter, categoryFilter, page, pageSize, searchText])
 
   // Check write permissions on mount
@@ -141,11 +144,11 @@ const ChangeRequests = () => {
       const st = searchText.trim().toLowerCase()
       const filtered = st
         ? list.filter(item =>
-            (item.title || '').toLowerCase().includes(st) ||
-            (item.system_affected || '').toLowerCase().includes(st) ||
-            (item.cr_number || '').toLowerCase().includes(st) ||
-            (item.name || '').toLowerCase().includes(st)
-          )
+          (item.title || '').toLowerCase().includes(st) ||
+          (item.system_affected || '').toLowerCase().includes(st) ||
+          (item.cr_number || '').toLowerCase().includes(st) ||
+          (item.name || '').toLowerCase().includes(st)
+        )
         : list
 
       setChangeRequests(filtered)
@@ -266,8 +269,8 @@ const ChangeRequests = () => {
 
   const filteredData = changeRequests.filter(item => {
     const matchesSearch = item.title?.toLowerCase().includes(searchText.toLowerCase()) ||
-                         item.system_affected?.toLowerCase().includes(searchText.toLowerCase()) ||
-                         item.cr_number?.toLowerCase().includes(searchText.toLowerCase())
+      item.system_affected?.toLowerCase().includes(searchText.toLowerCase()) ||
+      item.cr_number?.toLowerCase().includes(searchText.toLowerCase())
     const matchesStatus = statusFilter === 'all' || item.approval_status === statusFilter
     const matchesCategory = categoryFilter === 'all' || item.change_category === categoryFilter
 
@@ -392,82 +395,94 @@ const ChangeRequests = () => {
   ]
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Card>
-        <div style={{ marginBottom: '24px' }}>
-          <Row justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
-            <Col>
-              <Title level={3} style={{ margin: 0 }}>
+    <div>
+      {/* Header */}
+      <Card style={{
+        marginBottom: 16,
+        ...getHeaderBannerStyle(token)
+      }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Space direction="vertical" size="small">
+              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                <EditOutlined style={{
+                  marginRight: 16,
+                  color: getHeaderIconColor(token),
+                  fontSize: '32px'
+                }} />
                 Change Requests
               </Title>
-              <Text type="secondary">
-                Manage and track project change requests
-              </Text>
-            </Col>
-            <Col>
-              <Space>
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={loadChangeRequests}
-                  loading={loading}
-                >
-                  Refresh
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={handleCreate}
-                >
-                  New Change Request
-                </Button>
-              </Space>
-            </Col>
-          </Row>
-
-          {/* Filters */}
-          <Row gutter={16} style={{ marginBottom: '16px' }}>
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <Input
-                placeholder="Search by title, CR number, or system..."
-                prefix={<SearchOutlined />}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                allowClear
-              />
-            </Col>
-            <Col xs={12} sm={6} md={5} lg={4}>
-              <Select
-                placeholder="Approval Status"
-                value={statusFilter}
-                onChange={setStatusFilter}
-                style={{ width: '100%' }}
+              <Text type="secondary">Manage and track project change requests</Text>
+            </Space>
+          </Col>
+          <Col>
+            <Space>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={loadChangeRequests}
+                loading={loading}
               >
-                <Option value="all">All Status</Option>
-                <Option value="Pending Review">Pending Review</Option>
-                <Option value="Rework">Rework</Option>
-                <Option value="Not Accepted">Not Accepted</Option>
-                <Option value="Withdrawn">Withdrawn</Option>
-                <Option value="Deferred">Deferred</Option>
-                <Option value="Approved for Implementation">Approved for Implementation</Option>
-              </Select>
-            </Col>
-            <Col xs={12} sm={6} md={5} lg={4}>
-              <Select
-                placeholder="Category"
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-                style={{ width: '100%' }}
+                Refresh
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleCreate}
+                size="large"
               >
-                <Option value="all">All Categories</Option>
-                <Option value="Major Change">Major Change</Option>
-                <Option value="Minor Change">Minor Change</Option>
-                <Option value="Standard Change">Standard Change</Option>
-                <Option value="Emergency Change">Emergency Change</Option>
-              </Select>
-            </Col>
-          </Row>
-        </div>
+                New Change Request
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
 
+      {/* Filters */}
+      <Card style={{ marginBottom: '16px' }}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={8}>
+            <Input
+              placeholder="Search by title, CR number, or system..."
+              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+            />
+          </Col>
+          <Col xs={12} sm={6} md={5}>
+            <Select
+              placeholder="Approval Status"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              style={{ width: '100%' }}
+            >
+              <Option value="all">All Status</Option>
+              <Option value="Pending Review">Pending Review</Option>
+              <Option value="Rework">Rework</Option>
+              <Option value="Not Accepted">Not Accepted</Option>
+              <Option value="Withdrawn">Withdrawn</Option>
+              <Option value="Deferred">Deferred</Option>
+              <Option value="Approved for Implementation">Approved for Implementation</Option>
+            </Select>
+          </Col>
+          <Col xs={12} sm={6} md={5}>
+            <Select
+              placeholder="Category"
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              style={{ width: '100%' }}
+            >
+              <Option value="all">All Categories</Option>
+              <Option value="Major Change">Major Change</Option>
+              <Option value="Minor Change">Minor Change</Option>
+              <Option value="Standard Change">Standard Change</Option>
+              <Option value="Emergency Change">Emergency Change</Option>
+            </Select>
+          </Col>
+        </Row>
+      </Card>
+
+      <Card>
         <Table
           columns={columns}
           dataSource={filteredData}
@@ -531,7 +546,7 @@ const ChangeRequests = () => {
               borderRadius: '6px',
               border: '1px solid #f0f0f0'
             }}>
-              <Title level={5} style={{ margin: '0 0 16px 0', color: '#1890ff' }}>
+              <Title level={5} style={{ margin: '0 0 16px 0', color: getHeaderIconColor(token) }}>
                 Originator Information
               </Title>
               <Row gutter={[16, 16]}>
@@ -663,7 +678,7 @@ const ChangeRequests = () => {
                 borderRadius: '6px',
                 border: '1px solid #e6f4ff'
               }}>
-                <Title level={5} style={{ margin: '0 0 16px 0', color: '#1890ff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Title level={5} style={{ margin: '0 0 16px 0', color: getHeaderIconColor(token), display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <UserOutlined />
                   Change Approvers
                 </Title>

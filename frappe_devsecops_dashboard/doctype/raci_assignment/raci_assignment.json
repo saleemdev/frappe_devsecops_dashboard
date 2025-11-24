@@ -1,0 +1,104 @@
+{
+  "actions": [],
+  "creation": "2024-11-23 00:00:00",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "business_function",
+    "task_name",
+    "task_link",
+    "task_type",
+    "task_type_priority",
+    "column_break_roles",
+    "responsible",
+    "accountable",
+    "consulted",
+    "informed"
+  ],
+  "fields": [
+    {
+      "fieldname": "business_function",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Business Function",
+      "options": "Development\nQA\nDevOps\nSecurity\nInfrastructure\nArchitecture\nProduct Management\nProject Management",
+      "reqd": 1
+    },
+    {
+      "fieldname": "task_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Task Name",
+      "reqd": 1,
+      "read_only": 1
+    },
+    {
+      "fieldname": "task_link",
+      "fieldtype": "Link",
+      "label": "Task",
+      "options": "Task",
+      "hidden": 1
+    },
+    {
+      "fieldname": "task_type",
+      "fieldtype": "Data",
+      "label": "Task Type",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "task_type_priority",
+      "fieldtype": "Int",
+      "label": "Task Type Priority",
+      "read_only": 1,
+      "hidden": 1
+    },
+    {
+      "fieldname": "column_break_roles",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "responsible",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Responsible (R)",
+      "options": "Designation",
+      "description": "Designation responsible for doing the work"
+    },
+    {
+      "fieldname": "accountable",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Accountable (A)",
+      "options": "Designation",
+      "description": "Designation who is the final decision maker"
+    },
+    {
+      "fieldname": "consulted",
+      "fieldtype": "Link",
+      "label": "Consulted (C)",
+      "options": "Designation",
+      "description": "Designation that provides input/expertise"
+    },
+    {
+      "fieldname": "informed",
+      "fieldtype": "Link",
+      "label": "Informed (I)",
+      "options": "Designation",
+      "description": "Designation kept in the loop"
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "istable": 1,
+  "links": [],
+  "modified": "2024-11-23 00:00:00",
+  "modified_by": "Administrator",
+  "module": "Frappe Devsecops Dashboard",
+  "name": "RACI Assignment",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "idx",
+  "sort_order": "ASC",
+  "states": []
+}

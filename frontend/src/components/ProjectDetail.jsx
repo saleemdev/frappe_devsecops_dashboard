@@ -28,6 +28,8 @@ import {
   List,
   Collapse,
   Divider
+,
+  theme
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -75,10 +77,12 @@ import {
   getTaskTypeStatusIconType
 } from '../utils/taskProgressionUtils'
 import SprintReportDialog from './SprintReportDialog'
+import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
 
 const ProjectDetail = ({ projectId, navigateToRoute }) => {
+  const { token } = theme.useToken()
   const { hasWritePermission } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [projectData, setProjectData] = useState(null)
@@ -514,7 +518,8 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       description: task.description,
       exp_start_date: task.exp_start_date ? dayjs(task.exp_start_date) : null,
       exp_end_date: task.exp_end_date ? dayjs(task.exp_end_date) : null,
-      progress: task.progress || 0
+      progress: task.progress || 0,
+      is_milestone: task.is_milestone === 1 || task.is_milestone === true
     })
     setShowEditTaskModal(true)
   }
@@ -539,7 +544,8 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         description: values.description || '',
         exp_start_date: values.exp_start_date ? values.exp_start_date.format('YYYY-MM-DD') : null,
         exp_end_date: values.exp_end_date ? values.exp_end_date.format('YYYY-MM-DD') : null,
-        progress: values.progress || 0
+        progress: values.progress || 0,
+        is_milestone: values.is_milestone ? 1 : 0
       }
 
       const response = await updateTask(editingTask.name, taskData)
@@ -599,11 +605,11 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '400px' 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '400px'
       }}>
         <Spin size="large" />
       </div>
@@ -734,7 +740,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                         console.log('[ProjectDetail] Toggling notes expanded state')
                         setNotesExpanded(!notesExpanded)
                       }}
-                      style={{ padding: '0 0', height: 'auto', color: '#1890ff' }}
+                      style={{ padding: '0 0', height: 'auto', color: getHeaderIconColor(token) }}
                     >
                       {notesExpanded ? 'Show less' : 'Show more'}
                     </Button>
@@ -766,20 +772,20 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           transition: 'all 0.3s ease',
           cursor: 'pointer'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
-          e.currentTarget.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
-          e.currentTarget.style.transform = 'translateY(0)'
-        }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
+            e.currentTarget.style.transform = 'translateY(0)'
+          }}
         >
           <div style={{ fontSize: '24px', color: '#52c41a' }}>
             <CheckCircleOutlined />
           </div>
           <div style={{ fontSize: '11px', color: '#999', fontWeight: '500', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Total Tasks</div>
-          <div style={{ fontSize: '28px', fontWeight: '700', color: '#1890ff', lineHeight: '1' }}>
+          <div style={{ fontSize: '28px', fontWeight: '700', color: getHeaderIconColor(token), lineHeight: '1' }}>
             {metrics?.total_tasks || 0}
           </div>
         </div>
@@ -802,14 +808,14 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           transition: 'all 0.3s ease',
           cursor: 'pointer'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
-          e.currentTarget.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
-          e.currentTarget.style.transform = 'translateY(0)'
-        }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
+            e.currentTarget.style.transform = 'translateY(0)'
+          }}
         >
           <div style={{ fontSize: '24px', color: '#52c41a' }}>
             <CheckCircleOutlined />
@@ -838,14 +844,14 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           transition: 'all 0.3s ease',
           cursor: 'pointer'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
-          e.currentTarget.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
-          e.currentTarget.style.transform = 'translateY(0)'
-        }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
+            e.currentTarget.style.transform = 'translateY(0)'
+          }}
         >
           <div style={{ fontSize: '24px', color: '#faad14' }}>
             <ClockCircleOutlined />
@@ -874,14 +880,14 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           transition: 'all 0.3s ease',
           cursor: 'pointer'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
-          e.currentTarget.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
-          e.currentTarget.style.transform = 'translateY(0)'
-        }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
+            e.currentTarget.style.transform = 'translateY(0)'
+          }}
         >
           <div style={{ fontSize: '24px', color: '#722ed1' }}>
             <ExclamationCircleOutlined />
@@ -910,14 +916,14 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           transition: 'all 0.3s ease',
           cursor: 'pointer'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
-          e.currentTarget.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
-          e.currentTarget.style.transform = 'translateY(0)'
-        }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
+            e.currentTarget.style.transform = 'translateY(-2px)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
+            e.currentTarget.style.transform = 'translateY(0)'
+          }}
         >
           <div style={{ fontSize: '24px', color: '#fa8c16' }}>
             <UserOutlined />
@@ -1066,105 +1072,121 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               {
                 key: 'timeline',
                 label: (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-                    <BarChartOutlined style={{ color: '#1890ff' }} />
-                    <span>DevSecOps Timeline</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontWeight: '600', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <BarChartOutlined style={{ color: getHeaderIconColor(token) }} />
+                      <span>DevSecOps Timeline</span>
+                    </div>
+                    {canEditProject && (
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenNewTaskModal()
+                        }}
+                        style={{ marginRight: '8px' }}
+                      >
+                        Add Task
+                      </Button>
+                    )}
                   </div>
                 ),
                 children: (
                   <div>
-            {projectData?.tasks && projectData.tasks.length > 0 ? (
-              <Steps
-                direction="vertical"
-                current={-1}
-                items={groupTasksByType(projectData.tasks).map((group) => {
-                  const statusInfo = getTaskTypeStatus(group.tasks)
-                  const iconType = getTaskTypeStatusIconType(statusInfo.status, statusInfo.hasOverdue)
+                    {projectData?.tasks && projectData.tasks.length > 0 ? (
+                      <Steps
+                        direction="vertical"
+                        current={-1}
+                        items={groupTasksByType(projectData.tasks).map((group) => {
+                          const statusInfo = getTaskTypeStatus(group.tasks)
+                          const iconType = getTaskTypeStatusIconType(statusInfo.status, statusInfo.hasOverdue)
 
-                  // Create icon component based on type
-                  let icon = null
-                  if (iconType === 'CheckCircleFilled') {
-                    icon = <CheckCircleFilled style={{ color: '#52c41a' }} />
-                  } else if (iconType === 'LoadingOutlined') {
-                    icon = <LoadingOutlined style={{ color: '#1890ff' }} />
-                  } else if (iconType === 'ExclamationCircleOutlined') {
-                    icon = <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
-                  }
+                          // Create icon component based on type
+                          let icon = null
+                          if (iconType === 'CheckCircleFilled') {
+                            icon = <CheckCircleFilled style={{ color: '#52c41a' }} />
+                          } else if (iconType === 'LoadingOutlined') {
+                            icon = <LoadingOutlined style={{ color: getHeaderIconColor(token) }} />
+                          } else if (iconType === 'ExclamationCircleOutlined') {
+                            icon = <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+                          }
 
-                  return {
-                    title: (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: '600', color: getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue) }}>
-                          {group.type}
-                        </span>
-                        <Tag color={getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue)} style={{ marginLeft: '8px' }}>
-                          {statusInfo.completed}/{statusInfo.total} completed
-                        </Tag>
-                      </div>
-                    ),
-                    description: (
-                      <div style={{ marginTop: '12px', marginLeft: '0px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {group.tasks.map((task, idx) => (
-                            <div
-                              key={task.name || idx}
-                              style={{
-                                padding: '8px 12px',
-                                backgroundColor: '#fafafa',
-                                borderRadius: '4px',
-                                borderLeft: `3px solid ${task.status && (task.status.toLowerCase() === 'completed' || task.status.toLowerCase() === 'closed') ? '#52c41a' : '#d9d9d9'}`,
-                                fontSize: '12px'
-                              }}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Text strong style={{ fontSize: '13px' }}>
-                                      {task.subject || task.name}
-                                    </Text>
-                                    {task.custom_priority !== undefined && task.custom_priority !== null && (
-                                      <Tag color="blue" style={{ fontSize: '10px', fontWeight: '600' }}>
-                                        P{task.custom_priority}
-                                      </Tag>
-                                    )}
-                                  </div>
-                                  {task.description && (
-                                    <div style={{ marginTop: '4px', color: '#666', fontSize: '11px' }}>
-                                      {task.description.substring(0, 80)}...
-                                    </div>
-                                  )}
-                                  <div style={{ marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                    <Tag color={task.priority === 'High' ? 'red' : task.priority === 'Medium' ? 'orange' : 'green'} style={{ fontSize: '10px' }}>
-                                      {task.priority || 'Normal'}
-                                    </Tag>
-                                    <Tag style={{ fontSize: '10px' }}>
-                                      {task.status || 'Open'}
-                                    </Tag>
-                                    {task.exp_end_date && (
-                                      <Tag style={{ fontSize: '10px' }}>
-                                        Due: {formatDate(task.exp_end_date)}
-                                      </Tag>
-                                    )}
-                                  </div>
-                                </div>
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<EditOutlined />}
-                                  onClick={() => handleEditTask(task)}
-                                  style={{ color: '#1890ff' }}
-                                />
+                          return {
+                            title: (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ fontSize: '14px', fontWeight: '600', color: getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue) }}>
+                                  {group.type}
+                                </span>
+                                <Tag color={getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue)} style={{ marginLeft: '8px' }}>
+                                  {statusInfo.completed}/{statusInfo.total} completed
+                                </Tag>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ),
-                    status: statusInfo.status,
-                    icon: icon
-                  }
-                })}
-              />
+                            ),
+                            description: (
+                              <div style={{ marginTop: '12px', marginLeft: '0px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  {group.tasks.map((task, idx) => (
+                                    <div
+                                      key={task.name || idx}
+                                      style={{
+                                        padding: '8px 12px',
+                                        backgroundColor: '#fafafa',
+                                        borderRadius: '4px',
+                                        borderLeft: `3px solid ${task.status && (task.status.toLowerCase() === 'completed' || task.status.toLowerCase() === 'closed') ? '#52c41a' : '#d9d9d9'}`,
+                                        fontSize: '12px'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Text strong style={{ fontSize: '13px' }}>
+                                              {task.subject || task.name}
+                                            </Text>
+                                            {task.custom_priority !== undefined && task.custom_priority !== null && (
+                                              <Tag color="blue" style={{ fontSize: '10px', fontWeight: '600' }}>
+                                                P{task.custom_priority}
+                                              </Tag>
+                                            )}
+                                          </div>
+                                          {task.description && (
+                                            <div style={{ marginTop: '4px', color: '#666', fontSize: '11px' }}>
+                                              {task.description.substring(0, 80)}...
+                                            </div>
+                                          )}
+                                          <div style={{ marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            <Tag color={task.priority === 'High' ? 'red' : task.priority === 'Medium' ? 'orange' : 'green'} style={{ fontSize: '10px' }}>
+                                              {task.priority || 'Normal'}
+                                            </Tag>
+                                            <Tag style={{ fontSize: '10px' }}>
+                                              {task.status || 'Open'}
+                                            </Tag>
+                                            {task.exp_end_date && (
+                                              <Tag style={{ fontSize: '10px' }}>
+                                                Due: {formatDate(task.exp_end_date)}
+                                              </Tag>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <Button
+                                          type="text"
+                                          size="small"
+                                          icon={<EditOutlined />}
+                                          onClick={() => handleEditTask(task)}
+                                          style={{ color: getHeaderIconColor(token) }}
+                                        />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ),
+                            status: statusInfo.status,
+                            icon: icon
+                          }
+                        })}
+                      />
                     ) : (
                       <Empty description="No tasks found" />
                     )}
@@ -1181,62 +1203,62 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 ),
                 children: (
                   <div>
-            {milestones && milestones.length > 0 ? (
-              <Steps
-                direction="vertical"
-                current={-1}
-                items={milestones.map((milestone, index) => ({
-                  title: (
-                    <div style={{ marginBottom: '8px' }}>
-                      <Text strong style={{ fontSize: '14px' }}>
-                        {milestone.subject}
-                      </Text>
-                    </div>
-                  ),
-                  status: getMilestoneStepStatus(milestone),
-                  icon: getMilestoneIcon(milestone),
-                  description: (
-                    <div style={{ paddingTop: '4px', paddingBottom: '12px' }}>
-                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                        <div>
-                          <Tag color={getStatusColor(milestone.status)}>
-                            {milestone.status || 'Open'}
-                          </Tag>
-                          <Text type="secondary" style={{ marginLeft: '8px', fontSize: '12px', color: milestone.exp_end_date ? 'inherit' : '#999' }}>
-                            Expected: {formatDateWithRelativeTime(milestone.exp_end_date)}
-                          </Text>
-                        </div>
-                        {milestone.completed_on && (
-                          <div>
-                            <Text type="secondary" style={{ fontSize: '12px', color: milestone.completed_on ? 'inherit' : '#999' }}>
-                              Completed: {formatDateWithRelativeTime(milestone.completed_on)}
-                            </Text>
-                          </div>
-                        )}
-                        {milestone.progress > 0 && (
-                          <div>
-                            <Progress
-                              percent={milestone.progress || 0}
-                              size="small"
-                              style={{ width: '200px' }}
-                            />
-                          </div>
-                        )}
-                      </Space>
-                    </div>
-                  )
-                }))}
-              />
-                  ) : (
-                    <Empty
-                      description="No milestones defined for this project"
-                      style={{ marginTop: '24px', marginBottom: '24px' }}
-                    >
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        Mark tasks as milestones to track key project deliverables
-                      </Text>
-                    </Empty>
-                  )}
+                    {milestones && milestones.length > 0 ? (
+                      <Steps
+                        direction="vertical"
+                        current={-1}
+                        items={milestones.map((milestone, index) => ({
+                          title: (
+                            <div style={{ marginBottom: '8px' }}>
+                              <Text strong style={{ fontSize: '14px' }}>
+                                {milestone.subject}
+                              </Text>
+                            </div>
+                          ),
+                          status: getMilestoneStepStatus(milestone),
+                          icon: getMilestoneIcon(milestone),
+                          description: (
+                            <div style={{ paddingTop: '4px', paddingBottom: '12px' }}>
+                              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                                <div>
+                                  <Tag color={getStatusColor(milestone.status)}>
+                                    {milestone.status || 'Open'}
+                                  </Tag>
+                                  <Text type="secondary" style={{ marginLeft: '8px', fontSize: '12px', color: milestone.exp_end_date ? 'inherit' : '#999' }}>
+                                    Expected: {formatDateWithRelativeTime(milestone.exp_end_date)}
+                                  </Text>
+                                </div>
+                                {milestone.completed_on && (
+                                  <div>
+                                    <Text type="secondary" style={{ fontSize: '12px', color: milestone.completed_on ? 'inherit' : '#999' }}>
+                                      Completed: {formatDateWithRelativeTime(milestone.completed_on)}
+                                    </Text>
+                                  </div>
+                                )}
+                                {milestone.progress > 0 && (
+                                  <div>
+                                    <Progress
+                                      percent={milestone.progress || 0}
+                                      size="small"
+                                      style={{ width: '200px' }}
+                                    />
+                                  </div>
+                                )}
+                              </Space>
+                            </div>
+                          )
+                        }))}
+                      />
+                    ) : (
+                      <Empty
+                        description="No milestones defined for this project"
+                        style={{ marginTop: '24px', marginBottom: '24px' }}
+                      >
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          Mark tasks as milestones to track key project deliverables
+                        </Text>
+                      </Empty>
+                    )}
                   </div>
                 )
               }
@@ -1304,7 +1326,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 {recentActivity.map((activity) => (
                   <Timeline.Item
                     key={activity.name}
-                    dot={<FileTextOutlined style={{ color: '#1890ff' }} />}
+                    dot={<FileTextOutlined style={{ color: getHeaderIconColor(token) }} />}
                   >
                     <div>
                       <Text strong style={{ fontSize: '13px' }}>
@@ -1331,7 +1353,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           <Card
             title={
               <Space>
-                <PaperClipOutlined style={{ color: '#1890ff' }} />
+                <PaperClipOutlined style={{ color: getHeaderIconColor(token) }} />
                 <span>Attachments ({attachments.length})</span>
               </Space>
             }
@@ -1665,6 +1687,14 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             name="progress"
           >
             <Input type="number" min={0} max={100} placeholder="0-100" />
+          </Form.Item>
+
+          <Form.Item
+            label="Is Milestone"
+            name="is_milestone"
+            valuePropName="checked"
+          >
+            <Checkbox>Mark this task as a milestone</Checkbox>
           </Form.Item>
 
           <Form.Item

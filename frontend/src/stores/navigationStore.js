@@ -32,6 +32,16 @@ const useNavigationStore = create(
       selectedChangeRequestId: null,
       showChangeRequestForm: false,
 
+      // Software Product form/detail state
+      selectedSoftwareProductId: null,
+      showSoftwareProductForm: false,
+
+      // Password Vault form/detail state
+      selectedPasswordVaultEntryId: null,
+      showPasswordVaultForm: false,
+
+      // RACI Template state
+      selectedRACITemplateId: null,
 
       // Mobile state
       isMobile: false,
@@ -54,9 +64,19 @@ const useNavigationStore = create(
       /**
        * Navigate to a specific route
        */
-      navigateToRoute: (route, projectId = null, appId = null) => {
+      navigateToRoute: (route, projectId = null, appId = null, softwareProductId = null, passwordVaultEntryId = null) => {
         const state = get()
-        console.log('[Navigation] navigateToRoute called with:', { route, projectId, appId })
+        console.log('[Navigation] navigateToRoute called with:', { route, projectId, appId, softwareProductId, passwordVaultEntryId })
+
+        // Set software product ID if provided
+        if (softwareProductId) {
+          set({ selectedSoftwareProductId: softwareProductId })
+        }
+
+        // Set password vault entry ID if provided
+        if (passwordVaultEntryId) {
+          set({ selectedPasswordVaultEntryId: passwordVaultEntryId })
+        }
 
         switch (route) {
           case 'dashboard':
@@ -102,6 +122,55 @@ const useNavigationStore = create(
               showSwaggerDetail: false
             })
             window.location.hash = 'team-utilization'
+            break
+
+          case 'software-product':
+            set({
+              currentRoute: 'software-product',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false,
+              showSoftwareProductForm: false
+            })
+            window.location.hash = 'software-product'
+            break
+
+          case 'software-product-new':
+            set({
+              currentRoute: 'software-product-new',
+              selectedSoftwareProductId: null,
+              showSoftwareProductForm: true,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'software-product/new'
+            break
+
+          case 'software-product-edit':
+            set({
+              currentRoute: 'software-product-edit',
+              showSoftwareProductForm: true,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = `software-product/edit/${get().selectedSoftwareProductId}`
             break
 
           case 'project-apps':
@@ -212,9 +281,92 @@ const useNavigationStore = create(
               selectedIncidentId: null,
               showIncidentDetail: false,
               selectedSwaggerId: null,
-              showSwaggerDetail: false
+              showSwaggerDetail: false,
+              selectedPasswordVaultEntryId: null,
+              showPasswordVaultForm: false
             })
             window.location.hash = 'password-vault'
+            break
+
+          case 'password-vault-new':
+            set({
+              currentRoute: 'password-vault-new',
+              selectedPasswordVaultEntryId: null,
+              showPasswordVaultForm: true,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'password-vault/new'
+            break
+
+          case 'password-vault-edit':
+            set({
+              currentRoute: 'password-vault-edit',
+              showPasswordVaultForm: true,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = `password-vault/edit/${get().selectedPasswordVaultEntryId}`
+            break
+
+          case 'raci-template':
+            set({
+              currentRoute: 'raci-template',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'raci-template'
+            break
+
+          case 'raci-template-create':
+            set({
+              currentRoute: 'raci-template-create',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'raci-template/create'
+            break
+
+          case 'raci-template-edit':
+            if (appId) { // reuse appId parameter to carry template id
+              set({
+                currentRoute: 'raci-template-edit',
+                selectedRACITemplateId: appId,
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
+              })
+              window.location.hash = `raci-template/edit/${appId}`
+            }
             break
 
           case 'swagger-collections':
@@ -396,7 +548,7 @@ const useNavigationStore = create(
             break
 
           default:
-            // Unknown route
+          // Unknown route
         }
 
         // Close mobile menu after navigation
@@ -552,6 +704,66 @@ const useNavigationStore = create(
           get().navigateToRoute('monitoring-dashboards')
         } else if (hash === 'password-vault') {
           get().navigateToRoute('password-vault')
+        } else if (hash === 'password-vault/new') {
+          set({
+            currentRoute: 'password-vault-new',
+            selectedPasswordVaultEntryId: null,
+            showPasswordVaultForm: true,
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+        } else if (hash.startsWith('password-vault/edit/')) {
+          const entryId = hash.split('/')[2]
+          set({
+            currentRoute: 'password-vault-edit',
+            selectedPasswordVaultEntryId: entryId,
+            showPasswordVaultForm: true,
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+        } else if (hash === 'software-product') {
+          get().navigateToRoute('software-product')
+        } else if (hash === 'software-product/new') {
+          set({
+            currentRoute: 'software-product-new',
+            selectedSoftwareProductId: null,
+            showSoftwareProductForm: true,
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+        } else if (hash.startsWith('software-product/edit/')) {
+          const productId = hash.split('/')[2]
+          set({
+            currentRoute: 'software-product-edit',
+            selectedSoftwareProductId: productId,
+            showSoftwareProductForm: true,
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
         } else if (hash === 'swagger-collections') {
           get().navigateToRoute('swagger-collections')
         } else if (hash === 'devops-config') {
@@ -561,7 +773,7 @@ const useNavigationStore = create(
         } else if (hash === 'ask-ai') {
           get().navigateToRoute('ask-ai')
 
-        // General patterns after specific ones
+          // General patterns after specific ones
         } else if (hash.startsWith('project/')) {
           const parts = hash.split('/')
           const projectId = parts[1]
@@ -664,6 +876,34 @@ const useNavigationStore = create(
             showIncidentDetail: false,
             selectedSwaggerId: swaggerId,
             showSwaggerDetail: true
+          })
+        } else if (hash === 'raci-template') {
+          get().navigateToRoute('raci-template')
+        } else if (hash === 'raci-template/create') {
+          set({
+            currentRoute: 'raci-template-create',
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+        } else if (hash.startsWith('raci-template/edit/')) {
+          const templateId = hash.split('/')[2]
+          set({
+            currentRoute: 'raci-template-edit',
+            selectedRACITemplateId: templateId,
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
           })
         } else {
           // Default to dashboard
@@ -786,6 +1026,26 @@ const useNavigationStore = create(
               items.push(
                 { title: 'Projects', onClick: () => get().navigateToRoute('projects') },
                 { title: 'Team Utilization' }
+              )
+              break
+            case 'software-product':
+              items.push(
+                { title: 'Products', onClick: () => get().navigateToRoute('software-product') },
+                { title: 'Software Product' }
+              )
+              break
+            case 'software-product-new':
+              items.push(
+                { title: 'Products', onClick: () => get().navigateToRoute('software-product') },
+                { title: 'Software Product' },
+                { title: 'New' }
+              )
+              break
+            case 'software-product-edit':
+              items.push(
+                { title: 'Products', onClick: () => get().navigateToRoute('software-product') },
+                { title: 'Software Product' },
+                { title: 'Edit' }
               )
               break
             case 'project-apps':

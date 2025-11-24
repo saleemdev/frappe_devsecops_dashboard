@@ -6,7 +6,6 @@ import {
   SafetyOutlined,
   LogoutOutlined,
   DesktopOutlined,
-  SettingOutlined,
   BellOutlined,
   DashboardOutlined,
   AppstoreOutlined,
@@ -15,7 +14,8 @@ import {
   ProjectOutlined,
   MenuOutlined,
   RobotOutlined,
-  LockOutlined
+  LockOutlined,
+  RiseOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
@@ -32,12 +32,17 @@ import ProjectCreateForm from './components/ProjectCreateForm'
 import DevOpsConfig from './components/DevOpsConfig'
 import MonitoringDashboards from './components/MonitoringDashboards'
 import PasswordVault from './components/PasswordVault'
+import PasswordVaultForm from './components/PasswordVaultForm'
 import Incidents from './components/Incidents'
 import IncidentDetail from './components/IncidentDetail'
 import IncidentCreateForm from './components/IncidentCreateForm'
 import IncidentEditForm from './components/IncidentEditForm'
 import IncidentsDashboard from './components/IncidentsDashboard'
 import TeamUtilization from './components/TeamUtilization'
+import SoftwareProduct from './components/SoftwareProduct'
+import SoftwareProductForm from './components/SoftwareProductForm'
+import RACITemplate from './components/RACITemplate'
+import RACITemplateForm from './components/RACITemplateForm'
 import SwaggerCollections from './components/SwaggerCollections'
 import SwaggerCollectionDetail from './components/SwaggerCollectionDetail'
 import SystemTest from './components/SystemTest'
@@ -80,13 +85,18 @@ function App() {
     showSwaggerDetail = false,
     selectedChangeRequestId = null,
     showChangeRequestForm = false,
+    selectedSoftwareProductId = null,
+    showSoftwareProductForm = false,
+    selectedPasswordVaultEntryId = null,
+    showPasswordVaultForm = false,
+    selectedRACITemplateId = null,
     isMobile = false,
     mobileMenuVisible = false,
-    navigateToRoute = () => {},
-    handleHashChange = () => {},
+    navigateToRoute = () => { },
+    handleHashChange = () => { },
     getBreadcrumbs = () => [],
-    setIsMobile = () => {},
-    toggleMobileMenu = () => {}
+    setIsMobile = () => { },
+    toggleMobileMenu = () => { }
   } = navigationState || {}
 
 
@@ -112,7 +122,7 @@ function App() {
       window.addEventListener('hashchange', onHashChange)
       return () => window.removeEventListener('hashchange', onHashChange)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Check authentication status
@@ -295,6 +305,9 @@ function App() {
         selectedSwaggerId={selectedSwaggerId}
         selectedChangeRequestId={selectedChangeRequestId}
         showChangeRequestForm={showChangeRequestForm}
+        selectedSoftwareProductId={selectedSoftwareProductId}
+        showSoftwareProductForm={showSoftwareProductForm}
+        selectedRACITemplateId={selectedRACITemplateId}
         isMobile={isMobile}
         mobileMenuVisible={mobileMenuVisible}
         setIsMobile={setIsMobile}
@@ -327,6 +340,9 @@ function AppContent({
   toggleMobileMenu,
   selectedChangeRequestId,
   showChangeRequestForm,
+  selectedSoftwareProductId,
+  showSoftwareProductForm,
+  selectedRACITemplateId,
   getUserInitials
 }) {
   const { token } = theme.useToken()
@@ -362,6 +378,23 @@ function AppContent({
         )
       case 'team-utilization':
         return <TeamUtilization />
+      case 'software-product':
+        return <SoftwareProduct navigateToRoute={navigateToRoute} />
+      case 'software-product-new':
+        return (
+          <SoftwareProductForm
+            mode="create"
+            navigateToRoute={navigateToRoute}
+          />
+        )
+      case 'software-product-edit':
+        return (
+          <SoftwareProductForm
+            mode="edit"
+            productId={selectedSoftwareProductId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
       case 'project-apps':
         return (
           <ProjectApps
@@ -402,7 +435,39 @@ function AppContent({
       case 'monitoring-dashboards':
         return <MonitoringDashboards />
       case 'password-vault':
-        return <PasswordVault />
+        return <PasswordVault navigateToRoute={navigateToRoute} />
+      case 'password-vault-new':
+        return (
+          <PasswordVaultForm
+            mode="create"
+            navigateToRoute={navigateToRoute}
+          />
+        )
+      case 'password-vault-edit':
+        return (
+          <PasswordVaultForm
+            mode="edit"
+            entryId={selectedPasswordVaultEntryId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
+      case 'raci-template':
+        return <RACITemplate navigateToRoute={navigateToRoute} />
+      case 'raci-template-create':
+        return (
+          <RACITemplateForm
+            mode="create"
+            navigateToRoute={navigateToRoute}
+          />
+        )
+      case 'raci-template-edit':
+        return (
+          <RACITemplateForm
+            mode="edit"
+            templateId={selectedRACITemplateId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
       case 'swagger-collections':
         return <SwaggerCollections />
       case 'devops-config':
@@ -456,12 +521,28 @@ function AppContent({
     return () => window.removeEventListener('resize', checkScreenSize)
   }, [setIsMobile])
 
-  // Navigation menu items for horizontal navigation
-  const navigationItems = [
+  // Main navigation items (displayed prominently in header)
+  const mainMenuItems = [
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
       label: 'Dashboard'
+    },
+    {
+      key: 'products-menu',
+      icon: <ProjectOutlined />,
+      label: 'Products',
+      children: [
+        {
+          key: 'software-product',
+          label: 'Software Product'
+        },
+        {
+          key: 'raci-template',
+          label: 'RACI Setup',
+          icon: <RiseOutlined />
+        }
+      ]
     },
     {
       key: 'projects-menu',
@@ -474,7 +555,8 @@ function AppContent({
         },
         {
           key: 'team-utilization',
-          label: 'Team Utilization'
+          label: 'Team Utilization',
+          disabled: true
         }
       ]
     },
@@ -511,11 +593,18 @@ function AppContent({
           disabled: true
         }
       ]
-    },
+    }
+  ]
+
+  // More menu items (hidden under "...")
+  const moreMenuItems = [
     {
       key: 'ask-ai',
       icon: <RobotOutlined />,
       label: 'Ask AI'
+    },
+    {
+      type: 'divider'
     },
     {
       key: 'settings-menu',
@@ -529,6 +618,9 @@ function AppContent({
       ]
     }
   ]
+
+  // All navigation items (for mobile menu)
+  const navigationItems = [...mainMenuItems, ...moreMenuItems]
 
   // Generate breadcrumb items based on current route
   const getBreadcrumbItems = () => {
@@ -618,26 +710,6 @@ function AppContent({
     return items
   }
 
-  // Settings dropdown menu items
-  const settingsMenuItems = [
-    {
-      key: 'dashboard-preferences',
-      icon: <DashboardOutlined />,
-      label: 'Dashboard Preferences',
-      onClick: () => {
-        // Placeholder for future implementation
-      }
-    },
-    {
-      key: 'notification-settings',
-      icon: <BellOutlined />,
-      label: 'Notification Settings',
-      onClick: () => {
-        // Placeholder for future implementation
-      }
-    }
-  ]
-
   // User dropdown menu items
   const userMenuItems = [
     {
@@ -665,7 +737,7 @@ function AppContent({
       <Header
         style={{
           backgroundColor: token.colorBgContainer,
-          borderBottom: `1px solid ${token.colorBorder}`,
+          borderBottom: 'none',
           padding: '0 24px',
           boxShadow: isDarkMode
             ? '0 2px 8px rgba(0, 0, 0, 0.15)'
@@ -724,41 +796,155 @@ function AppContent({
               </Title>
             </div>
 
-            {/* Desktop Horizontal Navigation Menu */}
+            {/* Desktop Horizontal Navigation Menu - Main Items */}
             {!isMobile && (
-              <Menu
-                mode="horizontal"
-                selectedKeys={[currentRoute]}
-                style={{
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  minWidth: '320px'
-                }}
-                onClick={({ key }) => navigateToRoute(key)}
-                items={navigationItems}
-              />
+              <div style={{ display: 'flex', gap: '0px', alignItems: 'center' }}>
+                {/* Dashboard */}
+                <Button
+                  type="text"
+                  className="nav-button-no-hover"
+                  onClick={() => navigateToRoute('dashboard')}
+                  style={{
+                    color: currentRoute === 'dashboard' ? token.colorPrimary : token.colorText,
+                    height: '64px',
+                    borderRadius: '0px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    paddingLeft: '16px',
+                    paddingRight: '16px',
+                    fontWeight: currentRoute === 'dashboard' ? '600' : '400',
+                    borderBottom: currentRoute === 'dashboard' ? `2px solid ${token.colorPrimary}` : '2px solid transparent'
+                  }}
+                >
+                  <DashboardOutlined />
+                  Dashboard
+                </Button>
+
+                {/* Products */}
+                <Dropdown
+                  menu={{
+                    items: mainMenuItems.find(m => m.key === 'products-menu')?.children || [],
+                    onClick: ({ key }) => navigateToRoute(key)
+                  }}
+                  placement="bottomLeft"
+                >
+                  <Button
+                    type="text"
+                    className="nav-button-no-hover"
+                    onClick={() => navigateToRoute('software-product')}
+                    style={{
+                      color: (currentRoute === 'products-menu' || currentRoute === 'software-product') ? token.colorPrimary : token.colorText,
+                      height: '64px',
+                      borderRadius: '0px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      fontWeight: (currentRoute === 'products-menu' || currentRoute === 'software-product') ? '600' : '400',
+                      borderBottom: (currentRoute === 'products-menu' || currentRoute === 'software-product') ? `2px solid ${token.colorPrimary}` : '2px solid transparent'
+                    }}
+                  >
+                    <ProjectOutlined />
+                    Products
+                  </Button>
+                </Dropdown>
+
+                {/* Projects */}
+                <Dropdown
+                  menu={{
+                    items: mainMenuItems.find(m => m.key === 'projects-menu')?.children || [],
+                    onClick: ({ key }) => navigateToRoute(key)
+                  }}
+                  placement="bottomLeft"
+                >
+                  <Button
+                    type="text"
+                    className="nav-button-no-hover"
+                    onClick={() => navigateToRoute('projects')}
+                    style={{
+                      color: (currentRoute === 'projects-menu' || currentRoute === 'projects') ? token.colorPrimary : token.colorText,
+                      height: '64px',
+                      borderRadius: '0px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      fontWeight: (currentRoute === 'projects-menu' || currentRoute === 'projects') ? '600' : '400',
+                      borderBottom: (currentRoute === 'projects-menu' || currentRoute === 'projects') ? `2px solid ${token.colorPrimary}` : '2px solid transparent'
+                    }}
+                  >
+                    <ProjectOutlined />
+                    Projects
+                  </Button>
+                </Dropdown>
+
+                {/* Ops */}
+                <Dropdown
+                  menu={{
+                    items: mainMenuItems.find(m => m.key === 'ops-menu')?.children || [],
+                    onClick: ({ key }) => navigateToRoute(key)
+                  }}
+                  placement="bottomLeft"
+                >
+                  <Button
+                    type="text"
+                    className="nav-button-no-hover"
+                    onClick={() => navigateToRoute('change-requests')}
+                    style={{
+                      color: (currentRoute === 'ops-menu' || (currentRoute !== 'dashboard' && currentRoute !== 'software-product' && currentRoute !== 'projects')) ? token.colorPrimary : token.colorText,
+                      height: '64px',
+                      borderRadius: '0px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      fontWeight: (currentRoute === 'ops-menu' || (currentRoute !== 'dashboard' && currentRoute !== 'software-product' && currentRoute !== 'projects')) ? '600' : '400',
+                      borderBottom: (currentRoute === 'ops-menu' || (currentRoute !== 'dashboard' && currentRoute !== 'software-product' && currentRoute !== 'projects')) ? `2px solid ${token.colorPrimary}` : '2px solid transparent'
+                    }}
+                  >
+                    <AppstoreOutlined />
+                    Ops
+                  </Button>
+                </Dropdown>
+
+                {/* More Menu Dropdown */}
+                <Dropdown
+                  menu={{
+                    items: moreMenuItems,
+                    onClick: ({ key }) => {
+                      if (key !== 'divider') navigateToRoute(key)
+                    }
+                  }}
+                  placement="bottomRight"
+                  trigger={['click']}
+                >
+                  <Button
+                    type="text"
+                    style={{
+                      color: token.colorText,
+                      height: '64px',
+                      borderRadius: '0px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      paddingLeft: '12px',
+                      paddingRight: '12px',
+                      fontSize: '18px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    ⋮
+                  </Button>
+                </Dropdown>
+              </div>
             )}
           </div>
 
-          {/* Right side - Settings, User account and theme toggle */}
+          {/* Right side - User account and theme toggle */}
           <Space size="large">
-            {/* Settings Dropdown */}
-            <Dropdown
-              menu={{ items: settingsMenuItems }}
-              placement="bottomRight"
-              trigger={['click']}
-            >
-              <Button
-                type="text"
-                icon={<SettingOutlined />}
-                style={{
-                  color: token.colorText,
-                  height: '40px',
-                  width: '40px',
-                  borderRadius: '8px'
-                }}
-              />
-            </Dropdown>
 
             {/* User Dropdown */}
             <Dropdown

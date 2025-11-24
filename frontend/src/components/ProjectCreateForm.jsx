@@ -17,7 +17,8 @@ import {
   Modal,
   Typography,
   Alert,
-  Tag
+  Tag,
+  AutoComplete
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -31,29 +32,9 @@ import dayjs from 'dayjs'
 import Swal from 'sweetalert2'
 import useAuthStore from '../stores/authStore'
 import projectsService from '../services/api/projects'
-import { searchUsers } from '../utils/projectAttachmentsApi'
+import { searchUsers, searchDesignations } from '../utils/projectAttachmentsApi'
 
 const { Title, Text } = Typography
-
-const BUSINESS_FUNCTION_OPTIONS = [
-  'Internal Stakeholder',
-  'Client Stakeholder',
-  'Client Focal Person',
-  'Project Manager',
-  'Engineering Lead',
-  'Security Analyst',
-  'Platform Engineer',
-  'DevOps Engineer',
-  'Software Reliability Engineer',
-  'Software Developer',
-  'Product Designer',
-  'Business Analyst',
-  'Solution Architect',
-  'Product Manager',
-  'Service Delivery Contact',
-  'Quality Assurance',
-  'Subject Matter Expert'
-]
 
 /**
  * ProjectCreateForm Component
@@ -76,7 +57,10 @@ function ProjectCreateForm({ navigateToRoute }) {
   const [memberBeingEdited, setMemberBeingEdited] = useState(null)
   const [editBusinessFunction, setEditBusinessFunction] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
+  const [designations, setDesignations] = useState([])
+  const [designationSearchLoading, setDesignationSearchLoading] = useState(false)
   const userSearchTimeoutRef = useRef(null)
+  const designationSearchTimeoutRef = useRef(null)
 
   const { hasPermission, isAuthenticated } = useAuthStore()
   const canWrite = isAuthenticated === true ? hasPermission('write:projects') : false
@@ -91,7 +75,7 @@ function ProjectCreateForm({ navigateToRoute }) {
     }
   }, [isAuthenticated, canWrite, navigateToRoute])
 
-  // Load project types, templates, and departments
+  // Load project types, templates, departments, and designations
   useEffect(() => {
     const loadOptions = async () => {
       try {
@@ -121,7 +105,39 @@ function ProjectCreateForm({ navigateToRoute }) {
     }
 
     loadOptions()
+    loadDesignations()
   }, [])
+
+  const loadDesignations = async (query = '') => {
+    try {
+      console.log('[ProjectCreateForm] Loading designations with query:', query)
+      setDesignationSearchLoading(true)
+      const response = await searchDesignations(query)
+      console.log('[ProjectCreateForm] Designations response:', response)
+      if (response.success) {
+        setDesignations(response.designations || [])
+        console.log('[ProjectCreateForm] Loaded designations count:', response.designations?.length || 0)
+      } else {
+        console.warn('[ProjectCreateForm] Failed to load designations:', response.error)
+        setDesignations([])
+      }
+    } catch (error) {
+      console.error('[ProjectCreateForm] Error loading designations:', error)
+      setDesignations([])
+    } finally {
+      setDesignationSearchLoading(false)
+    }
+  }
+
+  const handleDesignationSearch = (value) => {
+    if (designationSearchTimeoutRef.current) {
+      clearTimeout(designationSearchTimeoutRef.current)
+    }
+
+    designationSearchTimeoutRef.current = setTimeout(() => {
+      loadDesignations(value)
+    }, 400)
+  }
 
   // Debounced user search
   const handleUserSearch = (value) => {
@@ -502,13 +518,19 @@ function ProjectCreateForm({ navigateToRoute }) {
                   ))}
                 </div>
               )}
-              <Select
+              <AutoComplete
                 allowClear
-                placeholder="Business function (optional)"
+                placeholder="Designation (optional)"
                 value={businessFunctionToAdd}
                 onChange={setBusinessFunctionToAdd}
+                onSearch={handleDesignationSearch}
+                options={designations.map(d => ({
+                  label: d.designation_name || d.name,
+                  value: d.name
+                }))}
                 style={{ width: '100%', marginBottom: '8px' }}
-                options={BUSINESS_FUNCTION_OPTIONS.map(opt => ({ label: opt, value: opt }))}
+                filterOption={false}
+                notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
               />
               <Button
                 type="primary"
@@ -600,14 +622,20 @@ function ProjectCreateForm({ navigateToRoute }) {
         ]}
       >
         <div style={{ marginBottom: '16px' }}>
-          <Text type="secondary" style={{ fontSize: '12px' }}>BUSINESS FUNCTION</Text>
-          <Select
+          <Text type="secondary" style={{ fontSize: '12px' }}>DESIGNATION</Text>
+          <AutoComplete
             allowClear
-            placeholder="Select business function"
+            placeholder="Search designation"
             value={editBusinessFunction}
             onChange={setEditBusinessFunction}
+            onSearch={handleDesignationSearch}
+            options={designations.map(d => ({
+              label: d.designation_name || d.name,
+              value: d.name
+            }))}
             style={{ width: '100%', marginTop: '8px' }}
-            options={BUSINESS_FUNCTION_OPTIONS.map(opt => ({ label: opt, value: opt }))}
+            filterOption={false}
+            notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
           />
         </div>
       </Modal>

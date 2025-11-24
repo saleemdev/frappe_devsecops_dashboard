@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Row, Col, Card, Spin, Empty, Button, Space, Typography, theme, Input, Select } from 'antd'
-import { PlusOutlined, SearchOutlined, FilterOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, FilterOutlined, ProjectOutlined, ReloadOutlined } from '@ant-design/icons'
 import ProjectCard from './ProjectCard'
 import SprintReportDialog from './SprintReportDialog'
 import api from '../services/api'
 import { useResponsive } from '../hooks/useResponsive'
+import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
 
@@ -48,7 +49,7 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
       setError(null)
 
       const response = await api.projects.getProjects?.()
-      
+
       if (response?.success && response?.data) {
         setProjects(response.data)
       } else {
@@ -66,13 +67,13 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
 
   // Filter projects based on search and status
   const filteredProjects = projects.filter(project => {
-    const matchesSearch = !searchText || 
+    const matchesSearch = !searchText ||
       (project.name && project.name.toLowerCase().includes(searchText.toLowerCase())) ||
       (project.project_name && project.project_name.toLowerCase().includes(searchText.toLowerCase()))
-    
-    const matchesStatus = filterStatus === 'all' || 
+
+    const matchesStatus = filterStatus === 'all' ||
       (project.project_status && project.project_status.toLowerCase() === filterStatus.toLowerCase())
-    
+
     return matchesSearch && matchesStatus
   })
 
@@ -114,16 +115,47 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
   }
 
   return (
-    <div style={{ padding: isMobile ? '16px' : '24px', backgroundColor: token.colorBgLayout, minHeight: '100vh' }}>
+    <div>
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <Title level={2} style={{ marginBottom: '8px', color: token.colorText }}>
-          Projects
-        </Title>
-        <Text type="secondary">
-          Manage and view all your projects
-        </Text>
-      </div>
+      <Card style={{
+        marginBottom: 16,
+        ...getHeaderBannerStyle(token)
+      }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Space direction="vertical" size="small">
+              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                <ProjectOutlined style={{
+                  marginRight: 16,
+                  color: getHeaderIconColor(token),
+                  fontSize: '32px'
+                }} />
+                Projects
+              </Title>
+              <Text type="secondary">Manage and view all your projects</Text>
+            </Space>
+          </Col>
+          <Col>
+            <Space>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={fetchProjects}
+                loading={loading}
+              >
+                Refresh
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleCreateProject}
+                size="large"
+              >
+                New Project
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
 
       {/* Error State */}
       {error && (
@@ -135,27 +167,28 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
         </Card>
       )}
 
-      {/* Toolbar */}
-      <Card style={{ marginBottom: '24px' }}>
-        <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }} size="large">
-          <Input
-            placeholder="Search projects..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: isMobile ? '100%' : '300px' }}
-          />
-          <Select
-            value={filterStatus}
-            onChange={setFilterStatus}
-            options={statusOptions}
-            style={{ width: isMobile ? '100%' : '200px' }}
-            prefix={<FilterOutlined />}
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateProject}>
-            New Project
-          </Button>
-        </Space>
+      {/* Filters */}
+      <Card style={{ marginBottom: '16px' }}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={8}>
+            <Input
+              placeholder="Search projects..."
+              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+            />
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Select
+              value={filterStatus}
+              onChange={setFilterStatus}
+              options={statusOptions}
+              style={{ width: '100%' }}
+              placeholder="Filter by status"
+            />
+          </Col>
+        </Row>
       </Card>
 
       {/* Projects Grid */}

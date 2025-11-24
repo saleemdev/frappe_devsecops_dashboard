@@ -40,3 +40,11 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Disable hover effects on navigation buttons */
+.nav-button-no-hover.ant-btn-text:hover,
+.nav-button-no-hover.ant-btn-text:focus {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+

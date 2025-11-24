@@ -1,0 +1,190 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "field:product_name",
+  "creation": "2024-11-23 00:00:00",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "basic_information_section",
+    "product_name",
+    "description",
+    "project_manager",
+    "column_break_status",
+    "owner",
+    "status",
+    "release_status",
+    "version",
+    "dates_section",
+    "start_date",
+    "completion_date",
+    "urls_section",
+    "production_url",
+    "uat_url",
+    "team_section",
+    "team_members"
+  ],
+  "fields": [
+    {
+      "fieldname": "basic_information_section",
+      "fieldtype": "Section Break",
+      "label": "Basic Information"
+    },
+    {
+      "fieldname": "product_name",
+      "fieldtype": "Data",
+      "in_global_search": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "Product Name",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "description",
+      "fieldtype": "Text Editor",
+      "label": "Description",
+      "reqd": 1
+    },
+    {
+      "fieldname": "project_manager",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "Project Manager",
+      "options": "User"
+    },
+    {
+      "fieldname": "column_break_status",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "owner",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "Owner",
+      "options": "User",
+      "reqd": 1
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "Status",
+      "options": "Draft\nActive\nInactive\nArchived",
+      "reqd": 1,
+      "default": "Draft"
+    },
+    {
+      "fieldname": "release_status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "Release Status",
+      "options": "Planning\nBeta\nReleased\nDeprecated",
+      "reqd": 1,
+      "default": "Planning"
+    },
+    {
+      "fieldname": "version",
+      "fieldtype": "Data",
+      "label": "Version",
+      "reqd": 1
+    },
+    {
+      "fieldname": "dates_section",
+      "fieldtype": "Section Break",
+      "label": "Dates"
+    },
+    {
+      "fieldname": "start_date",
+      "fieldtype": "Date",
+      "label": "Start Date"
+    },
+    {
+      "fieldname": "completion_date",
+      "fieldtype": "Date",
+      "label": "Expected Completion"
+    },
+    {
+      "fieldname": "urls_section",
+      "fieldtype": "Section Break",
+      "label": "Environment URLs"
+    },
+    {
+      "fieldname": "production_url",
+      "fieldtype": "Data",
+      "label": "Production URL",
+      "options": "URL"
+    },
+    {
+      "fieldname": "uat_url",
+      "fieldtype": "Data",
+      "label": "UAT URL",
+      "options": "URL"
+    },
+    {
+      "fieldname": "team_section",
+      "fieldtype": "Section Break",
+      "label": "RACI Matrix - Team Assignment"
+    },
+    {
+      "fieldname": "team_members",
+      "fieldtype": "Table",
+      "label": "Team Members",
+      "options": "Software Product Team Member"
+    }
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2024-11-23 00:00:00",
+  "modified_by": "Administrator",
+  "module": "Frappe Devsecops Dashboard",
+  "name": "Software Product",
+  "naming_rule": "Expression",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Administrator",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "All"
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "title_field": "product_name",
+  "track_changes": 1,
+  "track_seen": 1
+}

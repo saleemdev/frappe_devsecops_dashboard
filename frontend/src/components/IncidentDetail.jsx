@@ -19,7 +19,10 @@ import {
   Select,
   DatePicker,
   Popconfirm,
-  Tooltip
+  Tooltip,
+  Divider
+,
+  theme
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -28,7 +31,21 @@ import {
   ClockCircleOutlined,
   EditOutlined,
   PlusOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  BugOutlined,
+  FolderOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  FileTextOutlined,
+  TeamOutlined,
+  AlertOutlined,
+  FileDoneOutlined,
+  MessageOutlined,
+  SearchOutlined,
+  RiseOutlined,
+  HistoryOutlined,
+  BellOutlined,
+  EnvironmentOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import useIncidentsStore from '../stores/incidentsStore'
@@ -36,10 +53,12 @@ import useNavigationStore from '../stores/navigationStore'
 import useAuthStore from '../stores/authStore'
 import useIncidentNavigation from '../hooks/useIncidentNavigation'
 import { clearCache } from '../services/api/config'
+import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text, Paragraph } = Typography
 
 const IncidentDetail = ({ incidentId, navigateToRoute }) => {
+  const { token } = theme.useToken()
   const [form] = Form.useForm()
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isAddingTimeline, setIsAddingTimeline] = useState(false)
@@ -139,6 +158,44 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
       case 'Closed': return <CheckCircleOutlined />
       default: return <ExclamationCircleOutlined />
     }
+  }
+
+  // Get icon for incident details field
+  const getDetailFieldIcon = (fieldName) => {
+    const iconMap = {
+      'name': <BugOutlined />,
+      'category': <FolderOutlined />,
+      'priority': <RiseOutlined />,
+      'severity': <AlertOutlined />,
+      'assigned_to': <UserOutlined />,
+      'assigned_to_full_name': <TeamOutlined />,
+      'project': <FolderOutlined />,
+      'project_name': <EnvironmentOutlined />,
+      'reported_by': <UserOutlined />,
+      'reported_date': <CalendarOutlined />,
+      'modified': <HistoryOutlined />,
+      'affected_systems': <EnvironmentOutlined />,
+      'description': <FileTextOutlined />
+    }
+    return iconMap[fieldName] || <FileTextOutlined />
+  }
+
+  // Get icon for timeline event types
+  const getTimelineEventIcon = (eventType) => {
+    const iconMap = {
+      'Manual': <FileTextOutlined />,
+      'Automated': <RiseOutlined />,
+      'Status Change': <CheckCircleOutlined />,
+      'Assignment': <UserOutlined />,
+      'Comment': <MessageOutlined />,
+      'Investigation': <SearchOutlined />,
+      'Resolution': <CheckCircleOutlined />,
+      'Communication': <BellOutlined />,
+      'Escalation': <AlertOutlined />,
+      'SLA Update': <FileDoneOutlined />,
+      'Incident Reported': <ExclamationCircleOutlined />
+    }
+    return iconMap[eventType] || <HistoryOutlined />
   }
 
   // Handle edit navigation
@@ -415,28 +472,55 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
   return (
     <div>
       {/* Header */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{
+        marginBottom: 16,
+        ...getHeaderBannerStyle(token)
+      }}>
         <Row justify="space-between" align="middle">
-          <Col>
-            <Space>
+          <Col xs={24} sm={16}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Button
                 icon={<ArrowLeftOutlined />}
                 onClick={handleBackToIncidents}
+                type="default"
+                size="large"
               >
-                Back to Incidents
+                Back to Incidents List
               </Button>
-              <Title level={3} style={{ margin: 0 }}>
-                <ExclamationCircleOutlined style={{ marginRight: 8 }} />
+              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                <ExclamationCircleOutlined style={{
+                  marginRight: 16,
+                  color: '#ff7a45',
+                  fontSize: '32px'
+                }} />
                 {selectedIncident.title}
               </Title>
-              <Tag color={getSeverityColor(selectedIncident.severity)}>{selectedIncident.severity}</Tag>
-              <Tag color={getStatusColor(selectedIncident.status)} icon={getStatusIcon(selectedIncident.status)}>
-                {selectedIncident.status}
-              </Tag>
+              <Space wrap size="small">
+                <Tag
+                  icon={<AlertOutlined />}
+                  color={getSeverityColor(selectedIncident.severity)}
+                  style={{ fontSize: '14px', padding: '6px 12px' }}
+                >
+                  <strong>Severity:</strong> {selectedIncident.severity}
+                </Tag>
+                <Tag
+                  icon={getStatusIcon(selectedIncident.status)}
+                  color={getStatusColor(selectedIncident.status)}
+                  style={{ fontSize: '14px', padding: '6px 12px' }}
+                >
+                  <strong>Status:</strong> {selectedIncident.status}
+                </Tag>
+              </Space>
             </Space>
           </Col>
-          <Col>
-            <Button icon={<EditOutlined />} type="primary" onClick={handleEditIncident}>
+          <Col xs={24} sm={8} style={{ textAlign: 'right', marginTop: '16px' }}>
+            <Button
+              icon={<EditOutlined />}
+              type="primary"
+              size="large"
+              onClick={handleEditIncident}
+              style={{ minWidth: '150px' }}
+            >
               Edit Incident
             </Button>
           </Col>
@@ -444,39 +528,182 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
       </Card>
 
       {/* Incident Details */}
-      <Card title="Incident Details" style={{ marginBottom: 16 }}>
+      <Card title={
+        <Space>
+          <BugOutlined style={{ color: getHeaderIconColor(token), fontSize: '18px' }} />
+          <span>Incident Details</span>
+        </Space>
+      } style={{ marginBottom: 16 }}>
         <Descriptions bordered column={2}>
-          <Descriptions.Item label="Incident ID">{selectedIncident.name}</Descriptions.Item>
-          <Descriptions.Item label="Category">{selectedIncident.category || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Priority">{selectedIncident.priority || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Severity">
-            <Tag color={getSeverityColor(selectedIncident.severity)}>
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('name')}
+              <span>Incident ID</span>
+            </Space>
+          }>
+            <code style={{ backgroundColor: '#f5f5f5', padding: '2px 6px', borderRadius: '3px' }}>
+              {selectedIncident.name}
+            </code>
+          </Descriptions.Item>
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('category')}
+              <span>Category</span>
+            </Space>
+          }>
+            <Tag icon={<FolderOutlined />}>{selectedIncident.category || '-'}</Tag>
+          </Descriptions.Item>
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('priority')}
+              <span>Priority</span>
+            </Space>
+          }>
+            {selectedIncident.priority ? (
+              <Tag icon={<RiseOutlined />} color="orange">{selectedIncident.priority}</Tag>
+            ) : (
+              <span>-</span>
+            )}
+          </Descriptions.Item>
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('severity')}
+              <span>Severity</span>
+            </Space>
+          }>
+            <Tag icon={<AlertOutlined />} color={getSeverityColor(selectedIncident.severity)}>
               {selectedIncident.severity || '-'}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Assigned To">
-            {selectedIncident.assigned_to || '-'}
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('assigned_to')}
+              <span>Assigned To</span>
+            </Space>
+          }>
+            <Space size={8}>
+              <UserOutlined style={{ color: getHeaderIconColor(token) }} />
+              <Text>{selectedIncident.assigned_to || '-'}</Text>
+            </Space>
           </Descriptions.Item>
-          <Descriptions.Item label="Assigned To Full Name">
-            {selectedIncident.assigned_to_full_name || selectedIncident.assigned_to || '-'}
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('assigned_to_full_name')}
+              <span>Assignee Name</span>
+            </Space>
+          }>
+            <Space size={8}>
+              <TeamOutlined style={{ color: '#722ed1' }} />
+              <Text strong>{selectedIncident.assigned_to_full_name || selectedIncident.assigned_to || '-'}</Text>
+            </Space>
           </Descriptions.Item>
-          <Descriptions.Item label="Project">{selectedIncident.project || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Project Name">{selectedIncident.project_name || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Reported By">{selectedIncident.reported_by || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Reported Date">{selectedIncident.reported_date || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Last Updated">{selectedIncident.modified || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Affected Systems">
-            {selectedIncident.affected_systems || '-'}
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('project')}
+              <span>Project</span>
+            </Space>
+          }>
+            <Tag icon={<FolderOutlined />}>{selectedIncident.project || '-'}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Description" span={2}>
-            <Paragraph>{selectedIncident.description || '-'}</Paragraph>
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('project_name')}
+              <span>Project Name</span>
+            </Space>
+          }>
+            <Space size={8}>
+              <EnvironmentOutlined style={{ color: '#13c2c2' }} />
+              <Text>{selectedIncident.project_name || '-'}</Text>
+            </Space>
+          </Descriptions.Item>
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('reported_by')}
+              <span>Reported By</span>
+            </Space>
+          }>
+            <Space size={8}>
+              <UserOutlined style={{ color: '#eb2f96' }} />
+              <Text>{selectedIncident.reported_by || '-'}</Text>
+            </Space>
+          </Descriptions.Item>
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('reported_date')}
+              <span>Reported Date</span>
+            </Space>
+          }>
+            <Space size={8}>
+              <CalendarOutlined style={{ color: '#faad14' }} />
+              <Text type="secondary">{selectedIncident.reported_date || '-'}</Text>
+            </Space>
+          </Descriptions.Item>
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('modified')}
+              <span>Last Updated</span>
+            </Space>
+          }>
+            <Space size={8}>
+              <HistoryOutlined style={{ color: getHeaderIconColor(token) }} />
+              <Text type="secondary">{selectedIncident.modified || '-'}</Text>
+            </Space>
+          </Descriptions.Item>
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('affected_systems')}
+              <span>Affected Systems</span>
+            </Space>
+          }>
+            {selectedIncident.affected_systems ? (
+              <Space size={8} wrap>
+                <EnvironmentOutlined style={{ color: '#faad14' }} />
+                <Text>{selectedIncident.affected_systems}</Text>
+              </Space>
+            ) : (
+              <Text type="secondary">-</Text>
+            )}
+          </Descriptions.Item>
+
+          <Descriptions.Item label={
+            <Space size={8}>
+              {getDetailFieldIcon('description')}
+              <span>Description</span>
+            </Space>
+          } span={2}>
+            <div style={{
+              backgroundColor: '#fafafa',
+              padding: '12px',
+              borderRadius: '4px',
+              borderLeft: '3px solid #1890ff'
+            }}>
+              <Paragraph style={{ margin: 0 }}>
+                {selectedIncident.description || <Text type="secondary">No description provided</Text>}
+              </Paragraph>
+            </div>
           </Descriptions.Item>
         </Descriptions>
       </Card>
 
       {/* Timeline */}
       <Card
-        title="Incident Timeline"
+        title={
+          <Space>
+            <HistoryOutlined style={{ color: getHeaderIconColor(token), fontSize: '18px' }} />
+            <span>Incident Timeline</span>
+          </Space>
+        }
         extra={
           <Button
             type="primary"
@@ -490,48 +717,130 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
       >
         {selectedIncident.incident_timeline && selectedIncident.incident_timeline.length > 0 ? (
           <Timeline
-            items={selectedIncident.incident_timeline.map((item, index) => ({
-              children: (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <Tag color="blue">{item.event_type || 'Event'}</Tag>
-                    <br />
-                    <Text type="secondary" style={{ marginTop: '8px', display: 'block' }}>
-                      {item.event_timestamp || item.timestamp || '-'} - {item.user || '-'}
-                    </Text>
-                    <br />
-                    <Text style={{ marginTop: '8px', display: 'block' }}>
-                      {item.description || 'No description'}
-                    </Text>
+            items={selectedIncident.incident_timeline.map((item, index) => {
+              // Determine event type color based on type
+              const getEventTypeColor = (eventType) => {
+                const colorMap = {
+                  'Manual': 'blue',
+                  'Automated': 'cyan',
+                  'Status Change': 'green',
+                  'Assignment': 'purple',
+                  'Comment': 'magenta',
+                  'Investigation': 'gold',
+                  'Resolution': 'green',
+                  'Communication': 'geekblue',
+                  'Escalation': 'red',
+                  'SLA Update': 'orange',
+                  'Incident Reported': 'volcano'
+                }
+                return colorMap[eventType] || 'blue'
+              }
+
+              return {
+                dot: (
+                  <Tooltip title={item.event_type || 'Event'}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      backgroundColor: '#fff',
+                      border: `2px solid ${
+                        item.event_type === 'Incident Reported' ? '#ff7a45' : '#1890ff'
+                      }`,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px',
+                      color: item.event_type === 'Incident Reported' ? '#ff7a45' : '#1890ff'
+                    }}>
+                      {getTimelineEventIcon(item.event_type)}
+                    </div>
+                  </Tooltip>
+                ),
+                children: (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    padding: '12px 0'
+                  }}>
+                    <div style={{ flex: 1, paddingRight: '16px' }}>
+                      <Space wrap style={{ marginBottom: '8px' }}>
+                        <Tag
+                          icon={getTimelineEventIcon(item.event_type)}
+                          color={getEventTypeColor(item.event_type)}
+                        >
+                          {item.event_type || 'Event'}
+                        </Tag>
+                        {item.event_type === 'Incident Reported' && (
+                          <Tag icon={<ExclamationCircleOutlined />} color="red">
+                            Initial Report
+                          </Tag>
+                        )}
+                      </Space>
+
+                      <div style={{
+                        backgroundColor: '#fafafa',
+                        padding: '10px 12px',
+                        borderRadius: '4px',
+                        borderLeft: `3px solid ${
+                          getEventTypeColor(item.event_type) === 'red' ? '#ff7a45' : '#1890ff'
+                        }`,
+                        marginTop: '8px'
+                      }}>
+                        <Text style={{ display: 'block', marginBottom: '8px' }}>
+                          {item.description || 'No description'}
+                        </Text>
+
+                        <Space size={16} wrap style={{ fontSize: '12px' }}>
+                          <Space size={4}>
+                            <CalendarOutlined style={{ color: '#999' }} />
+                            <Text type="secondary">
+                              {item.event_timestamp || item.timestamp || '-'}
+                            </Text>
+                          </Space>
+                          <Space size={4}>
+                            <UserOutlined style={{ color: '#999' }} />
+                            <Text type="secondary">
+                              {item.user || '-'}
+                            </Text>
+                          </Space>
+                        </Space>
+                      </div>
+                    </div>
+
+                    {item.event_type !== 'Incident Reported' && (
+                      <Popconfirm
+                        title="Delete Timeline Entry"
+                        description="Are you sure you want to delete this timeline entry? This action cannot be undone."
+                        onConfirm={() => handleDeleteTimelineEntry(index)}
+                        okText="Delete"
+                        cancelText="Cancel"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Tooltip title="Delete Event">
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            style={{ marginLeft: '16px', flexShrink: 0 }}
+                            loading={isDeletingIndex === index}
+                            disabled={isDeletingIndex !== null}
+                          />
+                        </Tooltip>
+                      </Popconfirm>
+                    )}
                   </div>
-                  {item.event_type !== 'Incident Reported' && (
-                    <Popconfirm
-                      title="Delete Timeline Entry"
-                      description="Are you sure you want to delete this timeline entry? This action cannot be undone."
-                      onConfirm={() => handleDeleteTimelineEntry(index)}
-                      okText="Delete"
-                      cancelText="Cancel"
-                      okButtonProps={{ danger: true }}
-                    >
-                      <Tooltip title="Delete Event">
-                        <Button
-                          type="text"
-                          danger
-                          icon={<DeleteOutlined />}
-                          size="small"
-                          style={{ marginLeft: '16px' }}
-                          loading={isDeletingIndex === index}
-                          disabled={isDeletingIndex !== null}
-                        />
-                      </Tooltip>
-                    </Popconfirm>
-                  )}
-                </div>
-              )
-            }))}
+                )
+              }
+            })}
           />
         ) : (
-          <Text type="secondary">No timeline entries yet</Text>
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <HistoryOutlined style={{ fontSize: '48px', color: '#bfbfbf', marginBottom: '16px', display: 'block' }} />
+            <Text type="secondary">No timeline entries yet</Text>
+          </div>
         )}
       </Card>
 
@@ -595,9 +904,20 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
       {/* Add Timeline Event Modal - Polished & Modern */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PlusOutlined style={{ fontSize: '16px', color: '#1890ff' }} />
-            <span>Add Timeline Event</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              backgroundColor: '#e6f7ff',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: getHeaderIconColor(token)
+            }}>
+              <PlusOutlined style={{ fontSize: '18px' }} />
+            </div>
+            <span style={{ fontSize: '16px', fontWeight: '500' }}>Add Timeline Event</span>
           </div>
         }
         open={isModalVisible}
@@ -611,52 +931,81 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
         cancelText="Cancel"
         okButtonProps={{
           loading: isAddingTimeline,
-          disabled: isAddingTimeline
+          disabled: isAddingTimeline,
+          icon: <PlusOutlined />
         }}
         cancelButtonProps={{
           disabled: isAddingTimeline
         }}
         maskClosable={!isAddingTimeline}
         closable={!isAddingTimeline}
-        width={600}
+        width={650}
         className="timeline-event-modal"
-        style={{
-          borderRadius: '8px'
-        }}
+        centered
       >
         <Spin spinning={isAddingTimeline} tip="Adding event to timeline...">
           <Form
             form={form}
             layout="vertical"
-            style={{ marginTop: '16px' }}
+            style={{ marginTop: '24px' }}
           >
             {/* Event Type Field */}
             <Form.Item
-              label={<span style={{ fontWeight: 500 }}>Event Type</span>}
+              label={
+                <Space size={8}>
+                  <FileTextOutlined style={{ color: getHeaderIconColor(token) }} />
+                  <span style={{ fontWeight: 600 }}>Event Type</span>
+                </Space>
+              }
               name="event_type"
               rules={[{ required: true, message: 'Please select an event type' }]}
             >
               <Select
-                placeholder="Select the type of event"
+                placeholder="Select the type of event that occurred"
                 disabled={isAddingTimeline}
                 size="large"
               >
-                <Select.Option value="Manual">📝 Manual</Select.Option>
-                <Select.Option value="Automated">⚙️ Automated</Select.Option>
-                <Select.Option value="Status Change">🔄 Status Change</Select.Option>
-                <Select.Option value="Assignment">👤 Assignment</Select.Option>
-                <Select.Option value="Comment">💬 Comment</Select.Option>
-                <Select.Option value="Investigation">🔍 Investigation</Select.Option>
-                <Select.Option value="Resolution">✅ Resolution</Select.Option>
-                <Select.Option value="Communication">📢 Communication</Select.Option>
-                <Select.Option value="Escalation">⬆️ Escalation</Select.Option>
-                <Select.Option value="SLA Update">📋 SLA Update</Select.Option>
+                <Select.Option value="Manual">
+                  <Space size={8}><FileTextOutlined />Manual</Space>
+                </Select.Option>
+                <Select.Option value="Automated">
+                  <Space size={8}><RiseOutlined />Automated</Space>
+                </Select.Option>
+                <Select.Option value="Status Change">
+                  <Space size={8}><CheckCircleOutlined />Status Change</Space>
+                </Select.Option>
+                <Select.Option value="Assignment">
+                  <Space size={8}><UserOutlined />Assignment</Space>
+                </Select.Option>
+                <Select.Option value="Comment">
+                  <Space size={8}><MessageOutlined />Comment</Space>
+                </Select.Option>
+                <Select.Option value="Investigation">
+                  <Space size={8}><SearchOutlined />Investigation</Space>
+                </Select.Option>
+                <Select.Option value="Resolution">
+                  <Space size={8}><CheckCircleOutlined />Resolution</Space>
+                </Select.Option>
+                <Select.Option value="Communication">
+                  <Space size={8}><BellOutlined />Communication</Space>
+                </Select.Option>
+                <Select.Option value="Escalation">
+                  <Space size={8}><AlertOutlined />Escalation</Space>
+                </Select.Option>
+                <Select.Option value="SLA Update">
+                  <Space size={8}><FileDoneOutlined />SLA Update</Space>
+                </Select.Option>
               </Select>
             </Form.Item>
 
             {/* Event Timestamp Field */}
             <Form.Item
-              label={<span style={{ fontWeight: 500 }}>When did this happen?</span>}
+              label={
+                <Space size={8}>
+                  <CalendarOutlined style={{ color: '#faad14' }} />
+                  <span style={{ fontWeight: 600 }}>When did this happen?</span>
+                </Space>
+              }
               name="event_timestamp"
               rules={[{ required: true, message: 'Please select a date and time' }]}
             >
@@ -672,7 +1021,12 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
 
             {/* Description Field */}
             <Form.Item
-              label={<span style={{ fontWeight: 500 }}>Event Description</span>}
+              label={
+                <Space size={8}>
+                  <FileTextOutlined style={{ color: '#52c41a' }} />
+                  <span style={{ fontWeight: 600 }}>Event Description</span>
+                </Space>
+              }
               name="description"
               rules={[
                 { required: true, message: 'Please enter a description' },
@@ -686,12 +1040,20 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
                 size="large"
                 maxLength={500}
                 showCount
+                style={{
+                  borderRadius: '6px'
+                }}
               />
             </Form.Item>
 
             {/* User Field (Read-only) */}
             <Form.Item
-              label={<span style={{ fontWeight: 500 }}>Recorded By</span>}
+              label={
+                <Space size={8}>
+                  <UserOutlined style={{ color: '#722ed1' }} />
+                  <span style={{ fontWeight: 600 }}>Recorded By</span>
+                </Space>
+              }
               name="user"
             >
               <Input
@@ -699,20 +1061,27 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
                 disabled
                 size="large"
                 style={{ opacity: 0.7 }}
+                prefix={<UserOutlined style={{ color: '#999' }} />}
               />
             </Form.Item>
 
             {/* Info Message */}
             <div style={{
-              marginTop: '16px',
-              padding: '12px',
+              marginTop: '20px',
+              padding: '14px 16px',
               backgroundColor: '#e6f7ff',
               border: '1px solid #91d5ff',
-              borderRadius: '4px',
-              fontSize: '12px',
-              color: '#0050b3'
+              borderRadius: '6px',
+              fontSize: '13px',
+              color: '#0050b3',
+              display: 'flex',
+              gap: '12px',
+              alignItems: 'flex-start'
             }}>
-              ℹ️ Timeline events are automatically timestamped and recorded. This creates an audit trail of all incident activities.
+              <BellOutlined style={{ fontSize: '16px', flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                Timeline events are automatically timestamped and recorded. This creates a complete audit trail of all incident activities for compliance and analysis.
+              </div>
             </div>
           </Form>
         </Spin>

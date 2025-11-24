@@ -17,7 +17,8 @@ import {
   DatePicker,
   Tooltip,
   Modal,
-  Tag
+  Tag,
+  AutoComplete
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -39,30 +40,11 @@ import {
   removeProjectUser,
   searchUsers,
   updateProjectManager,
-  updateProjectUser
+  updateProjectUser,
+  searchDesignations
 } from '../utils/projectAttachmentsApi'
 
 const { Title, Text } = Typography
-
-const BUSINESS_FUNCTION_OPTIONS = [
-  'Internal Stakeholder',
-  'Client Stakeholder',
-  'Client Focal Person',
-  'Project Manager',
-  'Engineering Lead',
-  'Security Analyst',
-  'Platform Engineer',
-  'DevOps Engineer',
-  'Software Reliability Engineer',
-  'Software Developer',
-  'Product Designer',
-  'Business Analyst',
-  'Solution Architect',
-  'Product Manager',
-  'Service Delivery Contact',
-  'Quality Assurance',
-  'Subject Matter Expert'
-]
 
 
 /**
@@ -98,6 +80,8 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const [selectedUserToAdd, setSelectedUserToAdd] = useState(null)
   const [businessFunctionToAdd, setBusinessFunctionToAdd] = useState(null)
   const [addingUser, setAddingUser] = useState(false)
+  const [designations, setDesignations] = useState([])
+  const [designationSearchLoading, setDesignationSearchLoading] = useState(false)
   const [notesContent, setNotesContent] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
   const [showChangeManagerModal, setShowChangeManagerModal] = useState(false)
@@ -117,6 +101,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   // Refs for debounce timeouts
   const userSearchTimeoutRef = useRef(null)
   const managerSearchTimeoutRef = useRef(null)
+  const designationSearchTimeoutRef = useRef(null)
 
   // Cleanup debounce timeouts on component unmount
   useEffect(() => {
@@ -127,6 +112,9 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
       if (managerSearchTimeoutRef.current) {
         clearTimeout(managerSearchTimeoutRef.current)
       }
+      if (designationSearchTimeoutRef.current) {
+        clearTimeout(designationSearchTimeoutRef.current)
+      }
     }
   }, [])
 
@@ -134,7 +122,39 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
     if (projectId) {
       loadProjectData()
     }
+    loadDesignations()
   }, [projectId])
+
+  const loadDesignations = async (query = '') => {
+    try {
+      console.log('[ProjectEdit] Loading designations with query:', query)
+      setDesignationSearchLoading(true)
+      const response = await searchDesignations(query)
+      console.log('[ProjectEdit] Designations response:', response)
+      if (response.success) {
+        setDesignations(response.designations || [])
+        console.log('[ProjectEdit] Loaded designations count:', response.designations?.length || 0)
+      } else {
+        console.warn('[ProjectEdit] Failed to load designations:', response.error)
+        setDesignations([])
+      }
+    } catch (error) {
+      console.error('[ProjectEdit] Error loading designations:', error)
+      setDesignations([])
+    } finally {
+      setDesignationSearchLoading(false)
+    }
+  }
+
+  const handleDesignationSearch = (value) => {
+    if (designationSearchTimeoutRef.current) {
+      clearTimeout(designationSearchTimeoutRef.current)
+    }
+
+    designationSearchTimeoutRef.current = setTimeout(() => {
+      loadDesignations(value)
+    }, 400)
+  }
 
   const loadProjectData = async () => {
     setLoading(true)
@@ -849,13 +869,19 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                     <Text type="secondary">Type to search for users...</Text>
                   </div>
                 )}
-                <Select
+                <AutoComplete
                   allowClear
-                  placeholder="Business function (optional)"
+                  placeholder="Designation (optional)"
                   value={businessFunctionToAdd}
                   onChange={setBusinessFunctionToAdd}
+                  onSearch={handleDesignationSearch}
+                  options={designations.map(d => ({
+                    label: d.designation_name || d.name,
+                    value: d.name
+                  }))}
                   style={{ width: '100%', marginBottom: '8px' }}
-                  options={BUSINESS_FUNCTION_OPTIONS.map(opt => ({ label: opt, value: opt }))}
+                  filterOption={false}
+                  notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
                 />
                 <Button
                   type="primary"
@@ -998,14 +1024,20 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         ]}
       >
         <div style={{ marginBottom: '16px' }}>
-          <Text type="secondary" style={{ fontSize: '12px' }}>BUSINESS FUNCTION</Text>
-          <Select
+          <Text type="secondary" style={{ fontSize: '12px' }}>DESIGNATION</Text>
+          <AutoComplete
             allowClear
-            placeholder="Select business function"
+            placeholder="Search designation"
             value={editBusinessFunction}
             onChange={setEditBusinessFunction}
+            onSearch={handleDesignationSearch}
+            options={designations.map(d => ({
+              label: d.designation_name || d.name,
+              value: d.name
+            }))}
             style={{ width: '100%', marginTop: '8px' }}
-            options={BUSINESS_FUNCTION_OPTIONS.map(opt => ({ label: opt, value: opt }))}
+            filterOption={false}
+            notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
           />
         </div>
       </Modal>

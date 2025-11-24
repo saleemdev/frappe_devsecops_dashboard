@@ -200,9 +200,21 @@ def create_raci_template(**kwargs) -> Dict[str, Any]:
             'message': _('RACI Template {0} created successfully').format(doc.name)
         }
 
+    except frappe.DuplicateEntryError as de:
+        frappe.response['http_status_code'] = 409
+        template_name = kwargs.get('template_name', 'Unknown')
+        # Truncate error message to avoid CharacterLengthExceededError
+        error_msg = f"Duplicate template: {template_name[:50]}"
+        frappe.log_error(error_msg, "RACI Template API")
+        frappe.throw(
+            _('RACI Template <strong>{0}</strong> already exists').format(template_name),
+            frappe.DuplicateEntryError
+        )
     except frappe.PermissionError as pe:
         frappe.response['http_status_code'] = 403
-        frappe.log_error(f"Permission denied creating template: {str(pe)}", "RACI Template API")
+        # Truncate error message
+        error_msg = f"Permission denied: {str(pe)[:100]}"
+        frappe.log_error(error_msg, "RACI Template API")
         frappe.throw(_('You do not have permission to create RACI Templates'), frappe.PermissionError)
     except frappe.ValidationError as ve:
         if frappe.response.get('http_status_code') is None:
@@ -210,11 +222,23 @@ def create_raci_template(**kwargs) -> Dict[str, Any]:
         raise
     except Exception as e:
         frappe.response['http_status_code'] = 500
-        frappe.log_error(f"Error creating RACI Template: {str(e)}", "RACI Template API")
-        frappe.throw(
-            _('An error occurred while creating the RACI Template: {0}').format(str(e)),
-            frappe.ValidationError
-        )
+        # Truncate error message to avoid CharacterLengthExceededError (max 140 chars)
+        error_str = str(e)
+        if len(error_str) > 100:
+            error_str = error_str[:97] + "..."
+        error_msg = f"Error creating RACI Template: {error_str}"
+        frappe.log_error(error_msg, "RACI Template API")
+        
+        # Provide user-friendly error message
+        user_msg = _('An error occurred while creating the RACI Template')
+        if 'Duplicate' in str(e) or 'duplicate' in str(e).lower():
+            template_name = kwargs.get('template_name', '')
+            if template_name:
+                frappe.throw(
+                    _('RACI Template <strong>{0}</strong> already exists').format(template_name),
+                    frappe.DuplicateEntryError
+                )
+        frappe.throw(user_msg, frappe.ValidationError)
 
 
 @frappe.whitelist()
@@ -293,6 +317,9 @@ def update_raci_template(name: str = None, **kwargs) -> Dict[str, Any]:
     except frappe.PermissionError as pe:
         if frappe.response.get('http_status_code') is None:
             frappe.response['http_status_code'] = 403
+        # Truncate error message
+        error_msg = f"Permission denied: {str(pe)[:100]}"
+        frappe.log_error(error_msg, "RACI Template API")
         raise
     except frappe.ValidationError as ve:
         if frappe.response.get('http_status_code') is None:
@@ -300,8 +327,16 @@ def update_raci_template(name: str = None, **kwargs) -> Dict[str, Any]:
         raise
     except Exception as e:
         frappe.response['http_status_code'] = 500
-        frappe.log_error(f"Error updating RACI Template {name}: {str(e)}", "RACI Template API")
-        frappe.throw(_('An error occurred while updating the RACI Template: {0}').format(str(e)), frappe.ValidationError)
+        # Truncate error message to avoid CharacterLengthExceededError (max 140 chars)
+        error_str = str(e)
+        if len(error_str) > 100:
+            error_str = error_str[:97] + "..."
+        error_msg = f"Error updating RACI Template {name}: {error_str}"
+        frappe.log_error(error_msg, "RACI Template API")
+        
+        # Provide user-friendly error message
+        user_msg = _('An error occurred while updating the RACI Template')
+        frappe.throw(user_msg, frappe.ValidationError)
 
 
 @frappe.whitelist()
@@ -350,8 +385,16 @@ def delete_raci_template(name: str) -> Dict[str, Any]:
         raise
     except Exception as e:
         frappe.response['http_status_code'] = 500
-        frappe.log_error(f"Error deleting RACI Template {name}: {str(e)}", "RACI Template API")
-        frappe.throw(_('An error occurred while deleting the RACI Template: {0}').format(str(e)), frappe.ValidationError)
+        # Truncate error message to avoid CharacterLengthExceededError (max 140 chars)
+        error_str = str(e)
+        if len(error_str) > 100:
+            error_str = error_str[:97] + "..."
+        error_msg = f"Error deleting RACI Template {name}: {error_str}"
+        frappe.log_error(error_msg, "RACI Template API")
+        
+        # Provide user-friendly error message
+        user_msg = _('An error occurred while deleting the RACI Template')
+        frappe.throw(user_msg, frappe.ValidationError)
 
 
 @frappe.whitelist()

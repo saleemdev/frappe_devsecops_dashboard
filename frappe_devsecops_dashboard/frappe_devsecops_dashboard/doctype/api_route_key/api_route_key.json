@@ -1,0 +1,62 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "creation": "2024-11-24 00:00:00",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "key_name",
+    "api_key",
+    "column_break_1",
+    "is_active",
+    "expires_on"
+  ],
+  "fields": [
+    {
+      "fieldname": "key_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Key Name",
+      "reqd": 1,
+      "description": "Friendly name for this API key"
+    },
+    {
+      "fieldname": "api_key",
+      "fieldtype": "Password",
+      "in_list_view": 1,
+      "label": "API Key",
+      "reqd": 1,
+      "description": "The actual API key value"
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "is_active",
+      "fieldtype": "Check",
+      "in_list_view": 1,
+      "label": "Is Active",
+      "default": 1
+    },
+    {
+      "fieldname": "expires_on",
+      "fieldtype": "Date",
+      "label": "Expires On",
+      "description": "Optional expiration date"
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "istable": 1,
+  "links": [],
+  "modified": "2024-11-24 00:00:00",
+  "modified_by": "Administrator",
+  "module": "Frappe Devsecops Dashboard",
+  "name": "API Route Key",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "idx",
+  "sort_order": "ASC",
+  "states": []
+}

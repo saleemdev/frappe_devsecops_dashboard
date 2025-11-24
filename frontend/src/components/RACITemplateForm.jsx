@@ -42,6 +42,16 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
   const [showAssignmentModal, setShowAssignmentModal] = useState(false)
   const [editingAssignment, setEditingAssignment] = useState(null)
   const [assignmentForm] = Form.useForm()
+  
+  // Decode templateId if it's URL encoded
+  const decodedTemplateId = templateId ? (() => {
+    try {
+      return decodeURIComponent(templateId)
+    } catch (e) {
+      console.warn('[RACITemplateForm] Failed to decode templateId, using as-is:', templateId)
+      return templateId
+    }
+  })() : null
   const [projectTemplates, setProjectTemplates] = useState([])
   const [projectTemplatesLoading, setProjectTemplatesLoading] = useState(false)
   const [projectTasks, setProjectTasks] = useState([])
@@ -52,10 +62,16 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
   useEffect(() => {
     loadProjectTemplates()
     loadDesignations()
-    if (mode === 'edit' && templateId) {
+    if (mode === 'edit' && decodedTemplateId) {
+      console.log('[RACITemplateForm] useEffect: Loading template in edit mode, templateId:', decodedTemplateId, '(original:', templateId, ')')
+      // Use decodedTemplateId for loading
       loadTemplate()
+    } else if (mode === 'edit' && !decodedTemplateId) {
+      console.error('[RACITemplateForm] useEffect: Edit mode but no templateId provided!')
+      message.error('Template ID is missing. Please go back and try again.')
     }
-  }, [mode, templateId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, decodedTemplateId])
 
   const loadDesignations = async (query = '') => {
     try {
@@ -123,8 +139,15 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
   const loadTemplate = async () => {
     setLoading(true)
     try {
+      // Use the already decoded templateId
+      console.log('[RACITemplateForm] Loading template with ID:', decodedTemplateId)
+      
+      if (!decodedTemplateId) {
+        throw new Error('Template ID is required')
+      }
+      
       const response = await fetch(
-        `/api/method/frappe_devsecops_dashboard.api.raci_template.get_raci_template_detail?name=${encodeURIComponent(templateId)}`,
+        `/api/method/frappe_devsecops_dashboard.api.raci_template.get_raci_template_detail?name=${encodeURIComponent(decodedTemplateId)}`,
         {
           method: 'GET',
           headers: {
@@ -135,15 +158,56 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
         }
       )
 
+      console.log('[RACITemplateForm] Response status:', response.status, response.ok)
+
+      const data = await response.json().catch(() => {
+        throw new Error('Invalid response from server')
+      })
+
+      console.log('[RACITemplateForm] Full API Response:', JSON.stringify(data, null, 2))
+
+      // Only treat as error if HTTP status is not OK (200-299)
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        console.error('[RACITemplateForm] HTTP error response:', response.status, data)
+        
+        // Extract error message from _server_messages if available
+        let errorMsg = 'Failed to load template details'
+        if (data._server_messages) {
+          try {
+            const serverMessages = JSON.parse(data._server_messages)
+            if (Array.isArray(serverMessages) && serverMessages.length > 0) {
+              const firstMessage = JSON.parse(serverMessages[0])
+              errorMsg = firstMessage.message || errorMsg
+            }
+          } catch (e) {
+            console.warn('[RACITemplateForm] Could not parse server messages:', e)
+          }
+        }
+        
+        message.error(errorMsg)
+        
+        // ONLY navigate back if it's a 404 (not found) - don't navigate for other errors
+        // Commented out auto-redirect to prevent unwanted navigation
+        // User can manually navigate back if needed
+        if (response.status === 404) {
+          console.log('[RACITemplateForm] Template not found (404) - user should navigate back manually')
+          // Removed auto-redirect - let user decide
+          // setTimeout(() => {
+          //   navigateToRoute('raci-template')
+          // }, 2000)
+        }
+        return
       }
 
-      const data = await response.json()
+      // Response is OK (200), now check the data structure
       const result = data.message || data
+      console.log('[RACITemplateForm] Parsed result:', result)
 
-      if (result.success) {
+      // Check if we have valid data
+      if (result && result.data) {
         const templateData = result.data
+        console.log('[RACITemplateForm] Template data received:', templateData.template_name)
+        
         setTemplate(templateData)
 
         const assignmentsData = templateData.raci_assignments || []
@@ -169,15 +233,23 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
           project_template: templateData.project_template
         })
 
-        message.success('Template loaded successfully')
+        console.log('[RACITemplateForm] Template loaded successfully, form populated')
+      } else if (result && result.success === false) {
+        // Explicit failure
+        console.error('[RACITemplateForm] API returned success=false:', result)
+        const errorMsg = result.error || result.message || 'Failed to load template details'
+        message.error(errorMsg)
       } else {
-        message.error('Failed to load template details')
+        // Unexpected structure but not necessarily an error
+        console.warn('[RACITemplateForm] Unexpected response structure, but continuing:', result)
       }
     } catch (error) {
-      message.error('Failed to load template')
-      console.error('Error loading template:', error)
+      console.error('[RACITemplateForm] Exception caught:', error)
+      message.error(error.message || 'Failed to load template')
+      // Don't auto-navigate on exceptions - let user see the error
     } finally {
       setLoading(false)
+      console.log('[RACITemplateForm] loadTemplate completed')
     }
   }
 
@@ -275,6 +347,14 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
 
   const handleSubmit = async (values) => {
     console.log('[RACITemplateForm] Submitting form with values:', values)
+    console.log('[RACITemplateForm] Mode:', mode, 'Template ID:', templateId)
+    console.log('[RACITemplateForm] Assignments count:', assignments.length)
+
+    // Validate assignments
+    if (assignments.length === 0) {
+      message.warning('Please add at least one RACI assignment before submitting')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -290,6 +370,8 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
         informed: assignment.informed
       }))
 
+      console.log('[RACITemplateForm] Transformed assignments:', transformedAssignments)
+
       const formData = {
         ...values,
         raci_assignments: transformedAssignments
@@ -299,9 +381,13 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
         ? '/api/method/frappe_devsecops_dashboard.api.raci_template.create_raci_template'
         : '/api/method/frappe_devsecops_dashboard.api.raci_template.update_raci_template'
 
-      const payload = mode === 'create' ? formData : { name: templateId, ...formData }
+      // Use the already decoded templateId
+      const payload = mode === 'create' ? formData : { name: decodedTemplateId, ...formData }
+      
+      console.log('[RACITemplateForm] Using templateId for update:', decodedTemplateId, '(original prop:', templateId, ')')
 
-      console.log('[RACITemplateForm] Payload:', payload)
+      console.log('[RACITemplateForm] API Endpoint:', endpoint)
+      console.log('[RACITemplateForm] Full Payload:', JSON.stringify(payload, null, 2))
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -313,12 +399,64 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
         body: JSON.stringify(payload)
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+      const data = await response.json().catch(() => {
+        // If JSON parsing fails, throw a user-friendly error
+        throw new Error('Invalid response from server')
+      })
+      
+      console.log('[RACITemplateForm] API Response:', data)
+
+      // Check for Frappe error structure or HTTP error status
+      if (!response.ok || data.exc_type || data.exception) {
+        console.error('[RACITemplateForm] Frappe error:', data)
+        
+        // Extract error message from _server_messages if available
+        let errorMsg = 'Failed to save RACI Template'
+        
+        // Check for duplicate entry error first
+        const isDuplicateError = data.exc_type === 'DuplicateEntryError' || 
+          data.exc_type === 'CharacterLengthExceededError' ||
+          (data.exception && (
+            data.exception.includes('Duplicate') || 
+            data.exception.includes('duplicate') ||
+            data.exception.includes('Duplicate entry')
+          ))
+        
+        if (data._server_messages) {
+          try {
+            // _server_messages is a JSON string containing an array of JSON strings
+            const serverMessages = JSON.parse(data._server_messages)
+            if (Array.isArray(serverMessages) && serverMessages.length > 0) {
+              // Parse the first message (which is also a JSON string)
+              const firstMessage = JSON.parse(serverMessages[0])
+              errorMsg = firstMessage.message || errorMsg
+              
+              // If it's a duplicate error, look for the duplicate name message
+              if (isDuplicateError && firstMessage.title === 'Duplicate Name') {
+                errorMsg = firstMessage.message || errorMsg
+              }
+            }
+          } catch (e) {
+            console.warn('[RACITemplateForm] Could not parse server messages:', e)
+            // Fallback: try to extract from exception string
+            if (data.exception) {
+              const match = data.exception.match(/Duplicate entry '([^']+)'/)
+              if (match) {
+                errorMsg = `A RACI Template with the name "${match[1]}" already exists`
+              }
+            }
+          }
+        } else if (isDuplicateError) {
+          // Fallback for duplicate errors without _server_messages
+          const templateName = values.template_name || 'this name'
+          errorMsg = `A RACI Template with the name "${templateName}" already exists. Please choose a different name.`
+        }
+        
+        message.error(errorMsg)
+        return
       }
 
-      const data = await response.json()
+      // Handle successful response
       const result = data.message || data
 
       if (result.success || result.data) {
@@ -332,11 +470,18 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
           navigateToRoute('raci-template')
         }, 500)
       } else {
-        throw new Error(result.error || 'Unknown error occurred')
+        const errorMsg = result.error || result.message || 'Unknown error occurred'
+        message.error(errorMsg)
       }
     } catch (error) {
-      console.error('Error saving template:', error)
-      message.error(error.message || 'Failed to save RACI Template')
+      console.error('[RACITemplateForm] Error saving template:', error)
+      
+      // Handle network errors or JSON parsing errors
+      if (error instanceof TypeError && error.message.includes('JSON')) {
+        message.error('Invalid response from server. Please try again.')
+      } else {
+        message.error(error.message || 'Failed to save RACI Template')
+      }
     } finally {
       setSubmitting(false)
     }

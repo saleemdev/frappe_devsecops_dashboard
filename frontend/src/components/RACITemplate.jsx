@@ -38,6 +38,7 @@ const RACITemplate = ({ navigateToRoute }) => {
   const { token } = theme.useToken()
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
   const [viewingRecord, setViewingRecord] = useState(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchText, setSearchText] = useState('')
@@ -49,7 +50,8 @@ const RACITemplate = ({ navigateToRoute }) => {
 
   useEffect(() => {
     loadTemplates()
-  }, [pagination.current, pagination.pageSize])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.current, pagination.pageSize, searchText])
 
   const loadTemplates = async () => {
     setLoading(true)
@@ -59,39 +61,69 @@ const RACITemplate = ({ navigateToRoute }) => {
         limit_page_length: pagination.pageSize
       })
 
-      if (searchText) {
-        const filters = JSON.stringify([['RACI Template', 'template_name', 'like', `%${searchText}%`]])
-        params.append('filters', filters)
-      }
+      // Always include filters parameter, even if empty
+      const filters = searchText && searchText.trim()
+        ? JSON.stringify([['RACI Template', 'template_name', 'like', `%${searchText.trim()}%`]])
+        : JSON.stringify([])
+      params.append('filters', filters)
 
-      const response = await fetch(
-        `/api/method/frappe_devsecops_dashboard.api.raci_template.get_raci_templates?${params}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Frappe-CSRF-Token': window.csrf_token || ''
-          },
-          credentials: 'include'
-        }
-      )
+      const endpoint = `/api/method/frappe_devsecops_dashboard.api.raci_template.get_raci_templates?${params}`
+      
+      console.log('[RACITemplate] Loading from:', endpoint)
+
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include'
+      })
 
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[RACITemplate] HTTP error response:', response.status, errorText)
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const data = await response.json()
-      const result = data.message || data
+      console.log('[RACITemplate] API Response:', data)
 
-      if (result.success) {
-        setTemplates(result.data || [])
-        setPagination({ ...pagination, total: result.total || 0 })
+      // Check for Frappe error structure first
+      if (data.exc_type || data.exception) {
+        console.error('[RACITemplate] Frappe error:', data)
+        const errorMsg = data.message?.message || data.message || data.exc || 'Failed to load RACI Templates'
+        message.error(errorMsg)
+        setTemplates([])
+        setPagination(prev => ({ ...prev, total: 0 }))
+        return
+      }
+
+      // Handle Frappe API response structure
+      // Frappe wraps successful responses in a 'message' key
+      const result = data.message !== undefined ? data.message : data
+      
+      if (result && result.success) {
+        const templatesData = Array.isArray(result.data) ? result.data : []
+        console.log('[RACITemplate] Templates loaded:', templatesData.length, 'templates')
+        setTemplates(templatesData)
+        setPagination(prev => ({ ...prev, total: result.total || 0 }))
+        
+        if (templatesData.length === 0 && !searchText) {
+          message.info('No RACI templates found. Create your first template!')
+        }
       } else {
-        message.error('Failed to load RACI Templates')
+        console.error('[RACITemplate] API returned unsuccessful:', result)
+        const errorMsg = result?.error || result?.message || 'Failed to load RACI Templates'
+        message.error(errorMsg)
+        setTemplates([])
+        setPagination(prev => ({ ...prev, total: 0 }))
       }
     } catch (error) {
-      console.error('Error loading templates:', error)
-      message.error('Failed to load RACI Templates')
+      console.error('[RACITemplate] Error loading templates:', error)
+      message.error(error.message || 'Failed to load RACI Templates')
+      setTemplates([])
+      setPagination(prev => ({ ...prev, total: 0 }))
     } finally {
       setLoading(false)
     }
@@ -111,26 +143,52 @@ const RACITemplate = ({ navigateToRoute }) => {
         }
       )
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      const data = await response.json().catch(() => {
+        throw new Error('Invalid response from server')
+      })
+
+      console.log('[RACITemplate] Detail API Response:', data)
+
+      // Check for Frappe error structure
+      if (!response.ok || data.exc_type || data.exception) {
+        console.error('[RACITemplate] Detail error:', data)
+        
+        // Extract error message from _server_messages if available
+        let errorMsg = 'Failed to load template details'
+        if (data._server_messages) {
+          try {
+            const serverMessages = JSON.parse(data._server_messages)
+            if (Array.isArray(serverMessages) && serverMessages.length > 0) {
+              const firstMessage = JSON.parse(serverMessages[0])
+              errorMsg = firstMessage.message || errorMsg
+            }
+          } catch (e) {
+            console.warn('[RACITemplate] Could not parse server messages:', e)
+          }
+        }
+        
+        message.error(errorMsg)
+        return
       }
 
-      const data = await response.json()
+      // Handle successful response
       const result = data.message || data
 
       if (result.success) {
         setViewingRecord(result.data)
         setDrawerOpen(true)
       } else {
-        message.error('Failed to load template details')
+        const errorMsg = result.error || result.message || 'Failed to load template details'
+        message.error(errorMsg)
       }
     } catch (error) {
-      console.error('Error loading detail:', error)
-      message.error('Failed to load template details')
+      console.error('[RACITemplate] Error loading detail:', error)
+      message.error(error.message || 'Failed to load template details')
     }
   }
 
   const handleDelete = async (name) => {
+    setDeletingId(name)
     try {
       const response = await fetch(
         `/api/method/frappe_devsecops_dashboard.api.raci_template.delete_raci_template?name=${encodeURIComponent(name)}`,
@@ -144,15 +202,50 @@ const RACITemplate = ({ navigateToRoute }) => {
         }
       )
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      const data = await response.json().catch(() => {
+        throw new Error('Invalid response from server')
+      })
+
+      console.log('[RACITemplate] Delete API Response:', data)
+
+      // Check for Frappe error structure
+      if (!response.ok || data.exc_type || data.exception) {
+        console.error('[RACITemplate] Delete error:', data)
+        
+        // Extract error message from _server_messages if available
+        let errorMsg = 'Failed to delete RACI Template'
+        if (data._server_messages) {
+          try {
+            const serverMessages = JSON.parse(data._server_messages)
+            if (Array.isArray(serverMessages) && serverMessages.length > 0) {
+              const firstMessage = JSON.parse(serverMessages[0])
+              errorMsg = firstMessage.message || errorMsg
+            }
+          } catch (e) {
+            console.warn('[RACITemplate] Could not parse server messages:', e)
+          }
+        }
+        
+        message.error(errorMsg)
+        return
       }
 
-      message.success('RACI Template deleted successfully')
-      loadTemplates()
+      // Handle successful response
+      const result = data.message || data
+      
+      if (result.success !== false) {
+        message.success('RACI Template deleted successfully')
+        // Reload templates list
+        loadTemplates()
+      } else {
+        const errorMsg = result.error || result.message || 'Failed to delete RACI Template'
+        message.error(errorMsg)
+      }
     } catch (error) {
-      console.error('Error deleting:', error)
-      message.error('Failed to delete RACI Template')
+      console.error('[RACITemplate] Error deleting template:', error)
+      message.error(error.message || 'Failed to delete RACI Template')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -233,18 +326,26 @@ const RACITemplate = ({ navigateToRoute }) => {
               type="text"
               size="small"
               icon={<EditOutlined />}
-              onClick={() => navigateToRoute('raci-template-edit', { id: record.name })}
+              onClick={() => navigateToRoute('raci-template-edit', null, record.name)}
             />
           </Tooltip>
           <Tooltip title="Delete">
             <Popconfirm
               title="Delete RACI Template"
-              description="Are you sure you want to delete this template?"
+              description="Are you sure you want to delete this template? This action cannot be undone."
               onConfirm={() => handleDelete(record.name)}
-              okText="Yes"
-              cancelText="No"
+              okText="Yes, Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true, loading: deletingId === record.name }}
             >
-              <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+              <Button 
+                type="text" 
+                danger 
+                size="small" 
+                icon={<DeleteOutlined />}
+                loading={deletingId === record.name}
+                disabled={deletingId !== null}
+              />
             </Popconfirm>
           </Tooltip>
         </Space>
@@ -308,7 +409,7 @@ const RACITemplate = ({ navigateToRoute }) => {
               value={searchText}
               onChange={(e) => {
                 setSearchText(e.target.value)
-                setPagination({ ...pagination, current: 1 })
+                setPagination(prev => ({ ...prev, current: 1 }))
               }}
               onPressEnter={loadTemplates}
               style={{ borderRadius: '6px' }}
@@ -340,7 +441,7 @@ const RACITemplate = ({ navigateToRoute }) => {
             showSizeChanger: true,
             showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} templates`,
             onChange: (page, pageSize) => {
-              setPagination({ ...pagination, current: page, pageSize })
+              setPagination(prev => ({ ...prev, current: page, pageSize }))
             }
           }}
           scroll={{ x: 800 }}

@@ -43,6 +43,10 @@ const useNavigationStore = create(
       // RACI Template state
       selectedRACITemplateId: null,
 
+      // API Route state
+      selectedAPIRouteId: null,
+      showAPIRouteForm: false,
+
       // Mobile state
       isMobile: false,
       mobileMenuVisible: false,
@@ -366,6 +370,59 @@ const useNavigationStore = create(
                 showSwaggerDetail: false
               })
               window.location.hash = `raci-template/edit/${appId}`
+            }
+            break
+
+          case 'api-provisioning':
+            set({
+              currentRoute: 'api-provisioning',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false,
+              selectedAPIRouteId: null,
+              showAPIRouteForm: false
+            })
+            window.location.hash = 'api-provisioning'
+            break
+
+          case 'api-provisioning-create':
+            set({
+              currentRoute: 'api-provisioning-create',
+              selectedAPIRouteId: null,
+              showAPIRouteForm: true,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'api-provisioning/create'
+            break
+
+          case 'api-provisioning-edit':
+            if (appId) { // reuse appId parameter to carry API route id
+              set({
+                currentRoute: 'api-provisioning-edit',
+                selectedAPIRouteId: appId,
+                showAPIRouteForm: true,
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
+              })
+              window.location.hash = `api-provisioning/edit/${appId}`
             }
             break
 
@@ -892,10 +949,41 @@ const useNavigationStore = create(
             showSwaggerDetail: false
           })
         } else if (hash.startsWith('raci-template/edit/')) {
-          const templateId = hash.split('/')[2]
+          const templateId = decodeURIComponent(hash.split('/')[2])
           set({
             currentRoute: 'raci-template-edit',
             selectedRACITemplateId: templateId,
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+        } else if (hash === 'api-provisioning') {
+          get().navigateToRoute('api-provisioning')
+        } else if (hash === 'api-provisioning/create') {
+          set({
+            currentRoute: 'api-provisioning-create',
+            selectedAPIRouteId: null,
+            showAPIRouteForm: true,
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+        } else if (hash.startsWith('api-provisioning/edit/')) {
+          const routeId = hash.split('/')[2]
+          set({
+            currentRoute: 'api-provisioning-edit',
+            selectedAPIRouteId: routeId,
+            showAPIRouteForm: true,
             selectedProjectId: null,
             showProjectDetail: false,
             selectedAppId: null,
@@ -1088,6 +1176,26 @@ const useNavigationStore = create(
               items.push(
                 { title: 'Settings' },
                 { title: 'DevOps Configuration' }
+              )
+              break
+            case 'api-provisioning':
+              items.push(
+                { title: 'Ops' },
+                { title: 'API Provisioning' }
+              )
+              break
+            case 'api-provisioning-create':
+              items.push(
+                { title: 'Ops', onClick: () => get().navigateToRoute('api-provisioning') },
+                { title: 'API Provisioning', onClick: () => get().navigateToRoute('api-provisioning') },
+                { title: 'Create' }
+              )
+              break
+            case 'api-provisioning-edit':
+              items.push(
+                { title: 'Ops', onClick: () => get().navigateToRoute('api-provisioning') },
+                { title: 'API Provisioning', onClick: () => get().navigateToRoute('api-provisioning') },
+                { title: 'Edit' }
               )
               break
             default:

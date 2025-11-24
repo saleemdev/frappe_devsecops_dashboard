@@ -16,6 +16,8 @@
     "status",
     "release_status",
     "version",
+    "api_section",
+    "api_namespace",
     "dates_section",
     "start_date",
     "completion_date",
@@ -93,6 +95,19 @@
       "fieldtype": "Data",
       "label": "Version",
       "reqd": 1
+    },
+    {
+      "fieldname": "api_section",
+      "fieldtype": "Section Break",
+      "label": "API Configuration"
+    },
+    {
+      "fieldname": "api_namespace",
+      "fieldtype": "Data",
+      "label": "API Namespace",
+      "description": "API namespace for route generation (e.g., 'user-service', 'payment-gateway')",
+      "in_list_view": 1,
+      "in_standard_filter": 1
     },
     {
       "fieldname": "dates_section",

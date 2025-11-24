@@ -1,0 +1,368 @@
+{
+  "actions": [],
+  "allow_rename": 1,
+  "autoname": "format:API-ROUTE-{######}",
+  "creation": "2024-11-24 00:00:00",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "basic_information_section",
+    "software_product",
+    "route_name",
+    "api_version",
+    "column_break_basic",
+    "status",
+    "sync_status",
+    "apisix_route_id",
+    "route_configuration_section",
+    "uri_path",
+    "http_methods",
+    "column_break_route",
+    "priority",
+    "enable_websocket",
+    "upstream_section",
+    "upstream_url",
+    "upstream_type",
+    "column_break_upstream",
+    "upstream_timeout",
+    "upstream_retries",
+    "authentication_section",
+    "enable_auth",
+    "auth_type",
+    "column_break_auth",
+    "api_key_header",
+    "api_keys",
+    "rate_limiting_section",
+    "enable_rate_limit",
+    "rate_limit_count",
+    "column_break_rate",
+    "rate_limit_time_window",
+    "rate_limit_burst",
+    "plugins_section",
+    "enable_cors",
+    "enable_ip_restriction",
+    "column_break_plugins",
+    "cors_origins",
+    "allowed_ips",
+    "metadata_section",
+    "description",
+    "tags"
+  ],
+  "fields": [
+    {
+      "fieldname": "basic_information_section",
+      "fieldtype": "Section Break",
+      "label": "Basic Information"
+    },
+    {
+      "fieldname": "software_product",
+      "fieldtype": "Link",
+      "label": "Software Product",
+      "options": "Software Product",
+      "reqd": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "description": "Select the software product for this API route"
+    },
+    {
+      "fieldname": "route_name",
+      "fieldtype": "Data",
+      "label": "Route Name",
+      "reqd": 1,
+      "in_list_view": 1,
+      "in_global_search": 1,
+      "description": "Friendly name for this API route"
+    },
+    {
+      "fieldname": "api_version",
+      "fieldtype": "Data",
+      "label": "API Version",
+      "reqd": 1,
+      "default": "v1",
+      "description": "API version (e.g., v1, v2)"
+    },
+    {
+      "fieldname": "column_break_basic",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Draft\nActive\nInactive\nError",
+      "default": "Draft",
+      "reqd": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "sync_status",
+      "fieldtype": "Select",
+      "label": "APISIX Sync Status",
+      "options": "Not Synced\nSyncing\nSynced\nFailed",
+      "default": "Not Synced",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "apisix_route_id",
+      "fieldtype": "Data",
+      "label": "APISIX Route ID",
+      "read_only": 1,
+      "description": "APISIX internal route ID"
+    },
+    {
+      "fieldname": "route_configuration_section",
+      "fieldtype": "Section Break",
+      "label": "Route Configuration"
+    },
+    {
+      "fieldname": "uri_path",
+      "fieldtype": "Data",
+      "label": "URI Path",
+      "reqd": 1,
+      "description": "Full URI path (will be auto-generated from namespace and route)"
+    },
+    {
+      "fieldname": "http_methods",
+      "fieldtype": "MultiSelect",
+      "label": "HTTP Methods",
+      "options": "GET\nPOST\nPUT\nPATCH\nDELETE\nOPTIONS\nHEAD",
+      "default": "GET,POST",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_route",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "priority",
+      "fieldtype": "Int",
+      "label": "Priority",
+      "default": 0,
+      "description": "Route matching priority (higher = higher priority)"
+    },
+    {
+      "fieldname": "enable_websocket",
+      "fieldtype": "Check",
+      "label": "Enable WebSocket",
+      "default": 0,
+      "description": "Allow WebSocket connections"
+    },
+    {
+      "fieldname": "upstream_section",
+      "fieldtype": "Section Break",
+      "label": "Upstream Configuration"
+    },
+    {
+      "fieldname": "upstream_url",
+      "fieldtype": "Data",
+      "label": "Upstream URL",
+      "reqd": 1,
+      "description": "Backend service URL (e.g., http://service:8080)"
+    },
+    {
+      "fieldname": "upstream_type",
+      "fieldtype": "Select",
+      "label": "Load Balancing Type",
+      "options": "roundrobin\nchash\newma\nleast_conn",
+      "default": "roundrobin",
+      "description": "Load balancing algorithm"
+    },
+    {
+      "fieldname": "column_break_upstream",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "upstream_timeout",
+      "fieldtype": "Int",
+      "label": "Upstream Timeout (seconds)",
+      "default": 60,
+      "description": "Request timeout for upstream service"
+    },
+    {
+      "fieldname": "upstream_retries",
+      "fieldtype": "Int",
+      "label": "Retries",
+      "default": 1,
+      "description": "Number of retry attempts on failure"
+    },
+    {
+      "fieldname": "authentication_section",
+      "fieldtype": "Section Break",
+      "label": "Authentication"
+    },
+    {
+      "fieldname": "enable_auth",
+      "fieldtype": "Check",
+      "label": "Enable Authentication",
+      "default": 1
+    },
+    {
+      "fieldname": "auth_type",
+      "fieldtype": "Select",
+      "label": "Authentication Type",
+      "options": "key-auth\nbasic-auth\njwt-auth\noauth2",
+      "default": "key-auth",
+      "depends_on": "eval:doc.enable_auth==1"
+    },
+    {
+      "fieldname": "column_break_auth",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "api_key_header",
+      "fieldtype": "Data",
+      "label": "API Key Header Name",
+      "default": "X-API-KEY",
+      "depends_on": "eval:doc.enable_auth==1 && doc.auth_type=='key-auth'"
+    },
+    {
+      "fieldname": "api_keys",
+      "fieldtype": "Table",
+      "label": "API Keys",
+      "options": "API Route Key",
+      "depends_on": "eval:doc.enable_auth==1 && doc.auth_type=='key-auth'"
+    },
+    {
+      "fieldname": "rate_limiting_section",
+      "fieldtype": "Section Break",
+      "label": "Rate Limiting"
+    },
+    {
+      "fieldname": "enable_rate_limit",
+      "fieldtype": "Check",
+      "label": "Enable Rate Limiting",
+      "default": 0
+    },
+    {
+      "fieldname": "rate_limit_count",
+      "fieldtype": "Int",
+      "label": "Request Count",
+      "default": 100,
+      "depends_on": "eval:doc.enable_rate_limit==1",
+      "description": "Maximum requests allowed"
+    },
+    {
+      "fieldname": "column_break_rate",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "rate_limit_time_window",
+      "fieldtype": "Int",
+      "label": "Time Window (seconds)",
+      "default": 60,
+      "depends_on": "eval:doc.enable_rate_limit==1",
+      "description": "Time window for rate limit"
+    },
+    {
+      "fieldname": "rate_limit_burst",
+      "fieldtype": "Int",
+      "label": "Burst Size",
+      "default": 0,
+      "depends_on": "eval:doc.enable_rate_limit==1",
+      "description": "Additional burst capacity"
+    },
+    {
+      "fieldname": "plugins_section",
+      "fieldtype": "Section Break",
+      "label": "Plugins & Security"
+    },
+    {
+      "fieldname": "enable_cors",
+      "fieldtype": "Check",
+      "label": "Enable CORS",
+      "default": 0
+    },
+    {
+      "fieldname": "enable_ip_restriction",
+      "fieldtype": "Check",
+      "label": "Enable IP Restriction",
+      "default": 0
+    },
+    {
+      "fieldname": "column_break_plugins",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "cors_origins",
+      "fieldtype": "Small Text",
+      "label": "Allowed Origins",
+      "depends_on": "eval:doc.enable_cors==1",
+      "description": "Comma-separated list of allowed origins (e.g., https://example.com)"
+    },
+    {
+      "fieldname": "allowed_ips",
+      "fieldtype": "Small Text",
+      "label": "Allowed IP Addresses",
+      "depends_on": "eval:doc.enable_ip_restriction==1",
+      "description": "Comma-separated list of allowed IPs (e.g., 192.168.1.0/24)"
+    },
+    {
+      "fieldname": "metadata_section",
+      "fieldtype": "Section Break",
+      "label": "Metadata"
+    },
+    {
+      "fieldname": "description",
+      "fieldtype": "Text Editor",
+      "label": "Description"
+    },
+    {
+      "fieldname": "tags",
+      "fieldtype": "Data",
+      "label": "Tags",
+      "description": "Comma-separated tags for categorization"
+    }
+  ],
+  "index_web_pages_for_search": 1,
+  "links": [],
+  "modified": "2024-11-24 00:00:00",
+  "modified_by": "Administrator",
+  "module": "Frappe Devsecops Dashboard",
+  "name": "API Route",
+  "naming_rule": "Expression",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Administrator",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "All"
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "title_field": "route_name",
+  "track_changes": 1,
+  "track_seen": 1
+}

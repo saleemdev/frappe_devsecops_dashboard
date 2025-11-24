@@ -49,6 +49,8 @@ import SystemTest from './components/SystemTest'
 import ApiTestRunner from './components/ApiTestRunner'
 import ApiDiagnostics from './components/ApiDiagnostics'
 import AskAI from './components/AskAI'
+import APIProvisioning from './components/APIProvisioning'
+import APIRouteForm from './components/APIRouteForm'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -90,6 +92,8 @@ function App() {
     selectedPasswordVaultEntryId = null,
     showPasswordVaultForm = false,
     selectedRACITemplateId = null,
+    selectedAPIRouteId = null,
+    showAPIRouteForm = false,
     isMobile = false,
     mobileMenuVisible = false,
     navigateToRoute = () => { },
@@ -468,6 +472,23 @@ function AppContent({
             navigateToRoute={navigateToRoute}
           />
         )
+      case 'api-provisioning':
+        return <APIProvisioning navigateToRoute={navigateToRoute} />
+      case 'api-provisioning-create':
+        return (
+          <APIRouteForm
+            mode="create"
+            navigateToRoute={navigateToRoute}
+          />
+        )
+      case 'api-provisioning-edit':
+        return (
+          <APIRouteForm
+            mode="edit"
+            routeId={selectedAPIRouteId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
       case 'swagger-collections':
         return <SwaggerCollections />
       case 'devops-config':
@@ -586,6 +607,11 @@ function AppContent({
           key: 'password-vault',
           icon: <LockOutlined />,
           label: 'Password Vault'
+        },
+        {
+          key: 'api-provisioning',
+          icon: <BuildOutlined />,
+          label: 'API Provisioning'
         },
         {
           key: 'swagger-collections',

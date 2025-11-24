@@ -1,0 +1,171 @@
+{
+  "actions": [],
+  "allow_rename": 0,
+  "autoname": "format:APISIX-SETTINGS-{####}",
+  "creation": "2024-11-24 00:00:00",
+  "doctype": "DocType",
+  "editable_grid": 0,
+  "engine": "InnoDB",
+  "is_submittable": 0,
+  "issingle": 1,
+  "field_order": [
+    "connection_section",
+    "admin_api_url",
+    "admin_api_key",
+    "column_break_connection",
+    "control_plane_url",
+    "data_plane_url",
+    "authentication_section",
+    "api_key_name",
+    "column_break_auth",
+    "api_key_location",
+    "advanced_section",
+    "timeout",
+    "verify_ssl",
+    "column_break_advanced",
+    "enable_logging",
+    "log_level"
+  ],
+  "fields": [
+    {
+      "fieldname": "connection_section",
+      "fieldtype": "Section Break",
+      "label": "APISIX Connection"
+    },
+    {
+      "fieldname": "admin_api_url",
+      "fieldtype": "Data",
+      "label": "Admin API URL",
+      "description": "APISIX Admin API endpoint (e.g., http://localhost:9180)",
+      "reqd": 1,
+      "default": "http://localhost:9180"
+    },
+    {
+      "fieldname": "admin_api_key",
+      "fieldtype": "Password",
+      "label": "Admin API Key",
+      "description": "X-API-KEY for authenticating with APISIX Admin API",
+      "reqd": 1
+    },
+    {
+      "fieldname": "column_break_connection",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "control_plane_url",
+      "fieldtype": "Data",
+      "label": "Control Plane URL",
+      "description": "APISIX Dashboard/Control Plane URL (optional)",
+      "options": "URL"
+    },
+    {
+      "fieldname": "data_plane_url",
+      "fieldtype": "Data",
+      "label": "Data Plane URL",
+      "description": "APISIX Gateway URL for API requests (e.g., http://localhost:9080)",
+      "reqd": 1,
+      "default": "http://localhost:9080"
+    },
+    {
+      "fieldname": "authentication_section",
+      "fieldtype": "Section Break",
+      "label": "API Key Authentication"
+    },
+    {
+      "fieldname": "api_key_name",
+      "fieldtype": "Data",
+      "label": "API Key Header Name",
+      "description": "Default API key header name for routes",
+      "default": "X-API-KEY"
+    },
+    {
+      "fieldname": "column_break_auth",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "api_key_location",
+      "fieldtype": "Select",
+      "label": "API Key Location",
+      "options": "header\nquery\ncookie",
+      "default": "header",
+      "description": "Where to look for API key in requests"
+    },
+    {
+      "fieldname": "advanced_section",
+      "fieldtype": "Section Break",
+      "label": "Advanced Settings"
+    },
+    {
+      "fieldname": "timeout",
+      "fieldtype": "Int",
+      "label": "Request Timeout (seconds)",
+      "default": 30,
+      "description": "HTTP request timeout for APISIX API calls"
+    },
+    {
+      "fieldname": "verify_ssl",
+      "fieldtype": "Check",
+      "label": "Verify SSL Certificates",
+      "default": 1,
+      "description": "Verify SSL certificates when connecting to APISIX"
+    },
+    {
+      "fieldname": "column_break_advanced",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "enable_logging",
+      "fieldtype": "Check",
+      "label": "Enable Logging",
+      "default": 1,
+      "description": "Log APISIX API requests and responses"
+    },
+    {
+      "fieldname": "log_level",
+      "fieldtype": "Select",
+      "label": "Log Level",
+      "options": "DEBUG\nINFO\nWARNING\nERROR",
+      "default": "INFO",
+      "depends_on": "eval:doc.enable_logging==1"
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "links": [],
+  "modified": "2024-11-24 00:00:00",
+  "modified_by": "Administrator",
+  "module": "Frappe Devsecops Dashboard",
+  "name": "APISIX Settings",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Administrator",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "quick_entry": 0,
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": [],
+  "track_changes": 1,
+  "track_seen": 0
+}

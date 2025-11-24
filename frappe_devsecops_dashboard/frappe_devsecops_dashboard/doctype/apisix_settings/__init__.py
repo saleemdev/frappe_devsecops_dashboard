@@ -1,0 +1,1 @@
+# APISIX Settings DocType

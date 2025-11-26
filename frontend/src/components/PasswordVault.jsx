@@ -19,8 +19,7 @@ import {
   Divider,
   InputNumber,
   DatePicker,
-  Typography
-,
+  Typography,
   theme
 } from 'antd'
 import {

@@ -294,17 +294,26 @@ const RACITemplate = ({ navigateToRoute }) => {
       title: 'Project Template',
       dataIndex: 'project_template',
       key: 'project_template',
-      width: '30%',
+      width: '25%',
       render: (text) => <Text type="secondary">{text || '-'}</Text>
     },
     {
-      title: 'Tasks',
-      dataIndex: 'name',
-      key: 'tasks_count',
-      width: '15%',
-      render: (_, record) => {
-        const count = record.raci_assignments ? record.raci_assignments.length : 0
-        return <Badge count={count} showZero color="#1890ff" />
+      title: 'Last Updated',
+      dataIndex: 'modified',
+      key: 'modified',
+      width: '20%',
+      render: (text) => {
+        if (!text) return '-'
+        const date = new Date(text)
+        return (
+          <Text type="secondary">
+            {date.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            })}
+          </Text>
+        )
       }
     },
     {
@@ -338,10 +347,10 @@ const RACITemplate = ({ navigateToRoute }) => {
               cancelText="Cancel"
               okButtonProps={{ danger: true, loading: deletingId === record.name }}
             >
-              <Button 
-                type="text" 
-                danger 
-                size="small" 
+              <Button
+                type="text"
+                danger
+                size="small"
                 icon={<DeleteOutlined />}
                 loading={deletingId === record.name}
                 disabled={deletingId !== null}

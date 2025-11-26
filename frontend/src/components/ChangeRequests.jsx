@@ -15,8 +15,7 @@ import {
   Tooltip,
   Collapse,
   Divider,
-  Timeline
-,
+  Timeline,
   theme
 } from 'antd'
 import {
@@ -39,6 +38,7 @@ const { Title, Text } = Typography
 const { Option } = Select
 
 const ChangeRequests = () => {
+  const { token } = theme.useToken()
   const { hasWritePermission } = useAuthStore()
   const [canEditChangeRequest, setCanEditChangeRequest] = useState(true)
   const [checkingPermissions, setCheckingPermissions] = useState(true)

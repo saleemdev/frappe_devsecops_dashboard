@@ -14,9 +14,8 @@ import {
     Typography,
     Checkbox,
     InputNumber,
-    Divider
-,
-  theme
+    Divider,
+    theme
 } from 'antd'
 import {
     ArrowLeftOutlined,

@@ -27,8 +27,7 @@ import {
   Popconfirm,
   List,
   Collapse,
-  Divider
-,
+  Divider,
   theme
 } from 'antd'
 import {

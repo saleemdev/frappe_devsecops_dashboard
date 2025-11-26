@@ -20,8 +20,7 @@ import {
   DatePicker,
   Popconfirm,
   Tooltip,
-  Divider
-,
+  Divider,
   theme
 } from 'antd'
 import {

@@ -15,7 +15,8 @@ import {
   Tooltip,
   Row,
   Col,
-  Switch
+  Switch,
+  theme
 } from 'antd'
 import { useResponsive } from '../hooks/useResponsive'
 import {
@@ -26,8 +27,10 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   BarChartOutlined,
-  SearchOutlined
+  SearchOutlined,
+  ReloadOutlined
 } from '@ant-design/icons'
+import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -64,6 +67,9 @@ async function apiCall(endpoint, options = {}) {
 }
 
 const MonitoringDashboards = () => {
+  const { token } = theme.useToken()
+  const { isMobile } = useResponsive()
+
   const [dashboards, setDashboards] = useState([])
   const [filteredDashboards, setFilteredDashboards] = useState([])
   const [loading, setLoading] = useState(false)
@@ -73,9 +79,6 @@ const MonitoringDashboards = () => {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [form] = Form.useForm()
-
-  // Responsive hook
-  const { isMobile } = useResponsive()
 
   // Dashboard categories and types
   const categories = ['Infrastructure', 'Application', 'Security', 'Performance', 'Other']
@@ -352,18 +355,51 @@ const MonitoringDashboards = () => {
   ]
 
   return (
-    <div style={{ padding: '20px' }}>
-      <Card>
-        <div style={{ marginBottom: '20px' }}>
-          <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-            <BarChartOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-            Monitoring Dashboards
-          </Title>
-          <Text type="secondary">
-            Manage and access your monitoring dashboards for infrastructure, applications, and security
-          </Text>
-        </div>
+    <div>
+      {/* Header Banner */}
+      <Card style={{
+        marginBottom: 16,
+        ...getHeaderBannerStyle(token)
+      }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Space direction="vertical" size="small">
+              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                <BarChartOutlined style={{
+                  marginRight: 16,
+                  color: getHeaderIconColor(token),
+                  fontSize: '32px'
+                }} />
+                Monitoring Dashboards
+              </Title>
+              <Text type="secondary">
+                Manage and access your monitoring dashboards for infrastructure, applications, and security
+              </Text>
+            </Space>
+          </Col>
+          <Col>
+            <Space>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={loadDashboards}
+                loading={loading}
+              >
+                Refresh
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAddDashboard}
+              >
+                Add Dashboard
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
 
+      {/* Main Content Card */}
+      <Card>
         {/* Filters and Search */}
         <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
           <Col xs={24} sm={12} md={8}>
@@ -375,7 +411,7 @@ const MonitoringDashboards = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </Col>
-          <Col xs={12} sm={6} md={4}>
+          <Col xs={12} sm={6} md={6}>
             <Select
               placeholder="Category"
               value={categoryFilter}
@@ -388,7 +424,7 @@ const MonitoringDashboards = () => {
               ))}
             </Select>
           </Col>
-          <Col xs={12} sm={6} md={4}>
+          <Col xs={12} sm={6} md={6}>
             <Select
               placeholder="Status"
               value={statusFilter}
@@ -399,15 +435,6 @@ const MonitoringDashboards = () => {
               <Option value="active">Active</Option>
               <Option value="inactive">Inactive</Option>
             </Select>
-          </Col>
-          <Col xs={24} sm={12} md={8} style={{ textAlign: 'right' }}>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAddDashboard}
-            >
-              Add Dashboard
-            </Button>
           </Col>
         </Row>
 

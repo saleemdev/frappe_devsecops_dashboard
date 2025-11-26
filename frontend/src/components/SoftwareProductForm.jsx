@@ -15,8 +15,7 @@ import {
   DatePicker,
   Spin,
   Typography,
-  Tag
-,
+  Tag,
   theme
 } from 'antd'
 import {

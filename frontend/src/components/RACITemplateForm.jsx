@@ -42,6 +42,10 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
   const [showAssignmentModal, setShowAssignmentModal] = useState(false)
   const [editingAssignment, setEditingAssignment] = useState(null)
   const [assignmentForm] = Form.useForm()
+
+  // Track initial values for smart payload optimization
+  const [initialFormValues, setInitialFormValues] = useState({})
+  const [initialAssignments, setInitialAssignments] = useState([])
   
   // Decode templateId if it's URL encoded
   const decodedTemplateId = templateId ? (() => {
@@ -211,29 +215,35 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
         setTemplate(templateData)
 
         const assignmentsData = templateData.raci_assignments || []
-        setAssignments(
-          assignmentsData.map((assignment, index) => ({
-            id: assignment.name || `assignment-${index}`,
-            idx: assignment.idx,
-            business_function: assignment.business_function,
-            task_name: assignment.task_name,
-            task_link: assignment.task_link,
-            task_type: assignment.task_type,
-            task_type_priority: assignment.task_type_priority,
-            responsible: assignment.responsible,
-            accountable: assignment.accountable,
-            consulted: assignment.consulted,
-            informed: assignment.informed
-          }))
-        )
+        const mappedAssignments = assignmentsData.map((assignment, index) => ({
+          id: assignment.name || `assignment-${index}`,
+          idx: assignment.idx,
+          business_function: assignment.business_function,
+          task_name: assignment.task_name,
+          task_link: assignment.task_link,
+          task_type: assignment.task_type,
+          task_type_priority: assignment.task_type_priority,
+          responsible: assignment.responsible,
+          accountable: assignment.accountable,
+          consulted: assignment.consulted,
+          informed: assignment.informed
+        }))
 
-        form.setFieldsValue({
+        setAssignments(mappedAssignments)
+        // Store initial assignments for comparison (deep clone)
+        setInitialAssignments(JSON.parse(JSON.stringify(mappedAssignments)))
+
+        const formValues = {
           template_name: templateData.template_name,
           description: templateData.description,
           project_template: templateData.project_template
-        })
+        }
 
-        console.log('[RACITemplateForm] Template loaded successfully, form populated')
+        form.setFieldsValue(formValues)
+        // Store initial form values for comparison
+        setInitialFormValues(formValues)
+
+        console.log('[RACITemplateForm] Template loaded successfully, form populated, initial values stored')
       } else if (result && result.success === false) {
         // Explicit failure
         console.error('[RACITemplateForm] API returned success=false:', result)
@@ -310,6 +320,8 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
     setEditingAssignment(record)
     assignmentForm.setFieldsValue({
       task_name: record.task_name,
+      task_link: record.task_link,
+      task_type: record.task_type,
       business_function: record.business_function,
       responsible: record.responsible,
       accountable: record.accountable,
@@ -372,9 +384,67 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
 
       console.log('[RACITemplateForm] Transformed assignments:', transformedAssignments)
 
-      const formData = {
-        ...values,
-        raci_assignments: transformedAssignments
+      let formData = {}
+
+      if (mode === 'create') {
+        // Create mode: send everything
+        formData = {
+          ...values,
+          raci_assignments: transformedAssignments
+        }
+      } else {
+        // Update mode: Smart optimization - only send changed data
+
+        // Check what changed in form fields
+        const metadataChanged =
+          values.template_name !== initialFormValues.template_name ||
+          values.description !== initialFormValues.description ||
+          values.project_template !== initialFormValues.project_template
+
+        // Check if assignments changed (deep comparison)
+        const assignmentsChanged = JSON.stringify(transformedAssignments) !== JSON.stringify(
+          initialAssignments.map(a => ({
+            business_function: a.business_function,
+            task_name: a.task_name,
+            task_link: a.task_link,
+            task_type: a.task_type,
+            task_type_priority: a.task_type_priority,
+            responsible: a.responsible,
+            accountable: a.accountable,
+            consulted: a.consulted,
+            informed: a.informed
+          }))
+        )
+
+        console.log('[RACITemplateForm] Change detection:', {
+          metadataChanged,
+          assignmentsChanged,
+          assignmentsCount: transformedAssignments.length,
+          initialAssignmentsCount: initialAssignments.length
+        })
+
+        // Build optimized payload - only include changed parts
+        if (metadataChanged) {
+          formData.template_name = values.template_name
+          formData.description = values.description
+          formData.project_template = values.project_template
+        }
+
+        if (assignmentsChanged) {
+          formData.raci_assignments = transformedAssignments
+        }
+
+        // If nothing changed, still send at least one field to avoid empty payload
+        if (!metadataChanged && !assignmentsChanged) {
+          console.log('[RACITemplateForm] No changes detected, but sending update anyway')
+          formData = values // Send all form values as fallback
+        }
+
+        console.log('[RACITemplateForm] Optimized payload size:', {
+          totalFields: Object.keys(formData).length,
+          includesAssignments: 'raci_assignments' in formData,
+          payloadSize: JSON.stringify(formData).length + ' bytes'
+        })
       }
 
       const endpoint = mode === 'create'
@@ -383,11 +453,11 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
 
       // Use the already decoded templateId
       const payload = mode === 'create' ? formData : { name: decodedTemplateId, ...formData }
-      
+
       console.log('[RACITemplateForm] Using templateId for update:', decodedTemplateId, '(original prop:', templateId, ')')
 
       console.log('[RACITemplateForm] API Endpoint:', endpoint)
-      console.log('[RACITemplateForm] Full Payload:', JSON.stringify(payload, null, 2))
+      console.log('[RACITemplateForm] Optimized Payload:', JSON.stringify(payload, null, 2))
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -589,11 +659,12 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
       </Card>
 
       <Card bordered={false}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
+        <Spin spinning={submitting} tip="Saving template...">
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+          >
           <Row gutter={[24, 24]}>
             {/* Left Column */}
             <Col xs={24} md={12}>
@@ -646,14 +717,6 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
             <Col xs={24}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <Title level={4} style={{ margin: 0 }}>RACI Matrix</Title>
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<PlusOutlined />}
-                  onClick={handleAddAssignment}
-                >
-                  Add Assignment
-                </Button>
               </div>
 
 {assignments.length > 0 ? (
@@ -736,6 +799,7 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
             </Col>
           </Row>
         </Form>
+        </Spin>
       </Card>
 
       {/* Assignment Modal */}
@@ -750,13 +814,58 @@ const RACITemplateForm = ({ mode = 'create', templateId = null, navigateToRoute 
           form={assignmentForm}
           layout="vertical"
         >
-          <Form.Item
-            label="Task Name"
-            name="task_name"
-            rules={[{ required: true, message: 'Please enter task name' }]}
-          >
-            <Input placeholder="e.g., Environment Planning" />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Task Name"
+                name="task_name"
+                rules={[{ required: true, message: 'Please enter task name' }]}
+              >
+                <Input placeholder="e.g., Environment Planning" readOnly disabled />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Task Link"
+                name="task_link"
+              >
+                <Input placeholder="Link to Task (optional)" readOnly disabled />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Task Type"
+                name="task_type"
+              >
+                <AutoComplete
+                  placeholder="e.g., Planning, Development, Testing"
+                  options={(() => {
+                    // Extract unique task types from all assignments
+                    const taskTypes = assignments
+                      .map(a => a.task_type)
+                      .filter(type => type && type.trim() !== '')
+                    const uniqueTypes = [...new Set(taskTypes)]
+                    return uniqueTypes.map(type => ({ value: type }))
+                  })()}
+                  filterOption={(inputValue, option) =>
+                    option.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
+                  }
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Business Function"
+                name="business_function"
+              >
+                <Input placeholder="e.g., IT, HR, Finance" />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Divider orientation="left">RACI Roles</Divider>
 

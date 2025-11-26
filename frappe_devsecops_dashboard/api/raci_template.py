@@ -266,6 +266,10 @@ def update_raci_template(name: str = None, **kwargs) -> Dict[str, Any]:
             frappe.response['http_status_code'] = 400
             frappe.throw(_('Template ID is required'), frappe.ValidationError)
 
+        # Log the incoming request for debugging
+        frappe.logger().info(f"[update_raci_template] Received update request for template: {name}")
+        frappe.logger().info(f"[update_raci_template] Request keys: {list(kwargs.keys())}")
+
         # Remove 'name' from kwargs if present
         kwargs.pop('name', None)
 
@@ -278,15 +282,25 @@ def update_raci_template(name: str = None, **kwargs) -> Dict[str, Any]:
             frappe.throw(_('You do not have permission to update this RACI Template'), frappe.PermissionError)
 
         # Extract assignments data
-        assignments_data = kwargs.pop('raci_assignments', None) or kwargs.pop('raci_assignments', []) or []
+        # Check if raci_assignments key exists in kwargs before popping
+        has_assignments_key = 'raci_assignments' in kwargs
+        assignments_data = kwargs.pop('raci_assignments', [])
+
+        # Explicitly handle None to convert to empty list
+        if assignments_data is None:
+            assignments_data = []
+
+        # Log the assignments data for debugging
+        frappe.logger().info(f"[update_raci_template] Updating template {name}, has_assignments_key={has_assignments_key}, assignments_count={len(assignments_data)}")
 
         # Update fields
         for key, value in kwargs.items():
             if key not in ['doctype', 'creation', 'modified', 'owner', 'modified_by', 'raci_assignments']:
                 doc.set(key, value)
 
-        # Update assignments - clear and re-add
-        if assignments_data:
+        # Update assignments - only if raci_assignments was explicitly provided in the request
+        # This allows updating other fields without affecting assignments
+        if has_assignments_key:
             doc.raci_assignments = []
             for assignment in assignments_data:
                 if isinstance(assignment, dict):
@@ -304,6 +318,8 @@ def update_raci_template(name: str = None, **kwargs) -> Dict[str, Any]:
 
         # Save document
         doc.save()
+
+        frappe.logger().info(f"[update_raci_template] Successfully updated template {name}, final assignments count: {len(doc.raci_assignments)}")
 
         return {
             'success': True,

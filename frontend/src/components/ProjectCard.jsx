@@ -39,7 +39,9 @@ import {
   DeleteOutlined,
   EditOutlined,
   DownloadOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  PrinterOutlined,
+  CloseCircleOutlined
 } from '@ant-design/icons'
 import './ProjectCard.css'
 import MentionDropdown from './MentionDropdown'
@@ -96,6 +98,56 @@ const ProjectCard = ({
   const [mentionPosition, setMentionPosition] = useState(null)
   const commentInputRef = useRef(null)
   const [cursorPosition, setCursorPosition] = useState(0)
+  const [cancellingProject, setCancellingProject] = useState(false)
+
+  // Handle Print - Download PDF using Frappe's print API
+  const handlePrint = () => {
+    try {
+      // Use Frappe's built-in PDF download endpoint
+      const pdfUrl = `/api/method/frappe.utils.print_format.download_pdf?doctype=Project&name=${encodeURIComponent(project.id)}&format=Standard&no_letterhead=0`
+
+      // Open in new tab/window for download
+      window.open(pdfUrl, '_blank')
+      message.success('PDF download started')
+    } catch (error) {
+      console.error('[ProjectCard] Error printing PDF:', error)
+      message.error('Failed to download PDF')
+    }
+  }
+
+  // Handle Cancel Project
+  const handleCancelProject = async () => {
+    try {
+      setCancellingProject(true)
+      const response = await fetch(`/api/resource/Project/${project.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          status: 'Cancelled'
+        })
+      })
+
+      if (response.ok) {
+        message.success('Project cancelled successfully')
+        // Reload or update the project data
+        if (onViewDetails) {
+          onViewDetails(project) // Trigger refresh
+        }
+      } else {
+        const error = await response.json()
+        message.error(error.message || 'Failed to cancel project')
+      }
+    } catch (error) {
+      console.error('[ProjectCard] Error cancelling project:', error)
+      message.error('An error occurred while cancelling the project')
+    } finally {
+      setCancellingProject(false)
+    }
+  }
 
   // Load files and comments on mount
   useEffect(() => {
@@ -507,6 +559,41 @@ const ProjectCard = ({
         >
           Sprint Report
         </Button>
+        <Button
+          size="small"
+          icon={<PrinterOutlined />}
+          onClick={(e) => {
+            e.stopPropagation()
+            handlePrint()
+          }}
+          className="project-card-action-btn"
+        >
+          Print
+        </Button>
+        <Popconfirm
+          title="Cancel Project"
+          description="Are you sure you want to cancel this project? This will change the status to 'Cancelled'."
+          onConfirm={(e) => {
+            e?.stopPropagation()
+            handleCancelProject()
+          }}
+          onCancel={(e) => e?.stopPropagation()}
+          okText="Yes, Cancel Project"
+          cancelText="No"
+          okButtonProps={{ danger: true }}
+        >
+          <Button
+            size="small"
+            danger
+            icon={<CloseCircleOutlined />}
+            loading={cancellingProject}
+            onClick={(e) => e.stopPropagation()}
+            className="project-card-action-btn"
+            disabled={project.status === 'Cancelled'}
+          >
+            Cancel Project
+          </Button>
+        </Popconfirm>
       </div>
     </div>
   )
@@ -599,6 +686,12 @@ const ProjectCard = ({
         </Descriptions.Item>
         <Descriptions.Item label="Type" className="metric-item">
           <Text strong>{safeString(project.project_type, 'Standard')}</Text>
+        </Descriptions.Item>
+        <Descriptions.Item label="Software Product" className="metric-item">
+          <Text strong>{safeString(project.custom_software_product, 'N/A')}</Text>
+        </Descriptions.Item>
+        <Descriptions.Item label="RACI Template" className="metric-item">
+          <Text strong>{safeString(project.custom_default_raci_template, 'N/A')}</Text>
         </Descriptions.Item>
       </Descriptions>
     </div>

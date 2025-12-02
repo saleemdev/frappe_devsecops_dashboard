@@ -59,6 +59,8 @@ function ProjectCreateForm({ navigateToRoute }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [designations, setDesignations] = useState([])
   const [designationSearchLoading, setDesignationSearchLoading] = useState(false)
+  const [softwareProducts, setSoftwareProducts] = useState([])
+  const [loadingSoftwareProducts, setLoadingSoftwareProducts] = useState(false)
   const userSearchTimeoutRef = useRef(null)
   const designationSearchTimeoutRef = useRef(null)
 
@@ -106,7 +108,37 @@ function ProjectCreateForm({ navigateToRoute }) {
 
     loadOptions()
     loadDesignations()
+    loadSoftwareProducts()
   }, [])
+
+  // Load Software Products
+  const loadSoftwareProducts = async () => {
+    try {
+      setLoadingSoftwareProducts(true)
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.software_product.get_products?fields=["name","product_name"]&limit_page_length=100', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const result = data.message || data
+        if (result.success && result.data) {
+          setSoftwareProducts(result.data.map(p => ({
+            label: p.product_name,
+            value: p.name
+          })))
+        }
+      }
+    } catch (error) {
+      console.error('[ProjectCreateForm] Error loading software products:', error)
+    } finally {
+      setLoadingSoftwareProducts(false)
+    }
+  }
 
   const loadDesignations = async (query = '') => {
     try {
@@ -290,6 +322,10 @@ function ProjectCreateForm({ navigateToRoute }) {
         projectData.project_template = selectedTemplate
       }
 
+      if (values.custom_software_product) {
+        projectData.custom_software_product = values.custom_software_product
+      }
+
       // Create project
       const response = await projectsService.createProject(projectData)
 
@@ -394,6 +430,24 @@ function ProjectCreateForm({ navigateToRoute }) {
                   allowClear
                   onChange={setSelectedTemplate}
                   value={selectedTemplate}
+                />
+              </Form.Item>
+
+              {/* Software Product */}
+              <Form.Item
+                label="Software Product (Optional)"
+                name="custom_software_product"
+                tooltip="Link this project to a software product. RACI Template will be auto-fetched from the product."
+              >
+                <Select
+                  placeholder="Select a software product"
+                  options={softwareProducts}
+                  allowClear
+                  loading={loadingSoftwareProducts}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
                 />
               </Form.Item>
 

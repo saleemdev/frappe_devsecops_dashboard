@@ -1571,6 +1571,11 @@ def update_project(project_name, project_data):
             project.expected_end_date = project_data["expected_end_date"]
         if "notes" in project_data:
             project.notes = project_data["notes"]
+        if "custom_software_product" in project_data:
+            # Update Software Product - Frappe will auto-fetch custom_default_raci_template via fetch_from
+            project.custom_software_product = project_data["custom_software_product"]
+        if "custom_zenhub_workspace_id" in project_data:
+            project.custom_zenhub_workspace_id = project_data["custom_zenhub_workspace_id"]
 
         # Save project
         project.save()
@@ -1765,7 +1770,8 @@ def update_project_manager(project_name, user_id):
                 "user": user_id,
                 "email": user_doc.email,
                 "full_name": user_doc.full_name,
-                "image": user_doc.user_image
+                "image": user_doc.user_image,
+                "welcome_email_sent": 1  # ALWAYS set to True when adding new Project Manager
             })
 
         # Clear previous project manager designation
@@ -2382,7 +2388,7 @@ def get_projects_data_for_metrics(filters=None):
 
 @frappe.whitelist()
 def create_project(project_name, project_type, expected_start_date, expected_end_date,
-                   team_members=None, notes=None, priority=None, department=None, project_template=None):
+                   team_members=None, notes=None, priority=None, department=None, project_template=None, custom_software_product=None):
     """
     Create a new project with team members and optional template.
 
@@ -2396,6 +2402,7 @@ def create_project(project_name, project_type, expected_start_date, expected_end
         priority (str): Project priority - Low, Medium, High (optional, defaults to Medium)
         department (str): Department link (optional)
         project_template (str): Project Template name to use for auto-populating tasks (optional)
+        custom_software_product (str): Link to Software Product (optional, will auto-fetch RACI Template)
 
     Returns:
         dict: JSON response with success status and project details or error information
@@ -2498,6 +2505,10 @@ def create_project(project_name, project_type, expected_start_date, expected_end
 
         if notes:
             project.notes = notes
+
+        # Set Software Product if provided (will auto-fetch RACI Template via fetch_from)
+        if custom_software_product:
+            project.custom_software_product = custom_software_product
 
         # Set project template if provided
         if project_template:

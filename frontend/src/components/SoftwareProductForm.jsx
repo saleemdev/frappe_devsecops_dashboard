@@ -394,14 +394,14 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
               <Col xs={24} sm={12}>
                 <Space direction="vertical" size="small" style={{ width: '100%' }}>
                   <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0050b3' }}>
-                    Project Manager
+                    Product Manager
                   </Text>
                   <Form.Item
-                    name="project_manager"
+                    name="product_manager"
                     style={{ marginBottom: 0 }}
                   >
                     <Select
-                      placeholder="Select Project Manager"
+                      placeholder="Select Product Manager"
                       showSearch
                       filterOption={false}
                       onSearch={handleUserSearch}
@@ -447,26 +447,6 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
                   rules={[{ required: true, message: 'Please enter description' }]}
                 >
                   <Input.TextArea rows={4} placeholder="Product description" />
-                </Form.Item>
-
-
-                <Form.Item
-                  label="Owner"
-                  name="owner"
-                  rules={[{ required: true, message: 'Please select an owner' }]}
-                >
-                  <Select
-                    placeholder="Search and select owner"
-                    showSearch
-                    filterOption={false}
-                    onSearch={handleUserSearch}
-                    loading={searchLoading}
-                    options={userSearchResults.map(user => ({
-                      label: `${user.full_name} (${user.email})`,
-                      value: user.name
-                    }))}
-                    notFoundContent={searchLoading ? <Spin size="small" /> : 'Type to search users'}
-                  />
                 </Form.Item>
               </Card>
             </Col>

@@ -116,7 +116,7 @@ const SoftwareProduct = ({ navigateToRoute }) => {
       }
 
       const queryParams = new URLSearchParams({
-        fields: JSON.stringify(['name', 'product_name', 'description', 'project_manager', 'owner', 'status', 'release_status', 'version', 'start_date', 'completion_date', 'production_url', 'uat_url']),
+        fields: JSON.stringify(['name', 'product_name', 'description', 'product_manager', 'status', 'release_status', 'version', 'start_date', 'completion_date', 'production_url', 'uat_url']),
         filters: filters.length > 0 ? JSON.stringify(filters) : '[]',
         limit_start: (page - 1) * pageSize,
         limit_page_length: pageSize,
@@ -245,18 +245,6 @@ const SoftwareProduct = ({ navigateToRoute }) => {
         </Space>
       ),
       width: '25%'
-    },
-    {
-      title: 'Owner',
-      dataIndex: 'owner',
-      key: 'owner',
-      render: (text) => (
-        <Space size="small">
-          <UserOutlined style={{ color: '#52c41a' }} />
-          <span>{text}</span>
-        </Space>
-      ),
-      width: '15%'
     },
     {
       title: 'Version',
@@ -390,7 +378,7 @@ const SoftwareProduct = ({ navigateToRoute }) => {
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8}>
             <Input
-              placeholder="Search by name, project, or owner..."
+              placeholder="Search by name or project..."
               prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -485,8 +473,8 @@ const SoftwareProduct = ({ navigateToRoute }) => {
       >
         {viewingRecord && (
           <div>
-            {/* Project Manager - Prominent Display */}
-            {viewingRecord.project_manager && (
+            {/* Product Manager - Prominent Display */}
+            {viewingRecord.product_manager && (
               <Card
                 style={{
                   marginBottom: '24px',
@@ -499,7 +487,7 @@ const SoftwareProduct = ({ navigateToRoute }) => {
                 <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                   <div>
                     <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0050b3' }}>
-                      Project Manager
+                      Product Manager
                     </Text>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px', background: '#fff', borderRadius: '8px' }}>
@@ -508,7 +496,7 @@ const SoftwareProduct = ({ navigateToRoute }) => {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 500, fontSize: '16px', color: '#000' }}>
-                        {viewingRecord.project_manager}
+                        {viewingRecord.product_manager}
                       </div>
                       <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
                         Overall product strategy & delivery
@@ -552,25 +540,11 @@ const SoftwareProduct = ({ navigateToRoute }) => {
               </Card>
             </div>
 
-            {/* Owner & Version */}
+            {/* Version */}
             <div style={{ marginBottom: '24px' }}>
-              <Title level={5}>Owner & Version</Title>
+              <Title level={5}>Version</Title>
               <Card size="small" bordered={false} style={{ background: '#fafafa' }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12}>
-                    <Text type="secondary">Owner</Text>
-                    <br />
-                    <Space>
-                      <UserOutlined />
-                      <Text>{viewingRecord.owner || '-'}</Text>
-                    </Space>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Text type="secondary">Version</Text>
-                    <br />
-                    <Tag>{viewingRecord.version || '-'}</Tag>
-                  </Col>
-                </Row>
+                <Tag>{viewingRecord.version || '-'}</Tag>
               </Card>
             </div>
 

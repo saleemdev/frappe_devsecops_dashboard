@@ -18,7 +18,8 @@ import {
   Tooltip,
   Modal,
   Tag,
-  AutoComplete
+  AutoComplete,
+  Checkbox
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -79,6 +80,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const [userSearchResults, setUserSearchResults] = useState([])
   const [selectedUserToAdd, setSelectedUserToAdd] = useState(null)
   const [businessFunctionToAdd, setBusinessFunctionToAdd] = useState(null)
+  const [isChangeApprover, setIsChangeApprover] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
   const [designations, setDesignations] = useState([])
   const [designationSearchLoading, setDesignationSearchLoading] = useState(false)
@@ -91,6 +93,8 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const [changingManager, setChangingManager] = useState(false)
   const [isDebouncing, setIsDebouncing] = useState(false)
   const [isManagerDebouncing, setIsManagerDebouncing] = useState(false)
+  const [softwareProducts, setSoftwareProducts] = useState([])
+  const [loadingSoftwareProducts, setLoadingSoftwareProducts] = useState(false)
 
   // Edit Team Member modal state
   const [showEditMemberModal, setShowEditMemberModal] = useState(false)
@@ -123,7 +127,37 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
       loadProjectData()
     }
     loadDesignations()
+    loadSoftwareProducts()
   }, [projectId])
+
+  // Load Software Products
+  const loadSoftwareProducts = async () => {
+    try {
+      setLoadingSoftwareProducts(true)
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.software_product.get_products?fields=["name","product_name"]&limit_page_length=100', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const result = data.message || data
+        if (result.success && result.data) {
+          setSoftwareProducts(result.data.map(p => ({
+            label: p.product_name,
+            value: p.name
+          })))
+        }
+      }
+    } catch (error) {
+      console.error('[ProjectEdit] Error loading software products:', error)
+    } finally {
+      setLoadingSoftwareProducts(false)
+    }
+  }
 
   const loadDesignations = async (query = '') => {
     try {
@@ -176,7 +210,9 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
           status: projectResponse.project.status || 'Open',
           priority: projectResponse.project.priority || 'Medium',
           expected_start_date: projectResponse.project.expected_start_date ? dayjs(projectResponse.project.expected_start_date) : null,
-          expected_end_date: projectResponse.project.expected_end_date ? dayjs(projectResponse.project.expected_end_date) : null
+          expected_end_date: projectResponse.project.expected_end_date ? dayjs(projectResponse.project.expected_end_date) : null,
+          custom_software_product: projectResponse.project.custom_software_product || null,
+          custom_zenhub_workspace_id: projectResponse.project.custom_zenhub_workspace_id || null
         })
         console.log('[ProjectEdit] Form populated successfully')
       } else {
@@ -217,7 +253,9 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         priority: values.priority,
         expected_start_date: values.expected_start_date ? values.expected_start_date.format('YYYY-MM-DD') : null,
         expected_end_date: values.expected_end_date ? values.expected_end_date.format('YYYY-MM-DD') : null,
-        notes: notesContent || ''
+        notes: notesContent || '',
+        custom_software_product: values.custom_software_product || null,
+        custom_zenhub_workspace_id: values.custom_zenhub_workspace_id || null
       }
 
       console.log('[ProjectEdit] Update data:', updateData)
@@ -318,11 +356,25 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
 
     setAddingUser(true)
     try {
-      console.log('[ProjectEdit] Adding user:', selectedUserToAdd, 'role:', businessFunctionToAdd)
+      console.log('[ProjectEdit] Adding user:', selectedUserToAdd, 'role:', businessFunctionToAdd, 'change_approver:', isChangeApprover)
+
+      // Prepare user fields object
+      const userFields = {
+        welcome_email_sent: 1  // ALWAYS true
+      }
+
+      if (businessFunctionToAdd) {
+        userFields.business_function = businessFunctionToAdd
+      }
+
+      if (isChangeApprover) {
+        userFields.custom_is_change_approver = 1
+      }
+
       const response = await addProjectUser(
         projectId,
         selectedUserToAdd,
-        businessFunctionToAdd ? { business_function: businessFunctionToAdd } : null
+        userFields
       )
       console.log('[ProjectEdit] Add user response:', response)
 
@@ -337,6 +389,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         })
         setSelectedUserToAdd(null)
         setBusinessFunctionToAdd(null)
+        setIsChangeApprover(false)
         setUserSearchResults([])
         loadProjectData()
       } else {
@@ -707,6 +760,33 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                 </Col>
               </Row>
 
+              {/* Software Product */}
+              <Form.Item
+                label="Software Product (Optional)"
+                name="custom_software_product"
+                tooltip="Link this project to a software product. RACI Template will be auto-fetched from the product."
+              >
+                <Select
+                  placeholder="Select a software product"
+                  options={softwareProducts}
+                  allowClear
+                  loading={loadingSoftwareProducts}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                />
+              </Form.Item>
+
+              {/* Zenhub Workspace ID */}
+              <Form.Item
+                label="Zenhub Workspace ID (Optional)"
+                name="custom_zenhub_workspace_id"
+                tooltip="Enter the Zenhub workspace ID for this project"
+              >
+                <Input placeholder="Enter Zenhub workspace ID" />
+              </Form.Item>
+
               <Form.Item label="Notes">
                 <RichTextEditor
                   value={notesContent}
@@ -826,49 +906,25 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
             <div>
               <Text type="secondary" style={{ fontSize: '12px' }}>ADD USER</Text>
               <div style={{ marginTop: '12px' }}>
-                <Input
+                <AutoComplete
+                  value={selectedUserToAdd}
+                  onChange={setSelectedUserToAdd}
+                  onSearch={handleUserSearch}
                   placeholder="Search user by name or email (min 2 characters)..."
-                  onChange={(e) => handleUserSearch(e.target.value)}
-                  style={{ marginBottom: '8px' }}
-                />
-                {isDebouncing && (
-                  <div style={{ textAlign: 'center', padding: '12px', color: '#8c8c8c', fontSize: '12px' }}>
-                    <Spin size="small" style={{ marginRight: '8px' }} />
-                    Searching...
-                  </div>
-                )}
-                {!isDebouncing && userSearchResults.length > 0 && (
-                  <div style={{
-                    border: '1px solid #d9d9d9',
-                    borderRadius: '4px',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    marginBottom: '8px'
-                  }}>
-                    {userSearchResults.map(user => (
-                      <div
-                        key={user.name}
-                        onClick={() => setSelectedUserToAdd(user.name)}
-                        style={{
-                          padding: '8px 12px',
-                          cursor: 'pointer',
-                          backgroundColor: selectedUserToAdd === user.name ? '#e6f7ff' : 'transparent',
-                          borderBottom: '1px solid #f0f0f0',
-                          ':hover': { backgroundColor: '#f5f5f5' }
-                        }}
-                      >
-                        <Text>{user.full_name}</Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: '12px' }}>{user.email}</Text>
+                  style={{ width: '100%', marginBottom: '8px' }}
+                  options={userSearchResults.map(user => ({
+                    value: user.name,
+                    label: (
+                      <div>
+                        <div><Text strong>{user.full_name}</Text></div>
+                        <div><Text type="secondary" style={{ fontSize: '12px' }}>{user.email}</Text></div>
                       </div>
-                    ))}
-                  </div>
-                )}
-                {!isDebouncing && userSearchResults.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '12px', color: '#8c8c8c', fontSize: '12px' }}>
-                    <Text type="secondary">Type to search for users...</Text>
-                  </div>
-                )}
+                    )
+                  }))}
+                  notFoundContent={isDebouncing ? <Spin size="small" /> : (userSearchResults.length === 0 ? 'Type to search for users...' : 'No users found')}
+                  filterOption={false}
+                  showSearch
+                />
                 <AutoComplete
                   allowClear
                   placeholder="Designation (optional)"
@@ -883,6 +939,13 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                   filterOption={false}
                   notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
                 />
+                <Checkbox
+                  checked={isChangeApprover}
+                  onChange={(e) => setIsChangeApprover(e.target.checked)}
+                  style={{ marginBottom: '12px' }}
+                >
+                  Change Approver
+                </Checkbox>
                 <Button
                   type="primary"
                   block

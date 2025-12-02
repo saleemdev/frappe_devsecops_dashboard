@@ -43,7 +43,7 @@ def get_products(
                 frappe.throw(_('Invalid JSON format in fields'), frappe.ValidationError)
         else:
             field_list = [
-                'name', 'product_name', 'description', 'owner', 'status',
+                'name', 'product_name', 'description', 'status',
                 'release_status', 'version', 'start_date', 'completion_date', 'modified'
             ]
 
@@ -128,22 +128,6 @@ def get_product_detail(name: str) -> Dict[str, Any]:
 
         # Convert to dict
         data = doc.as_dict()
-
-        # Enrich owner with full name
-        if data.get('owner'):
-            owner_email = data['owner']
-            try:
-                user_doc = frappe.get_doc('User', owner_email)
-                full_name = user_doc.get('full_name') or user_doc.get('first_name') or ''
-                if not full_name and user_doc.get('last_name'):
-                    full_name = user_doc.get('last_name')
-                data['owner_full_name'] = full_name if full_name else owner_email
-            except frappe.DoesNotExistError:
-                data['owner_full_name'] = owner_email
-            except Exception:
-                data['owner_full_name'] = owner_email
-        else:
-            data['owner_full_name'] = None
 
         # Enrich team members with user full names
         if data.get('team_members'):

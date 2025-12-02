@@ -49,7 +49,8 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   PaperClipOutlined,
-  TeamOutlined
+  TeamOutlined,
+  PrinterOutlined
 } from '@ant-design/icons'
 import useAuthStore from '../stores/authStore'
 import {
@@ -672,6 +673,25 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               <Button type="default" icon={<PlusOutlined />} onClick={handleOpenNewTaskModal}>
                 New Task
               </Button>
+              <Button
+                type="default"
+                icon={<PrinterOutlined />}
+                onClick={() => {
+                  try {
+                    // Use Frappe's built-in PDF download endpoint
+                    const pdfUrl = `/api/method/frappe.utils.print_format.download_pdf?doctype=Project&name=${encodeURIComponent(projectId)}&format=Standard&no_letterhead=0`
+
+                    // Open in new tab/window for download
+                    window.open(pdfUrl, '_blank')
+                    message.success('PDF download started')
+                  } catch (error) {
+                    console.error('[ProjectDetail] Error printing PDF:', error)
+                    message.error('Failed to download PDF')
+                  }
+                }}
+              >
+                Print
+              </Button>
             </Space>
           </Col>
         </Row>
@@ -1055,6 +1075,18 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 <Space direction="vertical" size="small">
                   <Text type="secondary">Department</Text>
                   <Text>{projectData?.department || 'N/A'}</Text>
+                </Space>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Space direction="vertical" size="small">
+                  <Text type="secondary">Software Product</Text>
+                  <Text>{projectData?.custom_software_product || 'N/A'}</Text>
+                </Space>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Space direction="vertical" size="small">
+                  <Text type="secondary">Default RACI Template</Text>
+                  <Text>{projectData?.custom_default_raci_template || 'N/A'}</Text>
                 </Space>
               </Col>
             </Row>

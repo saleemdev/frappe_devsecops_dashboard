@@ -273,6 +273,10 @@ class ProjectsService {
         requestBody.project_template = projectData.project_template
       }
 
+      if (projectData.custom_software_product) {
+        requestBody.custom_software_product = projectData.custom_software_product
+      }
+
       // Make API call using axios client (includes CSRF token automatically)
       const { createApiClient } = await loadErpNextUtils()
       const client = await createApiClient()

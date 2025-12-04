@@ -50,7 +50,8 @@ import {
   DownloadOutlined,
   PaperClipOutlined,
   TeamOutlined,
-  PrinterOutlined
+  PrinterOutlined,
+  SyncOutlined
 } from '@ant-design/icons'
 import useAuthStore from '../stores/authStore'
 import {
@@ -68,8 +69,10 @@ import {
   uploadProjectFile,
   deleteProjectFile,
   formatFileSize,
-  getFileIcon
+  getFileIcon,
+  addProjectUser
 } from '../utils/projectAttachmentsApi'
+import projectsService from '../services/api/projects'
 import {
   groupTasksByType,
   getTaskTypeStatus,
@@ -109,6 +112,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [editingTask, setEditingTask] = useState(null)
   const [editTaskFormLoading, setEditTaskFormLoading] = useState(false)
   const [editForm] = Form.useForm()
+  const [syncingUsers, setSyncingUsers] = useState(false)
 
   // Fetch task types when modal opens
   useEffect(() => {
@@ -600,6 +604,104 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       const errorMsg = error?.message || error?.response?.data?.message || 'Failed to delete file'
       message.error(`Error deleting file: ${errorMsg}`)
       console.error('[ProjectDetail] File delete error:', error)
+    }
+  }
+
+  const handleSyncUsersFromProduct = async () => {
+    if (!projectData?.custom_software_product) {
+      message.warning('No Software Product linked to this project')
+      return
+    }
+
+    setSyncingUsers(true)
+    try {
+      console.log('[ProjectDetail] Fetching team members from Software Product:', projectData.custom_software_product)
+
+      // Fetch team members from Software Product
+      const response = await projectsService.getSoftwareProductTeamMembers(projectData.custom_software_product)
+
+      if (!response.success) {
+        message.error(response.error || 'Failed to fetch Software Product team members')
+        return
+      }
+
+      const productMembers = response.team_members || []
+
+      if (productMembers.length === 0) {
+        message.info('No team members found in the Software Product')
+        return
+      }
+
+      // Get current project members
+      const currentMemberEmails = teamMembers.map(m => m.email)
+      const managerEmail = projectManager?.email
+
+      // Filter out members already in project
+      const newMembers = productMembers.filter(m =>
+        m.email !== managerEmail && !currentMemberEmails.includes(m.email)
+      )
+
+      if (newMembers.length === 0) {
+        message.info('All Software Product team members are already in the project')
+        return
+      }
+
+      // Add each new member to project
+      let successCount = 0
+      let errorCount = 0
+
+      for (const member of newMembers) {
+        try {
+          const result = await addProjectUser(
+            projectId,
+            member.user,
+            {
+              business_function: member.business_function,
+              custom_is_change_approver: 0,  // Default to false
+              welcome_email_sent: 1
+            }
+          )
+
+          if (result.success) {
+            successCount++
+          } else {
+            errorCount++
+            console.error('[ProjectDetail] Failed to add user:', member.user, result.error)
+          }
+        } catch (error) {
+          errorCount++
+          console.error('[ProjectDetail] Error adding user:', member.user, error)
+        }
+      }
+
+      // Refresh project users
+      const usersResponse = await getProjectUsers(projectId)
+      if (usersResponse.success) {
+        setProjectManager(usersResponse.project_manager)
+        setTeamMembers(usersResponse.team_members || [])
+      }
+
+      // Show summary message
+      if (successCount > 0 && errorCount === 0) {
+        await Swal.fire({
+          icon: 'success',
+          title: `Successfully synced ${successCount} user${successCount > 1 ? 's' : ''}`,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000
+        })
+      } else if (successCount > 0 && errorCount > 0) {
+        message.warning(`Synced ${successCount} users, ${errorCount} failed`)
+      } else {
+        message.error('Failed to sync users')
+      }
+
+    } catch (error) {
+      console.error('[ProjectDetail] Error syncing users:', error)
+      message.error('An error occurred while syncing users')
+    } finally {
+      setSyncingUsers(false)
     }
   }
 
@@ -1307,20 +1409,44 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               borderRadius: '12px',
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
             }}
+            extra={
+              projectData?.custom_software_product && (
+                <Tooltip title="Sync users from Software Product">
+                  <Button
+                    type="default"
+                    size="small"
+                    icon={<SyncOutlined spin={syncingUsers} />}
+                    onClick={handleSyncUsersFromProduct}
+                    loading={syncingUsers}
+                  >
+                    Sync Users
+                  </Button>
+                </Tooltip>
+              )
+            }
           >
             {teamMembers && teamMembers.length > 0 ? (
               <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                 {/* Show first 5 members or all if less than 5 */}
                 {(showAllTeamMembers ? teamMembers : teamMembers.slice(0, 5)).map((member, index) => (
-                  <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Avatar
-                      src={member.image}
-                      icon={<UserOutlined />}
-                    />
-                    <div>
-                      <Text strong>{member.full_name}</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: '12px' }}>{member.email}</Text>
+                  <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'space-between', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                      <Avatar
+                        src={member.image}
+                        icon={<UserOutlined />}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <Text strong>{member.full_name}</Text>
+                          {member.custom_is_change_approver === 1 && (
+                            <Tag color="green" style={{ margin: 0, fontSize: '11px' }}>
+                              <LockOutlined style={{ fontSize: '10px', marginRight: '4px' }} />
+                              Change Approver
+                            </Tag>
+                          )}
+                        </div>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>{member.email}</Text>
+                      </div>
                     </div>
                   </div>
                 ))}

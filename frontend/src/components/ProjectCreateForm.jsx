@@ -18,7 +18,8 @@ import {
   Typography,
   Alert,
   Tag,
-  AutoComplete
+  AutoComplete,
+  Checkbox
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -26,7 +27,8 @@ import {
   PlusOutlined,
   DeleteOutlined,
   UserOutlined,
-  EditOutlined
+  EditOutlined,
+  LockOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import Swal from 'sweetalert2'
@@ -56,6 +58,7 @@ function ProjectCreateForm({ navigateToRoute }) {
   const [showEditMemberModal, setShowEditMemberModal] = useState(false)
   const [memberBeingEdited, setMemberBeingEdited] = useState(null)
   const [editBusinessFunction, setEditBusinessFunction] = useState(null)
+  const [editIsChangeApprover, setEditIsChangeApprover] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [designations, setDesignations] = useState([])
   const [designationSearchLoading, setDesignationSearchLoading] = useState(false)
@@ -233,7 +236,8 @@ function ProjectCreateForm({ navigateToRoute }) {
           user: user.name,
           email: user.email,
           full_name: user.full_name,
-          image: user.user_image
+          image: user.user_image,
+          custom_is_change_approver: 0  // Default to false
         }
         if (businessFunctionToAdd) {
           newMember.custom_business_function = businessFunctionToAdd
@@ -262,6 +266,7 @@ function ProjectCreateForm({ navigateToRoute }) {
   const handleEditMember = (member) => {
     setMemberBeingEdited(member)
     setEditBusinessFunction(member.custom_business_function || null)
+    setEditIsChangeApprover(member.custom_is_change_approver === 1)
     setShowEditMemberModal(true)
   }
 
@@ -270,13 +275,18 @@ function ProjectCreateForm({ navigateToRoute }) {
     if (!memberBeingEdited) return
     const updatedMembers = teamMembers.map(m =>
       m.user === memberBeingEdited.user
-        ? { ...m, custom_business_function: editBusinessFunction || undefined }
+        ? {
+            ...m,
+            custom_business_function: editBusinessFunction || undefined,
+            custom_is_change_approver: editIsChangeApprover ? 1 : 0
+          }
         : m
     )
     setTeamMembers(updatedMembers)
     setShowEditMemberModal(false)
     setMemberBeingEdited(null)
     setEditBusinessFunction(null)
+    setEditIsChangeApprover(false)
     message.success('Team member updated')
   }
 
@@ -306,6 +316,8 @@ function ProjectCreateForm({ navigateToRoute }) {
           if (m.custom_business_function) {
             memberData.custom_business_function = m.custom_business_function
           }
+          // Include custom_is_change_approver
+          memberData.custom_is_change_approver = m.custom_is_change_approver || 0
           return memberData
         })
       }
@@ -618,7 +630,15 @@ function ProjectCreateForm({ navigateToRoute }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                         <Avatar src={member.image} icon={<UserOutlined />} size="small" />
                         <div style={{ minWidth: 0 }}>
-                          <Text strong style={{ fontSize: '12px', display: 'block' }}>{member.full_name}</Text>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                            <Text strong style={{ fontSize: '12px' }}>{member.full_name}</Text>
+                            {member.custom_is_change_approver === 1 && (
+                              <Tag color="green" style={{ margin: 0, fontSize: '11px' }}>
+                                <LockOutlined style={{ fontSize: '10px', marginRight: '4px' }} />
+                                Change Approver
+                              </Tag>
+                            )}
+                          </div>
                           <Text type="secondary" style={{ fontSize: '10px' }}>{member.email}</Text>
                           {member.custom_business_function && (
                             <div style={{ marginTop: 4 }}>
@@ -661,12 +681,14 @@ function ProjectCreateForm({ navigateToRoute }) {
           setShowEditMemberModal(false)
           setMemberBeingEdited(null)
           setEditBusinessFunction(null)
+          setEditIsChangeApprover(false)
         }}
         footer={[
           <Button key="cancel" onClick={() => {
             setShowEditMemberModal(false)
             setMemberBeingEdited(null)
             setEditBusinessFunction(null)
+            setEditIsChangeApprover(false)
           }}>
             Cancel
           </Button>,
@@ -691,6 +713,14 @@ function ProjectCreateForm({ navigateToRoute }) {
             filterOption={false}
             notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
           />
+        </div>
+        <div>
+          <Checkbox
+            checked={editIsChangeApprover}
+            onChange={(e) => setEditIsChangeApprover(e.target.checked)}
+          >
+            Change Approver
+          </Checkbox>
         </div>
       </Modal>
     </div>

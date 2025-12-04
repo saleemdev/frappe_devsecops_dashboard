@@ -147,6 +147,26 @@ def enhance_project_with_task_data(project):
     """
     project_name = project.get('name')
 
+    # Get project manager from users child table
+    try:
+        project_doc = frappe.get_doc("Project", project_name)
+        project_manager_name = None
+
+        # Loop through project users to find Project Manager
+        if project_doc.users:
+            for user_record in project_doc.users:
+                # Check custom_business_function field
+                business_func = user_record.get("custom_business_function")
+
+                if business_func == "Project Manager":
+                    project_manager_name = user_record.get("full_name") or user_record.user
+                    break
+
+        project['project_manager'] = project_manager_name
+    except Exception as e:
+        frappe.log_error(f"Error fetching project manager for {project_name}: {str(e)}", "Project Manager Fetch Error")
+        project['project_manager'] = None
+
     # Get tasks for this project using frappe.get_list() with permission checking
     try:
         # Use frappe.get_list() to get tasks with permission checking
@@ -244,6 +264,7 @@ def enhance_project_with_task_data(project):
         "cost_center": project.get('cost_center'),
         "department": project.get('department'),
         "zenhub_id": project.get('zenhub_id'),
+        "project_manager": project.get('project_manager'),  # Include project manager
         "tasks": tasks or []
     }
 
@@ -1053,6 +1074,7 @@ def get_project_users(project_name):
                     "email": user_record.email,
                     "image": user_record.image,
                     "business_function": user_record.get("custom_business_function", ""),
+                    "custom_is_change_approver": int(user_record.get("custom_is_change_approver") or 0),
                     "view_attachments": int(user_record.get("view_attachments") or 0)
                 }
 
@@ -1191,6 +1213,61 @@ def get_project_recent_activity(project_name, limit=10):
         return {
             "success": False,
             "error": "An error occurred while fetching recent activity"
+        }
+
+
+@frappe.whitelist()
+def get_software_product_team_members(product_name):
+    """
+    Get team members from a Software Product
+
+    Args:
+        product_name (str): Name of the Software Product
+
+    Returns:
+        dict: List of team members with their roles
+    """
+    try:
+        # Get the Software Product document
+        product = frappe.get_doc("Software Product", product_name)
+
+        # Extract team members with user details
+        team_members = []
+        for member in product.team_members:
+            # Get user details
+            user_doc = frappe.get_doc("User", member.member)
+
+            team_members.append({
+                "user": member.member,
+                "email": user_doc.email,
+                "full_name": user_doc.full_name,
+                "user_image": user_doc.user_image,
+                "role": member.role,  # This maps to business_function in project
+                "business_function": member.role  # Direct mapping
+            })
+
+        return {
+            "success": True,
+            "team_members": team_members,
+            "product_name": product_name
+        }
+
+    except frappe.DoesNotExistError:
+        return {
+            "success": False,
+            "error": f"Software Product '{product_name}' does not exist"
+        }
+    except frappe.PermissionError:
+        frappe.log_error(f"Permission denied for Software Product {product_name}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "You don't have permission to access this Software Product"
+        }
+    except Exception as e:
+        frappe.log_error(f"Get Software Product Team Members Error: {str(e)}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "An error occurred while fetching team members"
         }
 
 

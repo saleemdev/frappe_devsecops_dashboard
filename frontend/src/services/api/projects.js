@@ -313,6 +313,45 @@ class ProjectsService {
       }
     }
   }
+
+  /**
+   * Get team members from a Software Product
+   * @param {string} productName - Name of the Software Product
+   * @returns {Promise<Object>} - Response with team members list
+   */
+  async getSoftwareProductTeamMembers(productName) {
+    try {
+      const { createApiClient } = await loadErpNextUtils()
+      const client = await createApiClient()
+
+      console.log('[ProjectsService] Fetching team members for product:', productName)
+
+      const response = await client.get('frappe_devsecops_dashboard.api.dashboard.get_software_product_team_members', {
+        params: { product_name: productName }
+      })
+
+      const payload = response?.data?.message ?? response?.data
+
+      if (payload && payload.success) {
+        return {
+          success: true,
+          team_members: payload.team_members || [],
+          product_name: payload.product_name
+        }
+      } else {
+        return {
+          success: false,
+          error: payload?.error || 'Failed to fetch Software Product team members'
+        }
+      }
+    } catch (error) {
+      console.error('[ProjectsService] Error fetching Software Product team members:', error)
+      return {
+        success: false,
+        error: error.message || 'An error occurred while fetching team members'
+      }
+    }
+  }
 }
 
 const projectsService = new ProjectsService()

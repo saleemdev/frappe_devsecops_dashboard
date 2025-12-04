@@ -28,7 +28,8 @@ import {
   PlusOutlined,
   UserOutlined,
   EditOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  LockOutlined
 } from '@ant-design/icons'
 import RichTextEditor from './RichTextEditor'
 import SprintReportDialog from './SprintReportDialog'
@@ -100,6 +101,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const [showEditMemberModal, setShowEditMemberModal] = useState(false)
   const [memberBeingEdited, setMemberBeingEdited] = useState(null)
   const [editBusinessFunction, setEditBusinessFunction] = useState(null)
+  const [editIsChangeApprover, setEditIsChangeApprover] = useState(false)
   const [savingMemberEdit, setSavingMemberEdit] = useState(false)
 
   // Refs for debounce timeouts
@@ -584,11 +586,14 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
     if (!memberBeingEdited) return
     setSavingMemberEdit(true)
     try {
-      console.log('[ProjectEdit] Updating project user:', memberBeingEdited.name, 'role:', editBusinessFunction)
+      console.log('[ProjectEdit] Updating project user:', memberBeingEdited.name, 'role:', editBusinessFunction, 'is_change_approver:', editIsChangeApprover)
       const response = await updateProjectUser(
         projectId,
         memberBeingEdited.name,
-        { business_function: editBusinessFunction || null }
+        {
+          business_function: editBusinessFunction || null,
+          custom_is_change_approver: editIsChangeApprover ? 1 : 0
+        }
       )
       console.log('[ProjectEdit] Update project user response:', response)
       if (response.success) {
@@ -603,6 +608,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         setShowEditMemberModal(false)
         setMemberBeingEdited(null)
         setEditBusinessFunction(null)
+        setEditIsChangeApprover(false)
         loadProjectData()
       } else {
         await Swal.fire({
@@ -863,8 +869,15 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
                         <Avatar src={member.image} icon={<UserOutlined />} size="small" />
                         <div>
-                          <Text strong style={{ fontSize: '13px' }}>{member.full_name}</Text>
-                          <br />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                            <Text strong style={{ fontSize: '13px' }}>{member.full_name}</Text>
+                            {member.custom_is_change_approver === 1 && (
+                              <Tag color="green" style={{ margin: 0, fontSize: '11px' }}>
+                                <LockOutlined style={{ fontSize: '10px', marginRight: '4px' }} />
+                                Change Approver
+                              </Tag>
+                            )}
+                          </div>
                           <Text type="secondary" style={{ fontSize: '11px' }}>{member.email}</Text>
                           {(member.custom_business_function || member.business_function) && (
                             <div style={{ marginTop: 4 }}>
@@ -881,6 +894,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                           onClick={() => {
                             setMemberBeingEdited(member)
                             setEditBusinessFunction(member.custom_business_function || member.business_function || null)
+                            setEditIsChangeApprover(member.custom_is_change_approver === 1)
                             setShowEditMemberModal(true)
                           }}
                         />
@@ -1072,12 +1086,14 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
           setShowEditMemberModal(false)
           setMemberBeingEdited(null)
           setEditBusinessFunction(null)
+          setEditIsChangeApprover(false)
         }}
         footer={[
           <Button key="cancel" onClick={() => {
             setShowEditMemberModal(false)
             setMemberBeingEdited(null)
             setEditBusinessFunction(null)
+            setEditIsChangeApprover(false)
           }}>
             Cancel
           </Button>,
@@ -1102,6 +1118,14 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
             filterOption={false}
             notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
           />
+        </div>
+        <div>
+          <Checkbox
+            checked={editIsChangeApprover}
+            onChange={(e) => setEditIsChangeApprover(e.target.checked)}
+          >
+            Change Approver
+          </Checkbox>
         </div>
       </Modal>
 

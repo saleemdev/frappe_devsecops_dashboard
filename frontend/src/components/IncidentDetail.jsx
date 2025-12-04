@@ -44,7 +44,8 @@ import {
   RiseOutlined,
   HistoryOutlined,
   BellOutlined,
-  EnvironmentOutlined
+  EnvironmentOutlined,
+  PrinterOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import useIncidentsStore from '../stores/incidentsStore'
@@ -204,6 +205,18 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
       navEditIncident(incidentId)
     } else {
       message.error('Cannot edit: Incident ID is missing')
+    }
+  }
+
+  // Handle print incident
+  const handlePrintIncident = () => {
+    try {
+      const pdfUrl = `/api/method/frappe.utils.print_format.download_pdf?doctype=Devsecops Dashboard Incident&name=${encodeURIComponent(incidentId)}&format=Standard&no_letterhead=0`
+      window.open(pdfUrl, '_blank')
+      message.success('PDF download started')
+    } catch (error) {
+      console.error('[IncidentDetail] Error printing PDF:', error)
+      message.error('Failed to download PDF')
     }
   }
 
@@ -513,15 +526,25 @@ const IncidentDetail = ({ incidentId, navigateToRoute }) => {
             </Space>
           </Col>
           <Col xs={24} sm={8} style={{ textAlign: 'right', marginTop: '16px' }}>
-            <Button
-              icon={<EditOutlined />}
-              type="primary"
-              size="large"
-              onClick={handleEditIncident}
-              style={{ minWidth: '150px' }}
-            >
-              Edit Incident
-            </Button>
+            <Space>
+              <Button
+                icon={<PrinterOutlined />}
+                type="default"
+                size="large"
+                onClick={handlePrintIncident}
+              >
+                Print
+              </Button>
+              <Button
+                icon={<EditOutlined />}
+                type="primary"
+                size="large"
+                onClick={handleEditIncident}
+                style={{ minWidth: '150px' }}
+              >
+                Edit Incident
+              </Button>
+            </Space>
           </Col>
         </Row>
       </Card>

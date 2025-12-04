@@ -265,6 +265,23 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
     load()
   }, [])
 
+  // Auto-populate originator with current user in create mode
+  useEffect(() => {
+    if (mode === 'create' && user && !form.getFieldValue('originator_name')) {
+      // Set originator name to current user's email
+      form.setFieldValue('originator_name', user.email || user.name)
+      // Set originator full name
+      setOriginatorFullName(user.full_name || user.email || user.name)
+      // Add current user to search results for display
+      setOriginatorSearchResults([{
+        name: user.email || user.name,
+        employee_name: user.full_name || user.email || user.name,
+        reports_to: null,
+        reports_to_full_name: null
+      }])
+    }
+  }, [mode, user, form])
+
   // Load record in edit mode
   useEffect(() => {
     if (mode !== 'edit' || !id) return

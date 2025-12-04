@@ -29,7 +29,8 @@ import {
   ClockCircleOutlined,
   UserOutlined,
   LockOutlined,
-  FilePdfOutlined
+  FilePdfOutlined,
+  PrinterOutlined
 } from '@ant-design/icons'
 import useAuthStore from '../stores/authStore'
 import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
@@ -509,6 +510,17 @@ const ChangeRequests = () => {
         onClose={() => setIsViewDrawerVisible(false)}
         open={isViewDrawerVisible}
         width={1000}
+        extra={
+          viewingRecord && (
+            <Button
+              icon={<PrinterOutlined />}
+              type="default"
+              onClick={() => handlePrintPDF(viewingRecord)}
+            >
+              Print
+            </Button>
+          )
+        }
       >
         {viewingRecord && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

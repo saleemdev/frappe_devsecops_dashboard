@@ -201,7 +201,7 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
       fixed: 'left',
       width: 280,
       render: (text, record) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '4px 0' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '4px 0', maxWidth: '100%' }}>
           <Button
             type="link"
             onClick={() => handleViewDetails(record)}
@@ -212,7 +212,14 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
               fontSize: '15px',
               textAlign: 'left',
               color: token.colorPrimary,
-              lineHeight: '1.4'
+              lineHeight: '1.4',
+              whiteSpace: 'normal',
+              wordWrap: 'break-word',
+              wordBreak: 'break-word',
+              display: 'block',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}
           >
             {text || record.name || 'Unnamed Project'}
@@ -221,7 +228,7 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
             {record.client && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <TeamOutlined style={{ fontSize: '11px', color: token.colorTextTertiary }} />
-                <Text type="secondary" style={{ fontSize: '12px' }}>
+                <Text type="secondary" style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>
                   {record.client}
                 </Text>
               </div>

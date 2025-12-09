@@ -15,7 +15,8 @@ import {
   MenuOutlined,
   RobotOutlined,
   LockOutlined,
-  RiseOutlined
+  RiseOutlined,
+  FileProtectOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
@@ -48,6 +49,8 @@ import SwaggerCollectionDetail from './components/SwaggerCollectionDetail'
 import SystemTest from './components/SystemTest'
 import ApiTestRunner from './components/ApiTestRunner'
 import ApiDiagnostics from './components/ApiDiagnostics'
+import RiskRegisters from './components/RiskRegisters'
+import RiskRegisterForm from './components/RiskRegisterForm'
 import AskAI from './components/AskAI'
 import APIProvisioning from './components/APIProvisioning'
 import APIRouteForm from './components/APIRouteForm'
@@ -85,6 +88,7 @@ function App() {
     showIncidentDetail = false,
     selectedSwaggerId = null,
     showSwaggerDetail = false,
+    selectedRiskRegisterId = null,
     selectedChangeRequestId = null,
     showChangeRequestForm = false,
     selectedSoftwareProductId = null,
@@ -517,6 +521,32 @@ function AppContent({
           />
         )
 
+      case 'risk-registers':
+        return <RiskRegisters navigateToRoute={navigateToRoute} />
+
+      case 'risk-register-create':
+        return (
+          <RiskRegisterForm
+            navigateToRoute={navigateToRoute}
+          />
+        )
+
+      case 'risk-register-edit':
+        return (
+          <RiskRegisterForm
+            registerId={selectedRiskRegisterId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
+
+      case 'risk-register-detail':
+        return (
+          <RiskRegisterForm
+            registerId={selectedRiskRegisterId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
+
       case 'dashboard':
       default:
         return (
@@ -572,7 +602,12 @@ function AppContent({
       children: [
         {
           key: 'projects',
-          label: 'Project Cards'
+          label: 'Projects'
+        },
+        {
+          key: 'risk-registers',
+          icon: <FileProtectOutlined />,
+          label: 'Risk Registers'
         },
         {
           key: 'team-utilization',

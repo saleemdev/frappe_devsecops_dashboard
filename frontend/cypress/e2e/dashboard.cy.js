@@ -29,7 +29,7 @@ describe('DevSecOps Dashboard', () => {
     })
   })
 
-  describe('Project Cards Display', () => {
+  describe('Projects Display', () => {
     it('should display project cards with correct data', () => {
       cy.waitForProjectsAPI()
       

@@ -47,6 +47,9 @@ const useNavigationStore = create(
       selectedAPIRouteId: null,
       showAPIRouteForm: false,
 
+      // Risk Register state
+      selectedRiskRegisterId: null,
+
       // Mobile state
       isMobile: false,
       mobileMenuVisible: false,
@@ -520,6 +523,50 @@ const useNavigationStore = create(
             window.location.hash = 'project/create'
             break
 
+          case 'risk-registers':
+            set({
+              currentRoute: 'risk-registers',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedRiskRegisterId: null
+            })
+            window.location.hash = 'risk-registers'
+            break
+
+          case 'risk-register-create':
+            set({
+              currentRoute: 'risk-register-create',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedRiskRegisterId: null
+            })
+            window.location.hash = 'risk-register/create'
+            break
+
+          case 'risk-register-edit':
+            if (appId) { // appId parameter is used for registerId in this case
+              set({
+                currentRoute: 'risk-register-edit',
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedRiskRegisterId: appId
+              })
+              window.location.hash = `risk-register/${appId}/edit`
+            }
+            break
+
+          case 'risk-register-detail':
+            if (appId) { // appId parameter is used for registerId in this case
+              set({
+                currentRoute: 'risk-register-detail',
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedRiskRegisterId: appId
+              })
+              window.location.hash = `risk-register/${appId}`
+            }
+            break
+
           case 'app-detail':
             if (appId) {
               set({
@@ -829,8 +876,59 @@ const useNavigationStore = create(
           get().navigateToRoute('system-test')
         } else if (hash === 'ask-ai') {
           get().navigateToRoute('ask-ai')
+        } else if (hash === 'risk-registers') {
+          get().navigateToRoute('risk-registers')
+        } else if (hash === 'risk-register/create') {
+          set({
+            currentRoute: 'risk-register-create',
+            selectedRiskRegisterId: null,
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
 
           // General patterns after specific ones
+        } else if (hash.startsWith('risk-register/')) {
+          const parts = hash.split('/')
+          const registerId = parts[1]
+          const action = parts[2] // 'edit' or undefined
+
+          if (registerId === 'create') {
+            // Already handled above
+          } else if (action === 'edit') {
+            // Handle risk register edit route
+            set({
+              currentRoute: 'risk-register-edit',
+              selectedRiskRegisterId: registerId,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          } else {
+            // Handle risk register detail route
+            set({
+              currentRoute: 'risk-register-detail',
+              selectedRiskRegisterId: registerId,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          }
         } else if (hash.startsWith('project/')) {
           const parts = hash.split('/')
           const projectId = parts[1]

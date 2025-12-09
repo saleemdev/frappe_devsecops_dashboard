@@ -1,0 +1,162 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-12-05 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "risk_id",
+  "risk_title",
+  "risk_description",
+  "column_break_3",
+  "risk_category",
+  "risk_owner",
+  "section_break_6",
+  "probability",
+  "impact",
+  "risk_score",
+  "column_break_10",
+  "priority",
+  "status",
+  "section_break_13",
+  "mitigation_strategy",
+  "contingency_plan",
+  "column_break_16",
+  "identified_date",
+  "target_closure_date",
+  "actual_closure_date"
+ ],
+ "fields": [
+  {
+   "fieldname": "risk_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Risk ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "risk_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Risk Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "risk_description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "risk_category",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Category",
+   "options": "Technical\nSchedule\nBudget\nResource\nExternal\nQuality\nSecurity\nCompliance\nOther"
+  },
+  {
+   "fieldname": "risk_owner",
+   "fieldtype": "Link",
+   "label": "Risk Owner",
+   "options": "User"
+  },
+  {
+   "fieldname": "section_break_6",
+   "fieldtype": "Section Break",
+   "label": "Risk Assessment"
+  },
+  {
+   "default": "3",
+   "fieldname": "probability",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Probability",
+   "options": "1\n2\n3\n4\n5",
+   "reqd": 1
+  },
+  {
+   "default": "3",
+   "fieldname": "impact",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Impact",
+   "options": "1\n2\n3\n4\n5",
+   "reqd": 1
+  },
+  {
+   "fieldname": "risk_score",
+   "fieldtype": "Int",
+   "label": "Risk Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_10",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Priority",
+   "options": "Critical\nHigh\nMedium\nLow"
+  },
+  {
+   "default": "Identified",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Identified\nAssessing\nMitigating\nMonitoring\nClosed\nAccepted"
+  },
+  {
+   "fieldname": "section_break_13",
+   "fieldtype": "Section Break",
+   "label": "Mitigation"
+  },
+  {
+   "fieldname": "mitigation_strategy",
+   "fieldtype": "Small Text",
+   "label": "Mitigation Strategy"
+  },
+  {
+   "fieldname": "contingency_plan",
+   "fieldtype": "Small Text",
+   "label": "Contingency Plan"
+  },
+  {
+   "fieldname": "column_break_16",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "identified_date",
+   "fieldtype": "Date",
+   "label": "Identified Date"
+  },
+  {
+   "fieldname": "target_closure_date",
+   "fieldtype": "Date",
+   "label": "Target Closure Date"
+  },
+  {
+   "fieldname": "actual_closure_date",
+   "fieldtype": "Date",
+   "label": "Actual Closure Date"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2025-12-05 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe Devsecops Dashboard",
+ "name": "Risk Item",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

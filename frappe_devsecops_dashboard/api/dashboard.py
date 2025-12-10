@@ -551,7 +551,10 @@ def get_project_details(project_name):
             "cost_center": project.cost_center,
             "department": project.department,
             "zenhub_id": project.get("custom_zenhub_workspace_id", ""),
-            "notes": project.notes or ""  # Include notes field for project description
+            "notes": project.notes or "",  # Include notes field for project description
+            "custom_software_product": project.get("custom_software_product"),
+            "custom_default_raci_template": project.get("custom_default_raci_template"),
+            "custom_zenhub_workspace_id": project.get("custom_zenhub_workspace_id")
         }
 
         enhanced_project = enhance_project_with_task_data(project_data)

@@ -798,9 +798,9 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           </Col>
         </Row>
 
-        {/* ZenHub ID and Sprint Report Row */}
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} sm={12}>
+        {/* Project Information Grid */}
+        <Row gutter={[16, 16]} style={{ marginTop: '12px' }}>
+          <Col xs={24} sm={12} md={8}>
             <Space>
               <Text type="secondary">ZenHub ID:</Text>
               <Text strong>{projectData?.zenhub_id || projectData?.zenHubId || 'N/A'}</Text>
@@ -816,7 +816,23 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               )}
             </Space>
           </Col>
-          <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
+          <Col xs={24} sm={12} md={8}>
+            <Space>
+              <Text type="secondary">Software Product:</Text>
+              <Text strong>{projectData?.custom_software_product || 'N/A'}</Text>
+            </Space>
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Space>
+              <Text type="secondary">RACI Template:</Text>
+              <Text strong>{projectData?.custom_default_raci_template || 'N/A'}</Text>
+            </Space>
+          </Col>
+        </Row>
+
+        {/* Sprint Report Button Row */}
+        <Row gutter={[16, 16]} style={{ marginTop: '12px' }}>
+          <Col xs={24} style={{ textAlign: 'right' }}>
             <Button
               type="default"
               icon={<BarChartOutlined />}

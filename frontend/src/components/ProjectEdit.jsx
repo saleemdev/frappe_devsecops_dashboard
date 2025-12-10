@@ -19,7 +19,8 @@ import {
   Modal,
   Tag,
   AutoComplete,
-  Checkbox
+  Checkbox,
+  theme
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -29,7 +30,14 @@ import {
   UserOutlined,
   EditOutlined,
   BarChartOutlined,
-  LockOutlined
+  LockOutlined,
+  ProjectOutlined,
+  CalendarOutlined,
+  RocketOutlined,
+  FlagOutlined,
+  InfoCircleOutlined,
+  AppstoreOutlined,
+  TeamOutlined
 } from '@ant-design/icons'
 import RichTextEditor from './RichTextEditor'
 import SprintReportDialog from './SprintReportDialog'
@@ -45,6 +53,7 @@ import {
   updateProjectUser,
   searchDesignations
 } from '../utils/projectAttachmentsApi'
+import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
 
@@ -72,6 +81,7 @@ const createDebounce = (func, delay = 400) => {
 }
 
 const ProjectEdit = ({ projectId, navigateToRoute }) => {
+  const { token } = theme.useToken()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [projectData, setProjectData] = useState(null)
@@ -691,32 +701,70 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
       <Row gutter={[24, 24]}>
         {/* Left Column - Form */}
         <Col xs={24} lg={16}>
-          <Card style={{ borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleSaveProject}
-              autoComplete="off"
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSaveProject}
+            autoComplete="off"
+          >
+            {/* Basic Information Section */}
+            <Card
+              style={{
+                marginBottom: '24px',
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                border: `1px solid ${token.colorBorderSecondary}`
+              }}
             >
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '20px',
+                paddingBottom: '16px',
+                borderBottom: `2px solid ${token.colorPrimary}`
+              }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  background: `linear-gradient(135deg, ${getHeaderIconColor(token)} 0%, ${token.colorPrimaryHover} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <ProjectOutlined style={{ fontSize: '20px', color: '#fff' }} />
+                </div>
+                <div>
+                  <Title level={4} style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+                    Basic Information
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    Project name, status, and priority
+                  </Text>
+                </div>
+              </div>
+
               <Form.Item
-                label="Project Name"
+                label={<span style={{ fontWeight: 600 }}><ProjectOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />Project Name</span>}
                 name="project_name"
                 rules={[
                   { required: true, message: 'Please enter project name' },
                   { min: 3, message: 'Project name must be at least 3 characters' }
                 ]}
               >
-                <Input placeholder="Enter project name" />
+                <Input size="large" placeholder="Enter project name" />
               </Form.Item>
 
               <Row gutter={16}>
                 <Col xs={24} sm={12}>
                   <Form.Item
-                    label="Status"
+                    label={<span style={{ fontWeight: 600 }}><FlagOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />Status</span>}
                     name="status"
                     rules={[{ required: true, message: 'Please select status' }]}
                   >
                     <Select
+                      size="large"
                       placeholder="Select status"
                       options={[
                         { label: 'Open', value: 'Open' },
@@ -730,11 +778,12 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                 </Col>
                 <Col xs={24} sm={12}>
                   <Form.Item
-                    label="Priority"
+                    label={<span style={{ fontWeight: 600 }}><FlagOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />Priority</span>}
                     name="priority"
                     rules={[{ required: true, message: 'Please select priority' }]}
                   >
                     <Select
+                      size="large"
                       placeholder="Select priority"
                       options={[
                         { label: 'Low', value: 'Low' },
@@ -746,33 +795,117 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                   </Form.Item>
                 </Col>
               </Row>
+            </Card>
+
+            {/* Timeline Section */}
+            <Card
+              style={{
+                marginBottom: '24px',
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                border: `1px solid ${token.colorBorderSecondary}`
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '20px',
+                paddingBottom: '16px',
+                borderBottom: `2px solid ${token.colorPrimary}`
+              }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  background: `linear-gradient(135deg, ${getHeaderIconColor(token)} 0%, ${token.colorPrimaryHover} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <CalendarOutlined style={{ fontSize: '20px', color: '#fff' }} />
+                </div>
+                <div>
+                  <Title level={4} style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+                    Project Timeline
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    Expected start and end dates
+                  </Text>
+                </div>
+              </div>
 
               <Row gutter={16}>
                 <Col xs={24} sm={12}>
                   <Form.Item
-                    label="Expected Start Date"
+                    label={<span style={{ fontWeight: 600 }}><CalendarOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />Expected Start Date</span>}
                     name="expected_start_date"
                   >
-                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
+                    <DatePicker size="large" format="YYYY-MM-DD" style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
                   <Form.Item
-                    label="Expected End Date"
+                    label={<span style={{ fontWeight: 600 }}><CalendarOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />Expected End Date</span>}
                     name="expected_end_date"
                   >
-                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
+                    <DatePicker size="large" format="YYYY-MM-DD" style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
               </Row>
+            </Card>
+
+            {/* Integration & Configuration Section */}
+            <Card
+              style={{
+                marginBottom: '24px',
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                border: `1px solid ${token.colorBorderSecondary}`
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '20px',
+                paddingBottom: '16px',
+                borderBottom: `2px solid ${token.colorPrimary}`
+              }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  background: `linear-gradient(135deg, ${getHeaderIconColor(token)} 0%, ${token.colorPrimaryHover} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <AppstoreOutlined style={{ fontSize: '20px', color: '#fff' }} />
+                </div>
+                <div>
+                  <Title level={4} style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+                    Integration & Configuration
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    Link to software product and external tools
+                  </Text>
+                </div>
+              </div>
 
               {/* Software Product */}
               <Form.Item
-                label="Software Product (Optional)"
+                label={
+                  <span style={{ fontWeight: 600 }}>
+                    <RocketOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />
+                    Software Product
+                  </span>
+                }
                 name="custom_software_product"
                 tooltip="Link this project to a software product. RACI Template will be auto-fetched from the product."
               >
                 <Select
+                  size="large"
                   placeholder="Select a software product"
                   options={softwareProducts}
                   allowClear
@@ -781,49 +914,123 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                   filterOption={(input, option) =>
                     (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                   }
+                  suffixIcon={loadingSoftwareProducts ? <Spin size="small" /> : undefined}
                 />
               </Form.Item>
+
+              <div style={{
+                padding: '12px 16px',
+                background: token.colorInfoBg,
+                border: `1px solid ${token.colorInfoBorder}`,
+                borderRadius: '6px',
+                marginBottom: '16px',
+                fontSize: '12px',
+                color: token.colorTextSecondary,
+                lineHeight: '1.6'
+              }}>
+                <InfoCircleOutlined style={{ marginRight: '6px', color: token.colorInfo }} />
+                <strong style={{ color: token.colorText }}>Auto-fetch RACI Template:</strong> When you link a Software Product, its RACI Matrix template will be automatically associated with this project.
+              </div>
 
               {/* Zenhub Workspace ID */}
               <Form.Item
-                label="Zenhub Workspace ID (Optional)"
+                label={
+                  <span style={{ fontWeight: 600 }}>
+                    <AppstoreOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />
+                    Zenhub Workspace ID
+                  </span>
+                }
                 name="custom_zenhub_workspace_id"
                 tooltip="Enter the Zenhub workspace ID for this project"
               >
-                <Input placeholder="Enter Zenhub workspace ID" />
+                <Input size="large" placeholder="Enter Zenhub workspace ID" />
               </Form.Item>
+            </Card>
 
-              <Form.Item label="Notes">
+            {/* Notes Section */}
+            <Card
+              style={{
+                marginBottom: '24px',
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                border: `1px solid ${token.colorBorderSecondary}`
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '20px',
+                paddingBottom: '16px',
+                borderBottom: `2px solid ${token.colorPrimary}`
+              }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  background: `linear-gradient(135deg, ${getHeaderIconColor(token)} 0%, ${token.colorPrimaryHover} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <InfoCircleOutlined style={{ fontSize: '20px', color: '#fff' }} />
+                </div>
+                <div>
+                  <Title level={4} style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
+                    Project Notes
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    Additional information and documentation
+                  </Text>
+                </div>
+              </div>
+
+              <Form.Item label={null}>
                 <RichTextEditor
                   value={notesContent}
                   onChange={setNotesContent}
-                  placeholder="Enter project notes..."
+                  placeholder="Enter project notes, objectives, or additional context..."
                 />
               </Form.Item>
+            </Card>
 
-              <Row gutter={16} style={{ marginTop: '24px' }}>
+            {/* Action Buttons */}
+            <Card
+              style={{
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                background: token.colorBgLayout
+              }}
+            >
+              <Row gutter={16} justify="space-between" align="middle">
                 <Col>
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    loading={saving}
-                    onClick={() => form.submit()}
-                  >
-                    Save Changes
-                  </Button>
+                  <Space size="middle">
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<SaveOutlined />}
+                      loading={saving}
+                      onClick={() => form.submit()}
+                      style={{ minWidth: '140px' }}
+                    >
+                      Save Changes
+                    </Button>
+                    <Button
+                      size="large"
+                      onClick={() => navigateToRoute('project-detail', projectId)}
+                    >
+                      Cancel
+                    </Button>
+                  </Space>
                 </Col>
                 <Col>
-                  <Button
-                    onClick={() => navigateToRoute('project-detail', projectId)}
-                  >
-                    Cancel
-                  </Button>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    Changes will update the project immediately
+                  </Text>
                 </Col>
               </Row>
-            </Form>
-          </Card>
-
-
+            </Card>
+          </Form>
         </Col>
 
         {/* Right Column - Team Members */}

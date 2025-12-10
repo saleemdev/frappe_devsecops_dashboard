@@ -16,6 +16,7 @@ import {
   Spin,
   Typography,
   Tag,
+  Avatar,
   theme
 } from 'antd'
 import {
@@ -26,10 +27,11 @@ import {
   ArrowLeftOutlined,
   RocketOutlined,
   UserOutlined,
-  TeamOutlined
+  TeamOutlined,
+  LoadingOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { searchUsers } from '../utils/projectAttachmentsApi'
+import { searchUsers, searchDesignations } from '../utils/projectAttachmentsApi'
 import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
@@ -46,6 +48,8 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
   const [teamForm] = Form.useForm()
   const [userSearchResults, setUserSearchResults] = useState([])
   const [searchLoading, setSearchLoading] = useState(false)
+  const [designations, setDesignations] = useState([])
+  const [designationSearchLoading, setDesignationSearchLoading] = useState(false)
 
   // Mock data for dropdowns (in a real app, these might come from API)
   const projectOptions = [
@@ -100,6 +104,13 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
       })
     }
   }, [mode, productId])
+
+  // Load designations when team modal opens
+  useEffect(() => {
+    if (showTeamModal) {
+      handleDesignationSearch('')
+    }
+  }, [showTeamModal])
 
   const loadProduct = async () => {
     setLoading(true)
@@ -216,6 +227,23 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
       setUserSearchResults([])
     } finally {
       setSearchLoading(false)
+    }
+  }
+
+  const handleDesignationSearch = async (searchValue) => {
+    try {
+      setDesignationSearchLoading(true)
+      const response = await searchDesignations(searchValue || '')
+      if (response.success) {
+        setDesignations(response.designations || [])
+      } else {
+        setDesignations([])
+      }
+    } catch (error) {
+      console.error('Error searching designations:', error)
+      setDesignations([])
+    } finally {
+      setDesignationSearchLoading(false)
     }
   }
 
@@ -603,44 +631,197 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
 
       {/* Team Member Modal */}
       <Modal
-        title={editingTeamMember ? 'Edit Team Member' : 'Add Team Member'}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: `linear-gradient(135deg, ${getHeaderIconColor(token)} 0%, ${token.colorPrimaryHover} 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <TeamOutlined style={{ fontSize: '20px', color: '#fff' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: '600', color: token.colorText }}>
+                {editingTeamMember ? 'Edit Team Member' : 'Add Team Member'}
+              </div>
+              <div style={{ fontSize: '12px', color: token.colorTextSecondary, fontWeight: 'normal', marginTop: '2px' }}>
+                {editingTeamMember ? 'Update team member details' : 'Add a new member to your product team'}
+              </div>
+            </div>
+          </div>
+        }
         open={showTeamModal}
         onOk={handleSaveTeamMember}
-        onCancel={() => setShowTeamModal(false)}
+        onCancel={() => {
+          setShowTeamModal(false)
+          teamForm.resetFields()
+        }}
+        width={560}
+        okText={editingTeamMember ? 'Update Member' : 'Add Member'}
+        cancelText="Cancel"
+        okButtonProps={{
+          icon: <SaveOutlined />,
+          size: 'large',
+          style: { minWidth: '120px' }
+        }}
+        cancelButtonProps={{
+          size: 'large'
+        }}
+        destroyOnClose
+        styles={{
+          header: {
+            paddingBottom: '16px',
+            marginBottom: '24px',
+            borderBottom: `1px solid ${token.colorBorderSecondary}`
+          },
+          body: {
+            paddingTop: '24px'
+          }
+        }}
       >
         <Form
           form={teamForm}
           layout="vertical"
+          requiredMark="optional"
         >
-          <Form.Item
-            label="Team Member"
-            name="member"
-            rules={[{ required: true, message: 'Please select a team member' }]}
-          >
-            <Select
-              placeholder="Search and select team member"
-              showSearch
-              filterOption={false}
-              onSearch={handleUserSearch}
-              loading={searchLoading}
-              options={userSearchResults.map(user => ({
-                label: `${user.full_name} (${user.email})`,
-                value: user.name
-              }))}
-              notFoundContent={searchLoading ? <Spin size="small" /> : 'Type to search users'}
-            />
-          </Form.Item>
+          <div style={{
+            background: token.colorBgContainer,
+            border: `1px solid ${token.colorBorder}`,
+            borderRadius: '8px',
+            padding: '20px',
+            marginBottom: '20px'
+          }}>
+            <Form.Item
+              label={
+                <span style={{ fontSize: '13px', fontWeight: '600', color: token.colorText }}>
+                  <UserOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />
+                  Team Member
+                </span>
+              }
+              name="member"
+              rules={[{ required: true, message: 'Please select a team member' }]}
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                placeholder="Type to search by name or email..."
+                showSearch
+                filterOption={false}
+                onSearch={handleUserSearch}
+                loading={searchLoading}
+                size="large"
+                suffixIcon={searchLoading ? <LoadingOutlined spin /> : undefined}
+                options={userSearchResults.map(user => ({
+                  label: (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+                      <Avatar size="small" style={{ backgroundColor: getHeaderIconColor(token), flexShrink: 0 }}>
+                        {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                      </Avatar>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: '500', fontSize: '13px' }}>{user.full_name}</div>
+                        <div style={{ fontSize: '11px', color: token.colorTextSecondary, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {user.email}
+                        </div>
+                      </div>
+                    </div>
+                  ),
+                  value: user.name
+                }))}
+                notFoundContent={
+                  searchLoading ? (
+                    <div style={{ textAlign: 'center', padding: '20px' }}>
+                      <Spin size="small" />
+                      <div style={{ marginTop: '8px', fontSize: '12px', color: token.colorTextSecondary }}>
+                        Searching users...
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '20px', color: token.colorTextSecondary }}>
+                      <UserOutlined style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.3 }} />
+                      <div style={{ fontSize: '12px' }}>Type to search users</div>
+                    </div>
+                  )
+                }
+              />
+            </Form.Item>
+          </div>
 
-          <Form.Item
-            label="Role"
-            name="role"
-          >
-            <Select
-              placeholder="Select role (optional)"
-              allowClear
-              options={businessRoles.map(r => ({ label: r, value: r }))}
-            />
-          </Form.Item>
+          <div style={{
+            background: token.colorBgContainer,
+            border: `1px solid ${token.colorBorder}`,
+            borderRadius: '8px',
+            padding: '20px'
+          }}>
+            <Form.Item
+              label={
+                <span style={{ fontSize: '13px', fontWeight: '600', color: token.colorText }}>
+                  <TeamOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />
+                  Role / Designation
+                </span>
+              }
+              name="role"
+              style={{ marginBottom: 0 }}
+              tooltip="Assign a role or designation from your organization"
+            >
+              <Select
+                placeholder="Type to search designations..."
+                showSearch
+                allowClear
+                filterOption={false}
+                onSearch={handleDesignationSearch}
+                loading={designationSearchLoading}
+                size="large"
+                suffixIcon={designationSearchLoading ? <LoadingOutlined spin /> : undefined}
+                options={designations.map(d => ({
+                  label: (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+                      <div style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: getHeaderIconColor(token),
+                        flexShrink: 0
+                      }} />
+                      <span style={{ fontSize: '13px' }}>{d.designation_name || d.name}</span>
+                    </div>
+                  ),
+                  value: d.name
+                }))}
+                notFoundContent={
+                  designationSearchLoading ? (
+                    <div style={{ textAlign: 'center', padding: '20px' }}>
+                      <Spin size="small" />
+                      <div style={{ marginTop: '8px', fontSize: '12px', color: token.colorTextSecondary }}>
+                        Loading designations...
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '20px', color: token.colorTextSecondary }}>
+                      <TeamOutlined style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.3 }} />
+                      <div style={{ fontSize: '12px' }}>Type to search designations</div>
+                    </div>
+                  )
+                }
+              />
+            </Form.Item>
+          </div>
+
+          <div style={{
+            marginTop: '16px',
+            padding: '12px 16px',
+            background: token.colorInfoBg,
+            border: `1px solid ${token.colorInfoBorder}`,
+            borderRadius: '6px',
+            fontSize: '12px',
+            color: token.colorTextSecondary,
+            lineHeight: '1.6'
+          }}>
+            <strong style={{ color: token.colorText }}>Tip:</strong> Start typing in either field to search.
+            Team members will have access to this product based on their assigned role.
+          </div>
         </Form>
       </Modal>
     </div>

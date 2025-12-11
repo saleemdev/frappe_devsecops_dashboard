@@ -106,6 +106,8 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const [isManagerDebouncing, setIsManagerDebouncing] = useState(false)
   const [softwareProducts, setSoftwareProducts] = useState([])
   const [loadingSoftwareProducts, setLoadingSoftwareProducts] = useState(false)
+  const [raciTemplates, setRaciTemplates] = useState([])
+  const [loadingRaciTemplates, setLoadingRaciTemplates] = useState(false)
 
   // Edit Team Member modal state
   const [showEditMemberModal, setShowEditMemberModal] = useState(false)
@@ -140,6 +142,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
     }
     loadDesignations()
     loadSoftwareProducts()
+    loadRaciTemplates()
   }, [projectId])
 
   // Load Software Products
@@ -168,6 +171,35 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
       console.error('[ProjectEdit] Error loading software products:', error)
     } finally {
       setLoadingSoftwareProducts(false)
+    }
+  }
+
+  // Load RACI Templates
+  const loadRaciTemplates = async () => {
+    try {
+      setLoadingRaciTemplates(true)
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.raci_template.get_raci_templates?fields=["name","template_name"]&limit_page_length=100', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const result = data.message || data
+        if (result.success && result.data) {
+          setRaciTemplates(result.data.map(t => ({
+            label: t.template_name,
+            value: t.name
+          })))
+        }
+      }
+    } catch (error) {
+      console.error('[ProjectEdit] Error loading RACI templates:', error)
+    } finally {
+      setLoadingRaciTemplates(false)
     }
   }
 
@@ -224,6 +256,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
           expected_start_date: projectResponse.project.expected_start_date ? dayjs(projectResponse.project.expected_start_date) : null,
           expected_end_date: projectResponse.project.expected_end_date ? dayjs(projectResponse.project.expected_end_date) : null,
           custom_software_product: projectResponse.project.custom_software_product || null,
+          custom_default_raci_template: projectResponse.project.custom_default_raci_template || null,
           custom_zenhub_workspace_id: projectResponse.project.custom_zenhub_workspace_id || null
         })
         console.log('[ProjectEdit] Form populated successfully')
@@ -267,6 +300,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         expected_end_date: values.expected_end_date ? values.expected_end_date.format('YYYY-MM-DD') : null,
         notes: notesContent || '',
         custom_software_product: values.custom_software_product || null,
+        custom_default_raci_template: values.custom_default_raci_template || null,
         custom_zenhub_workspace_id: values.custom_zenhub_workspace_id || null
       }
 
@@ -918,6 +952,31 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                 />
               </Form.Item>
 
+              {/* RACI Template */}
+              <Form.Item
+                label={
+                  <span style={{ fontWeight: 600 }}>
+                    <TeamOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />
+                    Default RACI Template
+                  </span>
+                }
+                name="custom_default_raci_template"
+                tooltip="Select the default RACI template for this project. This can be auto-fetched from the linked Software Product."
+              >
+                <Select
+                  size="large"
+                  placeholder="Select a RACI template"
+                  options={raciTemplates}
+                  allowClear
+                  loading={loadingRaciTemplates}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  suffixIcon={loadingRaciTemplates ? <Spin size="small" /> : undefined}
+                />
+              </Form.Item>
+
               <div style={{
                 padding: '12px 16px',
                 background: token.colorInfoBg,
@@ -929,7 +988,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                 lineHeight: '1.6'
               }}>
                 <InfoCircleOutlined style={{ marginRight: '6px', color: token.colorInfo }} />
-                <strong style={{ color: token.colorText }}>Auto-fetch RACI Template:</strong> When you link a Software Product, its RACI Matrix template will be automatically associated with this project.
+                <strong style={{ color: token.colorText }}>Auto-fetch RACI Template:</strong> When you link a Software Product, its RACI Matrix template will be automatically associated with this project. You can override it by selecting a different template above.
               </div>
 
               {/* Zenhub Workspace ID */}

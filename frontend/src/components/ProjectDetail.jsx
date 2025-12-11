@@ -51,7 +51,11 @@ import {
   PaperClipOutlined,
   TeamOutlined,
   PrinterOutlined,
-  SyncOutlined
+  SyncOutlined,
+  ClockCircleOutlined as TimelineIcon,
+  FlagOutlined,
+  ShoppingOutlined,
+  FileProtectOutlined
 } from '@ant-design/icons'
 import useAuthStore from '../stores/authStore'
 import {
@@ -80,6 +84,8 @@ import {
   getTaskTypeStatusIconType
 } from '../utils/taskProgressionUtils'
 import SprintReportDialog from './SprintReportDialog'
+import EnhancedTaskDialog from './EnhancedTaskDialog'
+import ProjectRecentActivity from './ProjectRecentActivity'
 import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
@@ -114,12 +120,17 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [editForm] = Form.useForm()
   const [syncingUsers, setSyncingUsers] = useState(false)
 
+  // Enhanced Task Dialog state
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false)
+  const [taskDialogMode, setTaskDialogMode] = useState('create') // 'create', 'edit', or 'view'
+  const [selectedTask, setSelectedTask] = useState(null)
+
   // Fetch task types when modal opens
   useEffect(() => {
-    if (showNewTaskModal) {
+    if (taskDialogOpen) {
       loadTaskTypes()
     }
-  }, [showNewTaskModal])
+  }, [taskDialogOpen])
 
   // Check write permissions on mount
   useEffect(() => {
@@ -403,13 +414,28 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   }
 
   const handleOpenNewTaskModal = () => {
+    setTaskDialogMode('create')
+    setSelectedTask(null)
+    setTaskDialogOpen(true)
     form.resetFields()
-    setShowNewTaskModal(true)
   }
 
   const handleCloseNewTaskModal = () => {
-    setShowNewTaskModal(false)
+    setTaskDialogOpen(false)
+    setSelectedTask(null)
     form.resetFields()
+  }
+
+  const handleOpenTaskView = (task) => {
+    setTaskDialogMode('view')
+    setSelectedTask(task)
+    setTaskDialogOpen(true)
+  }
+
+  const handleOpenTaskEdit = (task) => {
+    setTaskDialogMode('edit')
+    setSelectedTask(task)
+    setTaskDialogOpen(true)
   }
 
   const handleUserSearch = async (searchValue) => {
@@ -514,6 +540,12 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   }
 
   const handleEditTask = (task) => {
+    // Use the new enhanced dialog
+    setTaskDialogMode('edit')
+    setSelectedTask(task)
+    setTaskDialogOpen(true)
+
+    // Keep old state for backward compatibility
     setEditingTask(task)
     editForm.setFieldsValue({
       subject: task.subject,
@@ -525,7 +557,6 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       progress: task.progress || 0,
       is_milestone: task.is_milestone === 1 || task.is_milestone === true
     })
-    setShowEditTaskModal(true)
   }
 
   const handleCloseEditTaskModal = () => {
@@ -535,7 +566,9 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   }
 
   const handleUpdateTask = async (values) => {
-    if (!editingTask) return
+    // Use selectedTask (new dialog) or editingTask (old modal) for backward compatibility
+    const taskToUpdate = selectedTask || editingTask
+    if (!taskToUpdate) return
 
     setEditTaskFormLoading(true)
     try {
@@ -552,11 +585,12 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         is_milestone: values.is_milestone ? 1 : 0
       }
 
-      const response = await updateTask(editingTask.name, taskData)
+      const response = await updateTask(taskToUpdate.name, taskData)
 
       if (response.success) {
         message.success('Task updated successfully')
-        handleCloseEditTaskModal()
+        handleCloseNewTaskModal() // Close the enhanced dialog
+        handleCloseEditTaskModal() // Close old modal if open
         loadProjectData()
       } else {
         message.error(response.error || 'Failed to update task')
@@ -741,27 +775,28 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
         }}
       >
-        <Row justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
+        {/* Header Section with Navigation and Actions */}
+        <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }}>
           <Col>
-            <Space direction="vertical" size="small">
+            <Space direction="vertical" size={0}>
               <Button
                 type="text"
                 icon={<ArrowLeftOutlined />}
                 onClick={() => navigateToRoute('projects')}
-                style={{ marginBottom: '8px' }}
+                style={{ marginBottom: '12px', padding: '0 0' }}
               >
                 Back to Projects
               </Button>
-              <Title level={2} style={{ margin: 0 }}>
+              <Title level={2} style={{ margin: 0, marginBottom: '8px' }}>
                 {projectData?.name || projectData?.project_name || 'Project'}
               </Title>
-              <Tag color={getStatusColor(projectData?.project_status || projectData?.status)}>
+              <Tag color={getStatusColor(projectData?.project_status || projectData?.status)} style={{ fontSize: '12px', padding: '4px 12px' }}>
                 {projectData?.project_status || projectData?.status || 'Unknown'}
               </Tag>
             </Space>
           </Col>
           <Col>
-            <Space>
+            <Space size="middle">
               <Tooltip title={canEditProject ? "Edit Project" : "You don't have permission to edit Projects"}>
                 <Button
                   type="primary"
@@ -780,10 +815,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 icon={<PrinterOutlined />}
                 onClick={() => {
                   try {
-                    // Use Frappe's built-in PDF download endpoint
                     const pdfUrl = `/api/method/frappe.utils.print_format.download_pdf?doctype=Project&name=${encodeURIComponent(projectId)}&format=Standard&no_letterhead=0`
-
-                    // Open in new tab/window for download
                     window.open(pdfUrl, '_blank')
                     message.success('PDF download started')
                   } catch (error) {
@@ -795,51 +827,6 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 Print
               </Button>
             </Space>
-          </Col>
-        </Row>
-
-        {/* Project Information Grid */}
-        <Row gutter={[16, 16]} style={{ marginTop: '12px' }}>
-          <Col xs={24} sm={12} md={8}>
-            <Space>
-              <Text type="secondary">ZenHub ID:</Text>
-              <Text strong>{projectData?.zenhub_id || projectData?.zenHubId || 'N/A'}</Text>
-              {(projectData?.zenhub_id || projectData?.zenHubId) && (
-                <Tooltip title="Copy ZenHub ID to clipboard">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<CopyOutlined />}
-                    onClick={handleCopyZenHubId}
-                  />
-                </Tooltip>
-              )}
-            </Space>
-          </Col>
-          <Col xs={24} sm={12} md={8}>
-            <Space>
-              <Text type="secondary">Software Product:</Text>
-              <Text strong>{projectData?.custom_software_product || 'N/A'}</Text>
-            </Space>
-          </Col>
-          <Col xs={24} sm={12} md={8}>
-            <Space>
-              <Text type="secondary">RACI Template:</Text>
-              <Text strong>{projectData?.custom_default_raci_template || 'N/A'}</Text>
-            </Space>
-          </Col>
-        </Row>
-
-        {/* Sprint Report Button Row */}
-        <Row gutter={[16, 16]} style={{ marginTop: '12px' }}>
-          <Col xs={24} style={{ textAlign: 'right' }}>
-            <Button
-              type="default"
-              icon={<BarChartOutlined />}
-              onClick={() => setShowSprintReport(true)}
-            >
-              Sprint Report
-            </Button>
           </Col>
         </Row>
 
@@ -887,6 +874,143 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
             </Col>
           </Row>
         )}
+
+        {/* Attachments Section - Email-style minimalist design */}
+        <Row gutter={[16, 16]} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f0f0f0' }}>
+          <Col xs={24}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <Space size={4} align="center">
+                  <PaperClipOutlined style={{ fontSize: '14px', color: '#8c8c8c' }} />
+                  <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Attachments
+                  </Text>
+                  {attachments.length > 0 && (
+                    <Text type="secondary" style={{ fontSize: '11px' }}>
+                      ({attachments.length})
+                    </Text>
+                  )}
+                </Space>
+                <Upload
+                  beforeUpload={handleFileUpload}
+                  multiple
+                  disabled={uploading}
+                  showUploadList={false}
+                >
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={uploading ? <LoadingOutlined /> : <UploadOutlined />}
+                    loading={uploading}
+                    style={{ fontSize: '12px', height: '24px', padding: '0 8px' }}
+                  >
+                    {uploading ? 'Uploading...' : 'Attach'}
+                  </Button>
+                </Upload>
+              </div>
+
+              {/* Files List - Email attachment style */}
+              {attachmentsLoading ? (
+                <div style={{ padding: '12px 0' }}>
+                  <Spin size="small" />
+                </div>
+              ) : attachments && attachments.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {attachments.map((file) => (
+                    <div
+                      key={file.name}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '6px 10px',
+                        backgroundColor: '#fafafa',
+                        border: '1px solid #e8e8e8',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer',
+                        maxWidth: '250px'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f0f0f0'
+                        e.currentTarget.style.borderColor = '#d9d9d9'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#fafafa'
+                        e.currentTarget.style.borderColor = '#e8e8e8'
+                      }}
+                    >
+                      <span style={{ fontSize: '14px', flexShrink: 0 }}>
+                        {getFileIcon(file.file_name || file.name)}
+                      </span>
+                      <a
+                        href={file.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: '#262626',
+                          textDecoration: 'none',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flex: 1,
+                          minWidth: 0
+                        }}
+                        title={file.file_name || file.name}
+                      >
+                        {file.file_name || file.name}
+                      </a>
+                      <Text type="secondary" style={{ fontSize: '11px', flexShrink: 0 }}>
+                        {formatFileSize(file.file_size)}
+                      </Text>
+                      <Space size={2} style={{ flexShrink: 0 }}>
+                        <Tooltip title="Download">
+                          <a
+                            href={file.file_url}
+                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<DownloadOutlined />}
+                              style={{ width: '20px', height: '20px', padding: 0, fontSize: '12px' }}
+                            />
+                          </a>
+                        </Tooltip>
+                        <Popconfirm
+                          title="Delete File"
+                          description="Are you sure?"
+                          onConfirm={() => handleDeleteFile(file.name)}
+                          okText="Yes"
+                          cancelText="No"
+                        >
+                          <Tooltip title="Delete">
+                            <Button
+                              type="text"
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                              style={{ width: '20px', height: '20px', padding: 0, fontSize: '12px' }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </Tooltip>
+                        </Popconfirm>
+                      </Space>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  No attachments yet
+                </Text>
+              )}
+            </div>
+          </Col>
+        </Row>
       </Card>
 
       {/* Project Overview Cards - Improved Visual Hierarchy */}
@@ -1072,67 +1196,162 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         </div>
       </div>
 
-      {/* Project Manager Header - Prominent Position */}
+      {/* Project Information Card - Enhanced with Gradient */}
       <Card
+        title={
+          <Text style={{ fontSize: '14px', fontWeight: '600', color: '#262626' }}>
+            Project Information
+          </Text>
+        }
         style={{
           marginBottom: '24px',
           borderRadius: '12px',
+          border: 'none',
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+          background: 'linear-gradient(90deg, #e6f4ff 0%, #bae0ff 50%, #e6f7ff 100%)'
         }}
+        headStyle={{
+          borderBottom: '1px solid rgba(255,255,255,0.5)',
+          padding: '12px 20px',
+          minHeight: 'auto',
+          background: 'transparent'
+        }}
+        bodyStyle={{ padding: '20px' }}
       >
-        <Row gutter={[24, 24]} align="middle">
-          <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <div>
-                <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Project Manager
-                </Text>
-              </div>
-              {projectManager ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Avatar
-                    size={48}
-                    src={projectManager.image}
-                    icon={<UserOutlined />}
-                  />
-                  <div>
-                    <Text strong style={{ fontSize: '15px', display: 'block' }}>{projectManager.full_name}</Text>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>{projectManager.email}</Text>
-                  </div>
-                </div>
-              ) : (
-                <Text type="secondary">No project manager assigned</Text>
-              )}
-            </Space>
-          </Col>
-          <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Status & Priority
+        {/* Row 1: Status, Priority, Timeline */}
+        <Row gutter={[32, 20]} style={{ marginBottom: '20px' }}>
+          <Col xs={24} sm={8} md={6}>
+            <div>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '8px' }}>
+                Status
               </Text>
-              <div>
-                <Tag color={getStatusColor(projectData?.project_status || projectData?.status)} style={{ fontSize: '13px', marginRight: '8px' }}>
-                  {projectData?.project_status || projectData?.status || 'Unknown'}
-                </Tag>
-                <Tag color={getPriorityColor(projectData?.priority)} style={{ fontSize: '13px' }}>
-                  {projectData?.priority || 'Normal'}
-                </Tag>
-              </div>
-            </Space>
+              <Tag color={getStatusColor(projectData?.project_status || projectData?.status)} style={{ fontSize: '13px', padding: '2px 10px' }}>
+                {projectData?.project_status || projectData?.status || 'Unknown'}
+              </Tag>
+            </div>
           </Col>
-          <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <Col xs={24} sm={8} md={6}>
+            <div>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '8px' }}>
+                Priority
+              </Text>
+              <Text style={{
+                fontSize: '14px',
+                color: projectData?.priority === 'High' ? '#cf1322' : projectData?.priority === 'Medium' ? '#d46b08' : '#262626',
+                fontWeight: projectData?.priority === 'High' ? '600' : '500'
+              }}>
+                {projectData?.priority || '—'}
+              </Text>
+            </div>
+          </Col>
+          <Col xs={24} sm={8} md={12}>
+            <div>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '8px' }}>
                 Timeline
               </Text>
-              <div>
-                <Text style={{ fontSize: '13px', display: 'block', color: (projectData?.expected_start_date || projectData?.actual_start_date || projectData?.expected_end_date || projectData?.actual_end_date) ? 'inherit' : '#999' }}>
-                  <CalendarOutlined style={{ marginRight: '6px' }} />
-                  {formatDateWithRelativeTime(projectData?.expected_start_date || projectData?.actual_start_date)} to {formatDateWithRelativeTime(projectData?.expected_end_date || projectData?.actual_end_date)}
-                </Text>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div>
+                  <Text type="secondary" style={{ fontSize: '10px', color: '#bfbfbf', display: 'block' }}>Start</Text>
+                  <Text style={{ fontSize: '13px', color: '#262626' }}>
+                    {formatDateWithRelativeTime(projectData?.expected_start_date || projectData?.actual_start_date) || '—'}
+                  </Text>
+                </div>
+                <Text type="secondary" style={{ color: '#d9d9d9' }}>→</Text>
+                <div>
+                  <Text type="secondary" style={{ fontSize: '10px', color: '#bfbfbf', display: 'block' }}>End</Text>
+                  <Text style={{ fontSize: '13px', color: '#262626' }}>
+                    {formatDateWithRelativeTime(projectData?.expected_end_date || projectData?.actual_end_date) || '—'}
+                  </Text>
+                </div>
               </div>
-            </Space>
+            </div>
+          </Col>
+        </Row>
+
+        {/* Divider */}
+        <div style={{ borderTop: '1px solid #f5f5f5', marginBottom: '20px' }} />
+
+        {/* Row 2: Client, Department, Software Product, RACI Template */}
+        <Row gutter={[32, 20]} style={{ marginBottom: '20px' }}>
+          <Col xs={24} sm={12} md={6}>
+            <div>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
+                Client
+              </Text>
+              <Text style={{ fontSize: '14px', color: '#262626' }}>
+                {projectData?.client || '—'}
+              </Text>
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
+                Department
+              </Text>
+              <Text style={{ fontSize: '14px', color: '#262626' }}>
+                {projectData?.department || '—'}
+              </Text>
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
+                Software Product
+              </Text>
+              <Text style={{ fontSize: '14px', color: '#262626' }}>
+                {projectData?.custom_software_product || '—'}
+              </Text>
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
+                RACI Template
+              </Text>
+              <Text style={{ fontSize: '14px', color: '#262626' }}>
+                {projectData?.custom_default_raci_template || '—'}
+              </Text>
+            </div>
+          </Col>
+        </Row>
+
+        {/* Divider */}
+        <div style={{ borderTop: '1px solid #f5f5f5', marginBottom: '20px' }} />
+
+        {/* Row 3: ZenHub ID & Sprint Report */}
+        <Row gutter={[32, 20]}>
+          <Col xs={24} sm={12} md={6}>
+            <div>
+              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
+                ZenHub ID
+              </Text>
+              <Space size={4}>
+                <Text style={{ fontSize: '14px', color: '#262626' }}>
+                  {projectData?.zenhub_id || projectData?.zenHubId || '—'}
+                </Text>
+                {(projectData?.zenhub_id || projectData?.zenHubId) && (
+                  <Tooltip title="Copy to clipboard">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CopyOutlined style={{ fontSize: '12px' }} />}
+                      onClick={handleCopyZenHubId}
+                      style={{ padding: '2px 4px', height: 'auto', color: '#8c8c8c' }}
+                    />
+                  </Tooltip>
+                )}
+              </Space>
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6} style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <Button
+              type="text"
+              icon={<BarChartOutlined />}
+              onClick={() => setShowSprintReport(true)}
+              style={{ color: token.colorPrimary, padding: '4px 0' }}
+            >
+              View Sprint Report
+            </Button>
           </Col>
         </Row>
       </Card>
@@ -1141,75 +1360,6 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       <Row gutter={[24, 24]}>
         {/* Left Column - Project Info & Tasks */}
         <Col xs={24} lg={16}>
-          {/* Project Status & Info */}
-          <Card
-            title="Project Information"
-            style={{
-              marginBottom: '24px',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-            }}
-          >
-            <Row gutter={[16, 16]}>
-              <Col xs={24} sm={12}>
-                <Space direction="vertical" size="small">
-                  <Text type="secondary">Status</Text>
-                  <Tag color={getStatusColor(projectData?.project_status || projectData?.status)} style={{ fontSize: '14px' }}>
-                    {projectData?.project_status || projectData?.status || 'Unknown'}
-                  </Tag>
-                </Space>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Space direction="vertical" size="small">
-                  <Text type="secondary">Priority</Text>
-                  <Tag color={getPriorityColor(projectData?.priority)} style={{ fontSize: '14px' }}>
-                    {projectData?.priority || 'Normal'}
-                  </Tag>
-                </Space>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Space direction="vertical" size="small">
-                  <Text type="secondary">Start Date</Text>
-                  <Text style={{ color: (projectData?.expected_start_date || projectData?.actual_start_date) ? 'inherit' : '#999' }}>
-                    <CalendarOutlined /> {formatDateWithRelativeTime(projectData?.expected_start_date || projectData?.actual_start_date)}
-                  </Text>
-                </Space>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Space direction="vertical" size="small">
-                  <Text type="secondary">End Date</Text>
-                  <Text style={{ color: (projectData?.expected_end_date || projectData?.actual_end_date) ? 'inherit' : '#999' }}>
-                    <CalendarOutlined /> {formatDateWithRelativeTime(projectData?.expected_end_date || projectData?.actual_end_date)}
-                  </Text>
-                </Space>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Space direction="vertical" size="small">
-                  <Text type="secondary">Client</Text>
-                  <Text>{projectData?.client || 'N/A'}</Text>
-                </Space>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Space direction="vertical" size="small">
-                  <Text type="secondary">Department</Text>
-                  <Text>{projectData?.department || 'N/A'}</Text>
-                </Space>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Space direction="vertical" size="small">
-                  <Text type="secondary">Software Product</Text>
-                  <Text>{projectData?.custom_software_product || 'N/A'}</Text>
-                </Space>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Space direction="vertical" size="small">
-                  <Text type="secondary">Default RACI Template</Text>
-                  <Text>{projectData?.custom_default_raci_template || 'N/A'}</Text>
-                </Space>
-              </Col>
-            </Row>
-          </Card>
-
           {/* Collapsible Sections - DevSecOps Timeline & Milestones */}
           <Collapse
             style={{
@@ -1417,470 +1567,189 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
 
         {/* Right Column - Team & Activity */}
         <Col xs={24} lg={8}>
-          {/* Team Members */}
+          {/* Team Members - Minimalist Flat Design */}
           <Card
-            title={`Team Members (${teamMembers.length})`}
+            title={
+              <Text style={{ fontSize: '14px', fontWeight: '600', color: '#262626' }}>
+                Team ({(projectManager ? 1 : 0) + teamMembers.length})
+              </Text>
+            }
             style={{
               marginBottom: '24px',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+              borderRadius: '8px',
+              border: '1px solid #f0f0f0',
+              boxShadow: 'none'
             }}
+            headStyle={{
+              borderBottom: '1px solid #f5f5f5',
+              padding: '12px 16px',
+              minHeight: 'auto'
+            }}
+            bodyStyle={{ padding: '0' }}
             extra={
               projectData?.custom_software_product && (
-                <Tooltip title="Sync users from Software Product">
-                  <Button
-                    type="default"
-                    size="small"
-                    icon={<SyncOutlined spin={syncingUsers} />}
-                    onClick={handleSyncUsersFromProduct}
-                    loading={syncingUsers}
-                  >
-                    Sync Users
-                  </Button>
-                </Tooltip>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<SyncOutlined spin={syncingUsers} />}
+                  onClick={handleSyncUsersFromProduct}
+                  loading={syncingUsers}
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Sync from Product
+                </Button>
               )
             }
           >
-            {teamMembers && teamMembers.length > 0 ? (
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                {/* Show first 5 members or all if less than 5 */}
-                {(showAllTeamMembers ? teamMembers : teamMembers.slice(0, 5)).map((member, index) => (
-                  <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'space-between', width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+            {/* Project Manager Section */}
+            {projectManager && (
+              <div style={{
+                padding: '16px',
+                backgroundColor: '#fafafa',
+                borderBottom: '1px solid #f0f0f0'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Avatar
+                    src={projectManager.image}
+                    icon={<UserOutlined />}
+                    size={40}
+                    style={{ flexShrink: 0, backgroundColor: '#e6e6e6' }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                      <Text strong style={{ fontSize: '13px', color: '#262626' }}>
+                        {projectManager.full_name}
+                      </Text>
+                      <Text style={{ fontSize: '10px', fontWeight: '500', color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                        Lead
+                      </Text>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                      {projectManager.business_function || projectManager.email}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Team Members List */}
+            <div style={{ padding: '8px 0' }}>
+              {teamMembers && teamMembers.length > 0 ? (
+                <>
+                  {(showAllTeamMembers ? teamMembers : teamMembers.slice(0, 5)).map((member, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        padding: '10px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        transition: 'background-color 0.15s ease',
+                        borderLeft: member.custom_is_change_approver === 1 ? '2px solid #52c41a' : '2px solid transparent'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fafafa'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
                       <Avatar
                         src={member.image}
                         icon={<UserOutlined />}
+                        size={32}
+                        style={{
+                          flexShrink: 0,
+                          backgroundColor: member.custom_is_change_approver === 1 ? '#f6ffed' : '#f0f0f0',
+                          border: member.custom_is_change_approver === 1 ? '1px solid #b7eb8f' : 'none'
+                        }}
                       />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <Text strong>{member.full_name}</Text>
-                          {member.custom_is_change_approver === 1 && (
-                            <Tag color="green" style={{ margin: 0, fontSize: '11px' }}>
-                              <LockOutlined style={{ fontSize: '10px', marginRight: '4px' }} />
-                              Change Approver
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                            <Text style={{
+                              fontSize: '13px',
+                              color: '#262626',
+                              fontWeight: member.custom_is_change_approver === 1 ? '600' : '500'
+                            }}>
+                              {member.full_name}
+                            </Text>
+                            {member.custom_is_change_approver === 1 && (
+                              <Tag
+                                color="success"
+                                style={{
+                                  margin: 0,
+                                  fontSize: '10px',
+                                  padding: '0 6px',
+                                  lineHeight: '18px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                ✓ Change Approver
+                              </Tag>
+                            )}
+                          </div>
+                          {member.business_function && (
+                            <Tag
+                              color="blue"
+                              style={{
+                                margin: 0,
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                padding: '2px 8px'
+                              }}
+                            >
+                              {member.business_function}
                             </Tag>
                           )}
                         </div>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>{member.email}</Text>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                {/* Show More / Show Less button if more than 5 members */}
-                {teamMembers.length > 5 && (
-                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f0f0f0' }}>
-                    <Button
-                      type="link"
-                      size="small"
-                      onClick={() => setShowAllTeamMembers(!showAllTeamMembers)}
-                      style={{ padding: 0 }}
-                    >
-                      {showAllTeamMembers ? `Show Less (${teamMembers.length - 5} hidden)` : `Show More (${teamMembers.length - 5} more)`}
-                    </Button>
-                  </div>
-                )}
-              </Space>
-            ) : (
-              <Empty description="No team members assigned" />
-            )}
-          </Card>
-
-          {/* Recent Activity */}
-          <Card
-            title="Recent Activity"
-            style={{
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-            }}
-          >
-            {recentActivity && recentActivity.length > 0 ? (
-              <Timeline size="small">
-                {recentActivity.map((activity) => (
-                  <Timeline.Item
-                    key={activity.name}
-                    dot={<FileTextOutlined style={{ color: getHeaderIconColor(token) }} />}
-                  >
-                    <div>
-                      <Text strong style={{ fontSize: '13px' }}>
-                        {activity.reference_doctype}
-                      </Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: '12px', color: activity.creation ? 'inherit' : '#999' }}>
-                        by {activity.owner_name || activity.owner} • {formatDateWithRelativeTime(activity.creation)}
-                      </Text>
-                      <br />
-                      <Text style={{ fontSize: '12px' }}>
-                        {stripHtmlTags(activity.content).substring(0, 100)}...
-                      </Text>
-                    </div>
-                  </Timeline.Item>
-                ))}
-              </Timeline>
-            ) : (
-              <Empty description="No recent activity" />
-            )}
-          </Card>
-
-          {/* Attachments */}
-          <Card
-            title={
-              <Space>
-                <PaperClipOutlined style={{ color: getHeaderIconColor(token) }} />
-                <span>Attachments ({attachments.length})</span>
-              </Space>
-            }
-            style={{
-              marginTop: '24px',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-            }}
-          >
-            {/* Upload Section */}
-            <div style={{ marginBottom: '16px' }}>
-              <Upload
-                beforeUpload={handleFileUpload}
-                multiple
-                disabled={uploading}
-              >
-                <Button
-                  size="small"
-                  icon={uploading ? <LoadingOutlined /> : <UploadOutlined />}
-                  loading={uploading}
-                >
-                  {uploading ? 'Uploading...' : 'Upload Files'}
-                </Button>
-              </Upload>
-            </div>
-
-            {/* Files List */}
-            {attachmentsLoading ? (
-              <Spin size="small" />
-            ) : attachments && attachments.length > 0 ? (
-              <List
-                size="small"
-                dataSource={attachments}
-                renderItem={(file) => (
-                  <List.Item
-                    key={file.name}
-                    style={{
-                      padding: '8px 0',
-                      borderBottom: '1px solid #f0f0f0'
-                    }}
-                  >
-                    <List.Item.Meta
-                      avatar={<span style={{ fontSize: '16px' }}>{getFileIcon(file.file_name || file.name)}</span>}
-                      title={
-                        <a
-                          href={file.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ fontSize: '12px' }}
-                        >
-                          {file.file_name || file.name}
-                        </a>
-                      }
-                      description={
-                        <Space size="small" style={{ fontSize: '11px', color: file.creation ? '#999' : '#ccc' }}>
-                          <span>{formatFileSize(file.file_size)}</span>
-                          <span>•</span>
-                          <span>{formatDateWithRelativeTime(file.creation)}</span>
-                        </Space>
-                      }
-                    />
-                    <Space size="small">
-                      <Tooltip title="Download">
-                        <a
-                          href={file.file_url}
-                          download
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<DownloadOutlined />}
-                          />
-                        </a>
-                      </Tooltip>
-                      <Popconfirm
-                        title="Delete File"
-                        description="Are you sure you want to delete this file?"
-                        onConfirm={() => handleDeleteFile(file.name)}
-                        okText="Yes"
-                        cancelText="No"
+                  {/* Show More / Show Less */}
+                  {teamMembers.length > 5 && (
+                    <div style={{ padding: '8px 16px', borderTop: '1px solid #f5f5f5' }}>
+                      <Button
+                        type="text"
+                        size="small"
+                        onClick={() => setShowAllTeamMembers(!showAllTeamMembers)}
+                        style={{ color: token.colorPrimary, padding: '4px 0', fontSize: '12px' }}
                       >
-                        <Tooltip title="Delete">
-                          <Button
-                            type="text"
-                            size="small"
-                            danger
-                            icon={<DeleteOutlined />}
-                          />
-                        </Tooltip>
-                      </Popconfirm>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            ) : (
-              <Empty
-                description="No attachments"
-                style={{ marginTop: '16px', marginBottom: '16px' }}
-              />
-            )}
+                        {showAllTeamMembers ? `Show less` : `Show ${teamMembers.length - 5} more`}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+                  <Text type="secondary" style={{ fontSize: '13px', color: '#bfbfbf' }}>
+                    No team members assigned
+                  </Text>
+                </div>
+              )}
+            </div>
           </Card>
+
         </Col>
       </Row>
 
-      {/* New Task Modal */}
-      <Modal
-        title="Create New Task"
-        open={showNewTaskModal}
-        onCancel={handleCloseNewTaskModal}
-        width={1000}
-        okText="Create Task"
-        cancelText="Cancel"
-        confirmLoading={taskFormLoading}
-        onOk={() => form.submit()}
-        style={{ minWidth: '300px' }}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreateTask}
-          autoComplete="off"
-        >
-          <Form.Item
-            label="Task Subject"
-            name="subject"
-            rules={[{ required: true, message: 'Please enter task subject' }]}
-          >
-            <Input placeholder="Enter task subject" />
-          </Form.Item>
+      {/* Recent Activity Section */}
+      <ProjectRecentActivity projectId={projectId} />
 
-          <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Task Type"
-                name="task_type"
-              >
-                <Select
-                  placeholder="Select task type"
-                  options={taskTypeOptions}
-                  loading={taskTypeOptions.length === 0}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Priority"
-                name="priority"
-                initialValue="Medium"
-                rules={[{ required: true, message: 'Please select priority' }]}
-              >
-                <Select
-                  placeholder="Select priority"
-                  options={[
-                    { label: 'Low', value: 'Low' },
-                    { label: 'Medium', value: 'Medium' },
-                    { label: 'High', value: 'High' },
-                    { label: 'Urgent', value: 'Urgent' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Status"
-                name="status"
-                initialValue="Open"
-              >
-                <Select
-                  placeholder="Select status"
-                  options={[
-                    { label: 'Open', value: 'Open' },
-                    { label: 'Working', value: 'Working' },
-                    { label: 'Pending Review', value: 'Pending Review' },
-                    { label: 'Overdue', value: 'Overdue' },
-                    { label: 'Template', value: 'Template' },
-                    { label: 'Completed', value: 'Completed' },
-                    { label: 'Cancelled', value: 'Cancelled' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Assigned To"
-                name="assigned_to"
-              >
-                <Select
-                  placeholder="Search and select user"
-                  showSearch
-                  onSearch={handleUserSearch}
-                  filterOption={false}
-                  notFoundContent={null}
-                  options={userSearchResults.map(user => ({
-                    label: user.full_name || user.name,
-                    value: user.name
-                  }))}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Expected Start Date"
-                name="exp_start_date"
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Expected End Date"
-                name="exp_end_date"
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            label="Is Milestone"
-            name="is_milestone"
-            valuePropName="checked"
-            initialValue={false}
-          >
-            <Checkbox>Mark this task as a milestone</Checkbox>
-          </Form.Item>
-
-          <Form.Item
-            label="Description"
-            name="description"
-          >
-            <Input.TextArea
-              placeholder="Enter task description"
-              rows={4}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Edit Task Modal */}
-      <Modal
-        title="Edit Task"
-        open={showEditTaskModal}
-        onCancel={handleCloseEditTaskModal}
-        onOk={() => editForm.submit()}
-        confirmLoading={editTaskFormLoading}
-        style={{ minWidth: '300px' }}
-      >
-        <Form
-          form={editForm}
-          layout="vertical"
-          onFinish={handleUpdateTask}
-          autoComplete="off"
-        >
-          <Form.Item
-            label="Task Subject"
-            name="subject"
-            rules={[{ required: true, message: 'Please enter task subject' }]}
-          >
-            <Input placeholder="Enter task subject" />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Priority"
-                name="priority"
-                rules={[{ required: true, message: 'Please select priority' }]}
-              >
-                <Select
-                  placeholder="Select priority"
-                  options={[
-                    { label: 'Low', value: 'Low' },
-                    { label: 'Medium', value: 'Medium' },
-                    { label: 'High', value: 'High' },
-                    { label: 'Urgent', value: 'Urgent' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Status"
-                name="status"
-                rules={[{ required: true, message: 'Please select status' }]}
-              >
-                <Select
-                  placeholder="Select status"
-                  options={[
-                    { label: 'Open', value: 'Open' },
-                    { label: 'Working', value: 'Working' },
-                    { label: 'Pending Review', value: 'Pending Review' },
-                    { label: 'Overdue', value: 'Overdue' },
-                    { label: 'Template', value: 'Template' },
-                    { label: 'Completed', value: 'Completed' },
-                    { label: 'Cancelled', value: 'Cancelled' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Expected Start Date"
-                name="exp_start_date"
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12}>
-              <Form.Item
-                label="Expected End Date"
-                name="exp_end_date"
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            label="Progress (%)"
-            name="progress"
-          >
-            <Input type="number" min={0} max={100} placeholder="0-100" />
-          </Form.Item>
-
-          <Form.Item
-            label="Is Milestone"
-            name="is_milestone"
-            valuePropName="checked"
-          >
-            <Checkbox>Mark this task as a milestone</Checkbox>
-          </Form.Item>
-
-          <Form.Item
-            label="Description"
-            name="description"
-          >
-            <Input.TextArea
-              placeholder="Enter task description"
-              rows={4}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* Enhanced Task Dialog - Replaces old Create/Edit modals */}
+      <EnhancedTaskDialog
+        open={taskDialogOpen}
+        mode={taskDialogMode}
+        taskData={selectedTask}
+        projectId={projectId}
+        taskTypeOptions={taskTypeOptions}
+        userSearchResults={userSearchResults}
+        onUserSearch={handleUserSearch}
+        onClose={handleCloseNewTaskModal}
+        onCreate={handleCreateTask}
+        onUpdate={handleUpdateTask}
+        loading={taskFormLoading || editTaskFormLoading}
+      />
 
       {/* Sprint Report Dialog */}
       {showSprintReport && (

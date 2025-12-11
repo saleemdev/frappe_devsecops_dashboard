@@ -1,6 +1,6 @@
 {
   "index.html": {
-    "file": "assets/index-DD0Sai9a.js",
+    "file": "assets/index-CxMHe9IF.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -10,7 +10,7 @@
       "node_modules/axios/index.js"
     ],
     "css": [
-      "assets/index-BwEIo6un.css"
+      "assets/index-BG1YrSPX.css"
     ]
   },
   "node_modules/axios/index.js": {
@@ -20,7 +20,7 @@
     "isDynamicEntry": true
   },
   "src/utils/erpnextApiUtils.js": {
-    "file": "assets/erpnextApiUtils-C-z-GOiI.js",
+    "file": "assets/erpnextApiUtils-BWev8WNC.js",
     "name": "erpnextApiUtils",
     "src": "src/utils/erpnextApiUtils.js",
     "isDynamicEntry": true,

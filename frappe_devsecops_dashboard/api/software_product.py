@@ -118,6 +118,10 @@ def get_product_detail(name: str) -> Dict[str, Any]:
             frappe.response['http_status_code'] = 400
             frappe.throw(_('Product ID is required'), frappe.ValidationError)
 
+        # URL decode the name in case it comes encoded (e.g., "Afyangu%20Web" -> "Afyangu Web")
+        from urllib.parse import unquote
+        name = unquote(str(name))
+
         doc = frappe.get_doc('Software Product', name)
 
         # Check read permission
@@ -263,6 +267,10 @@ def update_product(name: str = None, **kwargs) -> Dict[str, Any]:
             frappe.response['http_status_code'] = 400
             frappe.throw(_('Product ID is required'), frappe.ValidationError)
 
+        # URL decode the name in case it comes encoded (e.g., "Afyangu%20Web" -> "Afyangu Web")
+        from urllib.parse import unquote
+        name = unquote(str(name))
+
         # Remove 'name' from kwargs if present to avoid issues
         kwargs.pop('name', None)
 
@@ -340,6 +348,10 @@ def delete_product(name: str) -> Dict[str, Any]:
             # 400 Bad Request - Missing required parameter
             frappe.response['http_status_code'] = 400
             frappe.throw(_('Product ID is required'), frappe.ValidationError)
+
+        # URL decode the name in case it comes encoded (e.g., "Afyangu%20Web" -> "Afyangu Web")
+        from urllib.parse import unquote
+        name = unquote(str(name))
 
         # Get document
         doc = frappe.get_doc('Software Product', name)

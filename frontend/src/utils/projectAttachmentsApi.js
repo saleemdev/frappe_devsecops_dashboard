@@ -52,7 +52,7 @@ export const deleteProjectFile = async (fileName) => {
 
 /**
  * Upload a file to a project
- * Uses Frappe's native file upload endpoint
+ * Uses our custom backend endpoint that leverages Frappe's File doctype
  */
 export const uploadProjectFile = async (projectName, file) => {
   try {
@@ -61,27 +61,24 @@ export const uploadProjectFile = async (projectName, file) => {
     formData.append('file', file)
     formData.append('doctype', 'Project')
     formData.append('docname', projectName)
-    // formData.append('fieldname', 'attachments') // Removed to allow generic attachment to the document
 
-    const response = await api.post('/api/method/frappe.client.upload_file', formData, {
+    const response = await api.post('/api/method/frappe_devsecops_dashboard.api.dashboard.upload_project_file', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     })
 
-    // Frappe returns the File document directly
-    // The response interceptor unwraps the message field
-    // Check if we got a valid File document
-    if (response.data && response.data.name) {
+    // Check if we got a valid response
+    if (response.data && response.data.success) {
       return {
         success: true,
-        file: response.data
+        file: response.data.file
       }
     }
 
     return {
       success: false,
-      error: 'Invalid response from server'
+      error: response.data?.error || 'Invalid response from server'
     }
   } catch (error) {
     console.error('[uploadProjectFile] Error:', error)

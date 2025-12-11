@@ -19,17 +19,17 @@
     },
     {
       "fieldname": "role",
-      "fieldtype": "Select",
+      "fieldtype": "Link",
       "in_list_view": 1,
-      "label": "Role",
-      "options": "Product Owner\nTech Lead\nQA Lead\nBusiness Analyst\nDevOps Engineer\nSecurity Lead\nStakeholder\nArchitect",
+      "label": "Role / Designation",
+      "options": "Designation",
       "reqd": 0
     }
   ],
   "index_web_pages_for_search": 0,
   "istable": 1,
   "links": [],
-  "modified": "2024-11-23 00:00:00",
+  "modified": "2025-12-10 12:00:00",
   "modified_by": "Administrator",
   "module": "Frappe Devsecops Dashboard",
   "name": "Software Product Team Member",

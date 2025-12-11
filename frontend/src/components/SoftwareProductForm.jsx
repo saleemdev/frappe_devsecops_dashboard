@@ -714,6 +714,8 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
                 loading={searchLoading}
                 size="large"
                 suffixIcon={searchLoading ? <LoadingOutlined spin /> : undefined}
+                getPopupContainer={(trigger) => trigger.parentNode}
+                dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
                 options={userSearchResults.map(user => ({
                   label: (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
@@ -775,6 +777,8 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
                 loading={designationSearchLoading}
                 size="large"
                 suffixIcon={designationSearchLoading ? <LoadingOutlined spin /> : undefined}
+                getPopupContainer={(trigger) => trigger.parentNode}
+                dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
                 options={designations.map(d => ({
                   label: (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>

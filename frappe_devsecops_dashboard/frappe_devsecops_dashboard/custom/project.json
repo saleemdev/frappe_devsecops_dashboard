@@ -203,7 +203,7 @@
    "fetch_from": "custom_software_product.default_raci_template",
    "fetch_if_empty": 1,
    "fieldname": "custom_default_raci_template",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "hidden": 0,
    "hide_border": 0,
    "hide_days": 0,
@@ -227,7 +227,7 @@
    "name": "Project-custom_default_raci_template",
    "no_copy": 0,
    "non_negative": 0,
-   "options": null,
+   "options": "RACI Template",
    "owner": "Administrator",
    "permlevel": 0,
    "precision": "",
@@ -399,7 +399,7 @@
    "property": "field_order",
    "property_type": "Data",
    "row_name": null,
-   "value": "[\"naming_series\", \"custom_zenhub_workspace_id\", \"custom_software_product\", null, \"project_name\", \"status\", \"project_type\", \"is_active\", \"percent_complete_method\", \"percent_complete\", \"column_break_5\", \"project_template\", \"expected_start_date\", \"expected_end_date\", \"priority\", \"department\", \"customer_details\", \"customer\", \"column_break_14\", \"sales_order\", \"users_section\", \"users\", \"copied_from\", \"section_break0\", \"notes\", \"section_break_18\", \"actual_start_date\", \"actual_time\", \"column_break_20\", \"actual_end_date\", \"project_details\", \"estimated_costing\", \"total_costing_amount\", \"total_expense_claim\", \"total_purchase_cost\", \"company\", \"column_break_28\", \"total_sales_amount\", \"total_billable_amount\", \"total_billed_amount\", \"total_consumed_material_cost\", \"cost_center\", \"margin\", \"gross_margin\", \"column_break_37\", \"per_gross_margin\", \"monitor_progress\", \"collect_progress\", \"holiday_list\", \"frequency\", \"from_time\", \"to_time\", \"first_email\", \"second_email\", \"daily_time_to_send\", \"day_to_send\", \"weekly_time_to_send\", \"column_break_45\", \"message\"]"
+   "value": "[\"naming_series\", \"custom_zenhub_workspace_id\", \"custom_software_product\", \"custom_default_raci_template\", \"project_name\", \"status\", \"project_type\", \"is_active\", \"percent_complete_method\", \"percent_complete\", \"column_break_5\", \"project_template\", \"expected_start_date\", \"expected_end_date\", \"priority\", \"department\", \"customer_details\", \"customer\", \"column_break_14\", \"sales_order\", \"users_section\", \"users\", \"copied_from\", \"section_break0\", \"notes\", \"section_break_18\", \"actual_start_date\", \"actual_time\", \"column_break_20\", \"actual_end_date\", \"project_details\", \"estimated_costing\", \"total_costing_amount\", \"total_expense_claim\", \"total_purchase_cost\", \"company\", \"column_break_28\", \"total_sales_amount\", \"total_billable_amount\", \"total_billed_amount\", \"total_consumed_material_cost\", \"cost_center\", \"margin\", \"gross_margin\", \"column_break_37\", \"per_gross_margin\", \"monitor_progress\", \"collect_progress\", \"holiday_list\", \"frequency\", \"from_time\", \"to_time\", \"first_email\", \"second_email\", \"daily_time_to_send\", \"day_to_send\", \"weekly_time_to_send\", \"column_break_45\", \"message\"]"
   }
  ],
  "sync_on_migrate": 1

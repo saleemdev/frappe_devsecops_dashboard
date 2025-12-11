@@ -185,6 +185,11 @@ const transformProjectData = (project) => {
     cost_center: project.cost_center,
     department: project.department,
 
+    // Custom fields - Software Product and RACI Template
+    custom_software_product: project.custom_software_product || null,
+    custom_default_raci_template: project.custom_default_raci_template || null,
+    custom_zenhub_workspace_id: project.custom_zenhub_workspace_id || null,
+
     // Tasks array for detailed view
     tasks: project.tasks || []
   }

@@ -264,6 +264,10 @@ def enhance_project_with_task_data(project):
         "cost_center": project.get('cost_center'),
         "department": project.get('department'),
         "zenhub_id": project.get('zenhub_id'),
+        "custom_software_product": project.get('custom_software_product'),
+        "custom_default_raci_template": project.get('custom_default_raci_template'),
+        "custom_zenhub_workspace_id": project.get('custom_zenhub_workspace_id'),
+        "notes": project.get('notes'),
         "project_manager": project.get('project_manager'),  # Include project manager
         "tasks": tasks or []
     }
@@ -535,6 +539,11 @@ def get_project_details(project_name):
         # Use frappe.get_doc with permission checking
         project = frappe.get_doc("Project", project_name)
 
+        # Get custom fields safely
+        software_product = getattr(project, 'custom_software_product', None)
+        raci_template = getattr(project, 'custom_default_raci_template', None)
+        zenhub_id = getattr(project, 'custom_zenhub_workspace_id', '')
+
         # Get enhanced project data
         project_data = {
             "name": project.name,
@@ -550,11 +559,11 @@ def get_project_details(project_name):
             "actual_end_date": project.actual_end_date,
             "cost_center": project.cost_center,
             "department": project.department,
-            "zenhub_id": project.get("custom_zenhub_workspace_id", ""),
+            "zenhub_id": zenhub_id,
             "notes": project.notes or "",  # Include notes field for project description
-            "custom_software_product": project.get("custom_software_product"),
-            "custom_default_raci_template": project.get("custom_default_raci_template"),
-            "custom_zenhub_workspace_id": project.get("custom_zenhub_workspace_id")
+            "custom_software_product": software_product,
+            "custom_default_raci_template": raci_template,
+            "custom_zenhub_workspace_id": zenhub_id
         }
 
         enhanced_project = enhance_project_with_task_data(project_data)
@@ -706,6 +715,96 @@ def delete_project_file(file_name):
         return {
             "success": False,
             "error": "An error occurred while deleting the file"
+        }
+
+
+@frappe.whitelist()
+def upload_project_file():
+    """
+    Upload a file and attach it to a project
+    Uses Frappe's File doctype for proper file management
+    Checks write permission on the project
+
+    Form Data:
+        file: The file to upload
+        doctype: 'Project'
+        docname: Name of the project
+
+    Returns:
+        dict: File document data or error response
+    """
+    try:
+        # Get form data
+        files = frappe.request.files
+        form = frappe.form_dict
+
+        if 'file' not in files:
+            frappe.throw(_('No file provided'), frappe.ValidationError)
+
+        uploaded_file = files['file']
+        doctype = form.get('doctype')
+        docname = form.get('docname')
+
+        if not doctype or not docname:
+            frappe.throw(_('Doctype and docname are required'), frappe.ValidationError)
+
+        if doctype != 'Project':
+            frappe.throw(_('Only Project files are supported'), frappe.ValidationError)
+
+        # Check write permission on the project
+        project = frappe.get_doc("Project", docname)
+        if not project.has_permission('write'):
+            frappe.throw(_('Permission denied'), frappe.PermissionError)
+
+        # Save the file using Frappe's save_file method
+        file_doc = frappe.get_doc({
+            "doctype": "File",
+            "attached_to_doctype": doctype,
+            "attached_to_name": docname,
+            "file_name": uploaded_file.filename,
+            "is_private": 0,  # Make files public by default
+            "content": uploaded_file.stream.read()
+        })
+        file_doc.save(ignore_permissions=True)
+        frappe.db.commit()
+
+        return {
+            "success": True,
+            "file": {
+                "name": file_doc.name,
+                "file_name": file_doc.file_name,
+                "file_url": file_doc.file_url,
+                "file_size": file_doc.file_size,
+                "is_private": file_doc.is_private,
+                "creation": file_doc.creation
+            }
+        }
+
+    except frappe.PermissionError:
+        frappe.response['http_status_code'] = 403
+        frappe.log_error(f"Permission denied for uploading file to {form.get('docname')}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": "You don't have permission to upload files to this project"
+        }
+    except frappe.ValidationError as ve:
+        frappe.response['http_status_code'] = 400
+        return {
+            "success": False,
+            "error": str(ve)
+        }
+    except frappe.DoesNotExistError:
+        frappe.response['http_status_code'] = 404
+        return {
+            "success": False,
+            "error": f"Project '{form.get('docname')}' does not exist"
+        }
+    except Exception as e:
+        frappe.response['http_status_code'] = 500
+        frappe.log_error(f"Upload Project File Error: {str(e)}", "DevSecOps Dashboard")
+        return {
+            "success": False,
+            "error": f"An error occurred while uploading the file: {str(e)}"
         }
 
 

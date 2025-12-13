@@ -54,6 +54,9 @@ import RiskRegisterForm from './components/RiskRegisterForm'
 import AskAI from './components/AskAI'
 import APIProvisioning from './components/APIProvisioning'
 import APIRouteForm from './components/APIRouteForm'
+import WikiHome from './components/WikiHome'
+import WikiSpaceDetail from './components/WikiSpaceDetail'
+import WikiPageView from './components/WikiPageView'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -98,6 +101,8 @@ function App() {
     selectedRACITemplateId = null,
     selectedAPIRouteId = null,
     showAPIRouteForm = false,
+    selectedWikiSpaceSlug = null,
+    selectedWikiPageSlug = null,
     isMobile = false,
     mobileMenuVisible = false,
     navigateToRoute = () => { },
@@ -316,6 +321,8 @@ function App() {
         selectedSoftwareProductId={selectedSoftwareProductId}
         showSoftwareProductForm={showSoftwareProductForm}
         selectedRACITemplateId={selectedRACITemplateId}
+        selectedWikiSpaceSlug={selectedWikiSpaceSlug}
+        selectedWikiPageSlug={selectedWikiPageSlug}
         isMobile={isMobile}
         mobileMenuVisible={mobileMenuVisible}
         setIsMobile={setIsMobile}
@@ -351,6 +358,8 @@ function AppContent({
   selectedSoftwareProductId,
   showSoftwareProductForm,
   selectedRACITemplateId,
+  selectedWikiSpaceSlug,
+  selectedWikiPageSlug,
   getUserInitials
 }) {
   const { token } = theme.useToken()
@@ -495,6 +504,12 @@ function AppContent({
         )
       case 'swagger-collections':
         return <SwaggerCollections />
+      case 'wiki':
+        return <WikiHome navigateToRoute={navigateToRoute} />
+      case 'wiki-space':
+        return <WikiSpaceDetail spaceSlug={selectedWikiSpaceSlug} navigateToRoute={navigateToRoute} />
+      case 'wiki-page':
+        return <WikiPageView pageSlug={selectedWikiPageSlug} navigateToRoute={navigateToRoute} />
       case 'devops-config':
         return <DevOpsConfig />
       case 'system-test':
@@ -647,6 +662,10 @@ function AppContent({
           key: 'api-provisioning',
           icon: <BuildOutlined />,
           label: 'API Provisioning'
+        },
+        {
+          key: 'wiki',
+          label: 'Wiki'
         },
         {
           key: 'swagger-collections',

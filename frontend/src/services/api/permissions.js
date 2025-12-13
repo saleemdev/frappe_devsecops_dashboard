@@ -82,14 +82,54 @@ class PermissionsService {
 
   /**
    * Check if user has write permission for a DocType
+   * For Project and Task doctypes: Administrator user OR user with write permission
    * @param {string} doctype - The DocType name
    * @returns {Promise<boolean>} - True if user has write permission
    */
   async hasWritePermission(doctype) {
+    // Special handling for Project and Task doctypes
+    if (doctype === 'Project' || doctype === 'Task') {
+      // Administrator user always has write permission
+      if (window.frappe?.session?.user === 'Administrator') {
+        console.log(`[RBAC DEBUG] hasWritePermission(${doctype}): Administrator user - granting access`)
+        return true
+      }
+
+      // Check standard Frappe permissions
+      const permissions = await this.getUserPermissions(doctype)
+      const hasWrite = permissions.write === true || permissions.write === 1
+      console.log(`[RBAC DEBUG] hasWritePermission(${doctype}): write=${permissions.write}, result=${hasWrite}`)
+      return hasWrite
+    }
+
+    // For other doctypes, use standard permission check
     const permissions = await this.getUserPermissions(doctype)
     const hasWrite = permissions.write === true || permissions.write === 1
     console.log(`[RBAC DEBUG] hasWritePermission(${doctype}): write=${permissions.write}, result=${hasWrite}`)
     return hasWrite
+  }
+
+  /**
+   * Check if user can edit Project or Task (synchronous check)
+   * Returns true if user is Administrator OR has write permission in cached permissions
+   * Note: This is a synchronous check and may not reflect latest permissions
+   * Use hasWritePermission() for authoritative async permission check
+   * @returns {boolean}
+   */
+  canEditProjectOrTask() {
+    // Administrator user always has write permission
+    if (window.frappe?.session?.user === 'Administrator') {
+      console.log('[RBAC DEBUG] canEditProjectOrTask: Administrator user - returning true')
+      return true
+    }
+
+    // Check cached permissions (synchronous, best-effort)
+    const projectPerms = this.permissionsCache.get('Project')
+    const hasProjectWrite = projectPerms && (projectPerms.write === true || projectPerms.write === 1)
+
+    console.log(`[RBAC DEBUG] canEditProjectOrTask: user=${window.frappe?.session?.user}, hasProjectWrite=${hasProjectWrite}`)
+
+    return hasProjectWrite || false
   }
 
   /**

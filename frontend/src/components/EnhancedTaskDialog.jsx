@@ -16,6 +16,7 @@ import {
   Tag,
   Spin,
   message,
+  Alert,
   theme
 } from 'antd'
 import {
@@ -26,7 +27,8 @@ import {
   CommentOutlined,
   SendOutlined,
   ClockCircleOutlined,
-  SaveOutlined
+  SaveOutlined,
+  LockOutlined
 } from '@ant-design/icons'
 import ReactQuill from 'react-quill-new'
 import 'react-quill-new/dist/quill.snow.css'
@@ -49,10 +51,14 @@ const EnhancedTaskDialog = ({
   onClose,
   onCreate,
   onUpdate,
-  loading = false
+  loading = false,
+  canEdit = false // Permission passed from parent component
 }) => {
   const { token } = theme.useToken()
   const [form] = Form.useForm()
+
+  // Use permission from parent (which checks: Administrator user OR has write permission)
+  const hasEditPermission = canEdit
 
   // State
   const [comments, setComments] = useState([])
@@ -62,6 +68,8 @@ const EnhancedTaskDialog = ({
   const [activeTab, setActiveTab] = useState('details') // 'details' or 'comments'
   const [commentLimit, setCommentLimit] = useState(10) // Initial limit for pagination
   const [hasMoreComments, setHasMoreComments] = useState(false)
+  const [assignedUsers, setAssignedUsers] = useState([])
+  const [loadingAssignments, setLoadingAssignments] = useState(false)
 
   // Load task data when editing/viewing
   useEffect(() => {
@@ -81,11 +89,13 @@ const EnhancedTaskDialog = ({
       // Load comments if viewing/editing
       if (taskData.name) {
         loadComments(taskData.name)
+        loadAssignments(taskData.name)
       }
     } else if (open && mode === 'create') {
       form.resetFields()
       setComments([])
       setCommentText('')
+      setAssignedUsers([])
     }
   }, [open, mode, taskData, form])
 
@@ -128,6 +138,108 @@ const EnhancedTaskDialog = ({
     setCommentLimit(newLimit)
     if (taskData?.name) {
       loadComments(taskData.name, newLimit)
+    }
+  }
+
+  // Load assignments from backend API
+  const loadAssignments = async (taskName) => {
+    setLoadingAssignments(true)
+    try {
+      const response = await fetch(
+        `/api/method/frappe_devsecops_dashboard.api.task.get_task_assignments_api?task_name=${encodeURIComponent(taskName)}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
+          }
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        const assignments = data.message?.data || []
+        setAssignedUsers(assignments)
+      } else {
+        throw new Error('Failed to load assignments')
+      }
+    } catch (error) {
+      console.error('[EnhancedTaskDialog] Error loading assignments:', error)
+    } finally {
+      setLoadingAssignments(false)
+    }
+  }
+
+  // Add user assignment
+  const handleAddAssignment = async (userEmail) => {
+    if (!taskData?.name) {
+      message.error('Please save the task first before assigning users')
+      return
+    }
+
+    try {
+      const response = await fetch(
+        '/api/method/frappe.desk.form.assign_to.add',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
+          },
+          body: JSON.stringify({
+            doctype: 'Task',
+            name: taskData.name,
+            assign_to: [userEmail],
+            description: 'Assigned from task dialog'
+          })
+        }
+      )
+
+      if (response.ok) {
+        message.success('User assigned successfully')
+        await loadAssignments(taskData.name)
+      } else {
+        throw new Error('Failed to assign user')
+      }
+    } catch (error) {
+      console.error('[EnhancedTaskDialog] Error assigning user:', error)
+      message.error(error.message || 'Failed to assign user')
+    }
+  }
+
+  // Remove user assignment
+  const handleRemoveAssignment = async (userEmail) => {
+    if (!taskData?.name) return
+
+    try {
+      const response = await fetch(
+        '/api/method/frappe.desk.form.assign_to.remove',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
+          },
+          body: JSON.stringify({
+            doctype: 'Task',
+            name: taskData.name,
+            assign_to: userEmail
+          })
+        }
+      )
+
+      if (response.ok) {
+        message.success('User unassigned successfully')
+        await loadAssignments(taskData.name)
+      } else {
+        throw new Error('Failed to remove assignment')
+      }
+    } catch (error) {
+      console.error('[EnhancedTaskDialog] Error removing assignment:', error)
+      message.error(error.message || 'Failed to remove assignment')
     }
   }
 
@@ -236,14 +348,23 @@ const EnhancedTaskDialog = ({
     ]
   }
 
+  // Force view mode if user doesn't have edit permission and trying to edit
+  const effectiveMode = (!hasEditPermission && mode === 'edit') ? 'view' : mode
+
+  // Show permission warning for users trying to create/edit without permission
+  const showPermissionWarning = !hasEditPermission && (mode === 'create' || mode === 'edit')
+
   return (
     <Modal
       title={
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
+            {!hasEditPermission && (mode === 'edit' || mode === 'create') && (
+              <LockOutlined style={{ fontSize: '20px', color: token.colorWarning }} />
+            )}
             <FileTextOutlined style={{ fontSize: '20px', color: token.colorPrimary }} />
             <span style={{ fontSize: '18px', fontWeight: 600 }}>
-              {mode === 'create' ? 'Create New Task' : mode === 'edit' ? 'Edit Task' : 'Task Details'}
+              {effectiveMode === 'create' ? 'Create New Task' : effectiveMode === 'edit' ? 'Edit Task' : 'Task Details'}
             </span>
           </Space>
           {mode !== 'create' && taskData && (
@@ -259,7 +380,7 @@ const EnhancedTaskDialog = ({
       width={1200}
       style={{ top: 20 }}
       footer={
-        mode === 'view' ? [
+        effectiveMode === 'view' ? [
           <Button key="close" onClick={onClose}>Close</Button>
         ] : [
           <Button key="cancel" onClick={onClose}>Cancel</Button>,
@@ -268,9 +389,10 @@ const EnhancedTaskDialog = ({
             type="primary"
             loading={loading}
             onClick={handleSubmit}
-            icon={mode === 'create' ? <FileTextOutlined /> : <SaveOutlined />}
+            disabled={showPermissionWarning}
+            icon={effectiveMode === 'create' ? <FileTextOutlined /> : <SaveOutlined />}
           >
-            {mode === 'create' ? 'Create Task' : 'Update Task'}
+            {effectiveMode === 'create' ? 'Create Task' : 'Update Task'}
           </Button>
         ]
       }
@@ -311,13 +433,26 @@ const EnhancedTaskDialog = ({
         </Space>
       </div>
 
+      {/* Permission Warning Banner */}
+      {showPermissionWarning && (
+        <Alert
+          message="Read-Only Access"
+          description="You do not have permission to edit tasks. Only Administrator or Project Manager roles can create or edit tasks."
+          type="warning"
+          showIcon
+          icon={<LockOutlined />}
+          style={{ marginBottom: '20px' }}
+          closable
+        />
+      )}
+
       {/* Task Details Tab */}
       {activeTab === 'details' && (
         <Form
           form={form}
           layout="vertical"
           autoComplete="off"
-          disabled={mode === 'view'}
+          disabled={effectiveMode === 'view'}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Task Subject - Full width, prominent */}
@@ -475,41 +610,109 @@ const EnhancedTaskDialog = ({
               {/* Right Column */}
               <Col xs={24} lg={12}>
                 <Space direction="vertical" size={20} style={{ width: '100%' }}>
-                  {/* Assignment Card */}
+                  {/* Assignment Card - Enhanced UX with Gestalt Principles */}
                   <Card
                     title={
                       <Space>
                         <UserOutlined style={{ color: token.colorPrimary }} />
-                        <Text strong>Assignment</Text>
+                        <Text strong>Team Members</Text>
+                        {assignedUsers.length > 0 && (
+                          <Tag color="blue" style={{ marginLeft: '8px' }}>{assignedUsers.length} assigned</Tag>
+                        )}
                       </Space>
                     }
                     size="small"
                     style={{ borderRadius: '8px' }}
                     headStyle={{ background: token.colorBgLayout }}
                   >
-                    <Form.Item
-                      label={<Text strong style={{ fontSize: '13px' }}>Assigned To</Text>}
-                      name="assigned_to"
-                      style={{ marginBottom: 0 }}
-                    >
-                      <Select
-                        placeholder="Search and select user"
-                        showSearch
-                        onSearch={onUserSearch}
-                        filterOption={false}
-                        notFoundContent={null}
-                        options={userSearchResults.map(user => ({
-                          label: (
-                            <Space>
-                              <Avatar size="small" icon={<UserOutlined />} />
-                              <span>{user.full_name || user.name}</span>
-                            </Space>
-                          ),
-                          value: user.name
-                        }))}
-                        size="large"
-                      />
-                    </Form.Item>
+                    {/* Assigned Users Display - Gestalt Proximity & Similarity */}
+                    {assignedUsers.length > 0 && (
+                      <div style={{ marginBottom: '16px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '8px' }}>
+                          Currently Assigned
+                        </Text>
+                        <Space wrap size={[8, 8]}>
+                          {assignedUsers.map((assignment, index) => (
+                            <Tag
+                              key={index}
+                              closable={effectiveMode !== 'view'}
+                              onClose={() => handleRemoveAssignment(assignment.user_email)}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '13px',
+                                border: '1px solid ' + token.colorBorder,
+                                background: token.colorBgContainer
+                              }}
+                            >
+                              <Avatar
+                                size={20}
+                                style={{
+                                  backgroundColor: token.colorPrimary,
+                                  fontSize: '11px'
+                                }}
+                              >
+                                {assignment.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                              </Avatar>
+                              <span>{assignment.full_name || assignment.user_email}</span>
+                            </Tag>
+                          ))}
+                        </Space>
+                      </div>
+                    )}
+
+                    {/* Add User Section - Gestalt Continuity */}
+                    {effectiveMode !== 'view' && (
+                      <div>
+                        <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '8px' }}>
+                          {assignedUsers.length > 0 ? 'Add More Members' : 'Assign Team Members'}
+                        </Text>
+                        <Select
+                          placeholder="Search and select user to assign"
+                          showSearch
+                          onSearch={onUserSearch}
+                          onChange={handleAddAssignment}
+                          value={null}
+                          filterOption={false}
+                          notFoundContent={loadingAssignments ? <Spin size="small" /> : null}
+                          disabled={!taskData?.name}
+                          style={{ width: '100%' }}
+                          options={userSearchResults
+                            .filter(user => !assignedUsers.find(a => a.user_email === user.name))
+                            .map(user => ({
+                              label: (
+                                <Space>
+                                  <Avatar
+                                    size={24}
+                                    style={{ backgroundColor: token.colorPrimary }}
+                                  >
+                                    {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                                  </Avatar>
+                                  <span>{user.full_name || user.name}</span>
+                                </Space>
+                              ),
+                              value: user.name
+                            }))}
+                          size="large"
+                          suffixIcon={<UserOutlined />}
+                        />
+                        {!taskData?.name && (
+                          <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: '8px' }}>
+                            💡 Save the task first to assign team members
+                          </Text>
+                        )}
+                      </div>
+                    )}
+
+                    {/* View Mode Display */}
+                    {effectiveMode === 'view' && assignedUsers.length === 0 && (
+                      <Text type="secondary" style={{ fontSize: '13px' }}>
+                        No team members assigned
+                      </Text>
+                    )}
                   </Card>
 
                   {/* Description Card */}

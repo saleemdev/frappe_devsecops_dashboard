@@ -13,13 +13,12 @@ import {
   Spin,
   Avatar,
   Divider,
-  Table,
   Modal,
   Typography,
-  Alert,
   Tag,
   AutoComplete,
-  Checkbox
+  Checkbox,
+  Alert
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -28,7 +27,9 @@ import {
   DeleteOutlined,
   UserOutlined,
   EditOutlined,
-  LockOutlined
+  LockOutlined,
+  InfoCircleOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import Swal from 'sweetalert2'
@@ -39,8 +40,8 @@ import { searchUsers, searchDesignations } from '../utils/projectAttachmentsApi'
 const { Title, Text } = Typography
 
 /**
- * ProjectCreateForm Component
- * Allows users to create new projects with team members
+ * ProjectCreateForm Component - Enhanced with Gestalt Principles
+ * Professional UX/UI with visual hierarchy and auto-population
  */
 function ProjectCreateForm({ navigateToRoute }) {
   const [form] = Form.useForm()
@@ -64,6 +65,11 @@ function ProjectCreateForm({ navigateToRoute }) {
   const [designationSearchLoading, setDesignationSearchLoading] = useState(false)
   const [softwareProducts, setSoftwareProducts] = useState([])
   const [loadingSoftwareProducts, setLoadingSoftwareProducts] = useState(false)
+  const [selectedSoftwareProduct, setSelectedSoftwareProduct] = useState(null)
+  const [autoPopulatedData, setAutoPopulatedData] = useState(null)
+  const [fetchingProductDetails, setFetchingProductDetails] = useState(false)
+  const [raciTemplates, setRaciTemplates] = useState([])
+  const [loadingRaciTemplates, setLoadingRaciTemplates] = useState(false)
   const userSearchTimeoutRef = useRef(null)
   const designationSearchTimeoutRef = useRef(null)
 
@@ -112,6 +118,7 @@ function ProjectCreateForm({ navigateToRoute }) {
     loadOptions()
     loadDesignations()
     loadSoftwareProducts()
+    loadRaciTemplates()
   }, [])
 
   // Load Software Products
@@ -143,17 +150,130 @@ function ProjectCreateForm({ navigateToRoute }) {
     }
   }
 
+  // Load RACI Templates
+  const loadRaciTemplates = async () => {
+    try {
+      setLoadingRaciTemplates(true)
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.raci_template.get_raci_templates?fields=["name","template_name"]&limit_page_length=100', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const result = data.message || data
+        if (result.success && result.data) {
+          setRaciTemplates(result.data.map(t => ({
+            label: t.template_name || t.name,
+            value: t.name
+          })))
+        }
+      }
+    } catch (error) {
+      console.error('[ProjectCreateForm] Error loading RACI templates:', error)
+    } finally {
+      setLoadingRaciTemplates(false)
+    }
+  }
+
+  // Fetch Software Product details and auto-populate RACI and template
+  const handleSoftwareProductChange = async (productName) => {
+    setSelectedSoftwareProduct(productName)
+
+    if (!productName) {
+      setAutoPopulatedData(null)
+      form.setFieldValue('project_template', null)
+      form.setFieldValue('custom_default_raci_template', null)
+      setSelectedTemplate(null)
+      setTeamMembers([])
+      return
+    }
+
+    try {
+      setFetchingProductDetails(true)
+      const response = await fetch(
+        `/api/method/frappe_devsecops_dashboard.api.software_product.get_product_detail?name=${encodeURIComponent(productName)}`,
+        {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
+          }
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        const result = data.message || data
+
+        if (result.success && result.data) {
+          const productData = result.data
+          const autoData = {}
+          let populatedCount = 0
+
+          // Auto-populate RACI Template
+          if (productData.default_raci_template) {
+            autoData.raciTemplate = productData.default_raci_template
+            form.setFieldValue('custom_default_raci_template', productData.default_raci_template)
+            populatedCount++
+          }
+
+          // Auto-populate Project Template from RACI Template
+          if (productData.project_template) {
+            form.setFieldValue('project_template', productData.project_template)
+            setSelectedTemplate(productData.project_template)
+            autoData.projectTemplate = productData.project_template
+            populatedCount++
+          }
+
+          // Auto-populate Team Members from Software Product
+          if (productData.team_members && Array.isArray(productData.team_members) && productData.team_members.length > 0) {
+            const mappedMembers = productData.team_members.map(tm => ({
+              user: tm.member,
+              user_name: tm.member_full_name || tm.member,
+              custom_business_function: tm.role || null,
+              custom_is_change_approver: 0
+            }))
+
+            setTeamMembers(mappedMembers)
+            autoData.teamMembers = mappedMembers.length
+            populatedCount++
+          }
+
+          setAutoPopulatedData(autoData)
+
+          // Show single consolidated success message
+          if (populatedCount > 0) {
+            const items = []
+            if (autoData.raciTemplate) items.push('RACI Template')
+            if (autoData.projectTemplate) items.push('Project Template')
+            if (autoData.teamMembers) items.push(`${autoData.teamMembers} Team Members`)
+
+            message.success({
+              content: `Auto-populated: ${items.join(', ')}`,
+              duration: 4
+            })
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[ProjectCreateForm] Error fetching product details:', error)
+      message.error('Failed to fetch product details')
+    } finally {
+      setFetchingProductDetails(false)
+    }
+  }
+
   const loadDesignations = async (query = '') => {
     try {
-      console.log('[ProjectCreateForm] Loading designations with query:', query)
       setDesignationSearchLoading(true)
       const response = await searchDesignations(query)
-      console.log('[ProjectCreateForm] Designations response:', response)
       if (response.success) {
         setDesignations(response.designations || [])
-        console.log('[ProjectCreateForm] Loaded designations count:', response.designations?.length || 0)
       } else {
-        console.warn('[ProjectCreateForm] Failed to load designations:', response.error)
         setDesignations([])
       }
     } catch (error) {
@@ -181,25 +301,17 @@ function ProjectCreateForm({ navigateToRoute }) {
     }
 
     if (!value || value.length < 2) {
-      console.log('[ProjectCreateForm] Search cleared - value too short:', value?.length)
       setUserSearchResults([])
       setIsDebouncing(false)
       return
     }
 
-    console.log('[ProjectCreateForm] Starting debounced search for:', value)
     setIsDebouncing(true)
     userSearchTimeoutRef.current = setTimeout(async () => {
       try {
         setSearchLoading(true)
-        console.log('[ProjectCreateForm] Executing search API call for:', value)
         const response = await searchUsers(value)
-        console.log('[ProjectCreateForm] Search response received:', response)
-
-        // Extract users from response - API returns {success: true, users: [...]}
         const users = response.message?.users || response.users || []
-        console.log('[ProjectCreateForm] Extracted users:', users)
-
         setUserSearchResults(users)
       } catch (error) {
         console.error('[ProjectCreateForm] Error searching users:', error)
@@ -213,14 +325,11 @@ function ProjectCreateForm({ navigateToRoute }) {
 
   // Add team member
   const handleAddTeamMember = async () => {
-    console.log('[ProjectCreateForm] handleAddTeamMember called, selectedUserToAdd:', selectedUserToAdd)
-
     if (!selectedUserToAdd) {
       message.warning('Please select a user')
       return
     }
 
-    // Check if user already added
     if (teamMembers.some(m => m.user === selectedUserToAdd)) {
       message.warning('User is already added to the team')
       return
@@ -229,7 +338,6 @@ function ProjectCreateForm({ navigateToRoute }) {
     try {
       setAddingUser(true)
       const user = userSearchResults.find(u => u.name === selectedUserToAdd)
-      console.log('[ProjectCreateForm] Found user:', user)
 
       if (user) {
         const newMember = {
@@ -237,19 +345,16 @@ function ProjectCreateForm({ navigateToRoute }) {
           email: user.email,
           full_name: user.full_name,
           image: user.user_image,
-          custom_is_change_approver: 0  // Default to false
+          custom_is_change_approver: 0
         }
         if (businessFunctionToAdd) {
           newMember.custom_business_function = businessFunctionToAdd
         }
-        console.log('[ProjectCreateForm] Adding new member:', newMember)
         setTeamMembers([...teamMembers, newMember])
         setSelectedUserToAdd(null)
         setBusinessFunctionToAdd(null)
         setUserSearchResults([])
         message.success('Team member added')
-      } else {
-        console.warn('[ProjectCreateForm] User not found in search results')
       }
     } finally {
       setAddingUser(false)
@@ -262,7 +367,7 @@ function ProjectCreateForm({ navigateToRoute }) {
     message.success('Team member removed')
   }
 
-  // Edit team member business function
+  // Edit team member
   const handleEditMember = (member) => {
     setMemberBeingEdited(member)
     setEditBusinessFunction(member.custom_business_function || null)
@@ -312,11 +417,9 @@ function ProjectCreateForm({ navigateToRoute }) {
           const memberData = {
             user: m.user
           }
-          // Include custom_business_function if set
           if (m.custom_business_function) {
             memberData.custom_business_function = m.custom_business_function
           }
-          // Include custom_is_change_approver
           memberData.custom_is_change_approver = m.custom_is_change_approver || 0
           return memberData
         })
@@ -338,13 +441,15 @@ function ProjectCreateForm({ navigateToRoute }) {
         projectData.custom_software_product = values.custom_software_product
       }
 
+      if (values.custom_default_raci_template) {
+        projectData.custom_default_raci_template = values.custom_default_raci_template
+      }
+
       // Create project
       const response = await projectsService.createProject(projectData)
 
       if (response.status === 200 && response.data?.success) {
         const projectId = response.data?.project_id
-        console.log('[ProjectCreateForm] Created project, response:', response)
-        console.log('[ProjectCreateForm] Project ID:', projectId)
 
         await Swal.fire({
           icon: 'success',
@@ -356,16 +461,12 @@ function ProjectCreateForm({ navigateToRoute }) {
           timer: 3000
         })
 
-        // Navigate to project detail (use route helper so hash and state are set consistently)
         if (projectId) {
-          console.log('[ProjectCreateForm] Navigating to project detail:', projectId)
           navigateToRoute('project-detail', projectId)
         } else {
-          console.error('[ProjectCreateForm] No project_id in response:', response.data)
           message.error('Project created but could not navigate to detail page')
         }
       } else {
-        console.error('[ProjectCreateForm] Create failed:', response)
         message.error(response.message || 'Failed to create project')
       }
     } catch (error) {
@@ -377,209 +478,388 @@ function ProjectCreateForm({ navigateToRoute }) {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      {/* Header */}
-      <Card style={{ marginBottom: '24px' }}>
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Space direction="vertical" size="small">
-              <Button
-                type="text"
-                icon={<ArrowLeftOutlined />}
-                onClick={() => navigateToRoute('dashboard')}
-              >
-                Back to Dashboard
-              </Button>
-              <Title level={2} style={{ margin: 0 }}>Create New Project</Title>
-            </Space>
-          </Col>
-        </Row>
+    <div style={{ padding: '24px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* Header - Proximity Principle */}
+      <Card
+        style={{
+          marginBottom: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        }}
+      >
+        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigateToRoute('dashboard')}
+            style={{ padding: '4px 8px' }}
+          >
+            Back to Dashboard
+          </Button>
+          <Title level={2} style={{ margin: 0, fontSize: '28px', fontWeight: 600 }}>
+            Create New Project
+          </Title>
+          <Text type="secondary">
+            Configure your project details and build your team
+          </Text>
+        </Space>
       </Card>
 
-      {/* Form */}
+      {/* Form Layout - Visual Hierarchy */}
       <Row gutter={[24, 24]}>
+        {/* Main Form - 2/3 width for emphasis */}
         <Col xs={24} lg={16}>
-          <Card>
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleSubmit}
-              autoComplete="off"
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            autoComplete="off"
+          >
+            {/* PRIMARY SECTION - Software Product (Most Prominent) */}
+            <Card
+              style={{
+                marginBottom: '24px',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(24, 144, 255, 0.15)',
+                border: '2px solid #1890ff'
+              }}
             >
-              {/* Project Name */}
-              <Form.Item
-                label="Project Name"
-                name="project_name"
-                rules={[
-                  { required: true, message: 'Project name is required' },
-                  { min: 3, message: 'Project name must be at least 3 characters' }
-                ]}
-              >
-                <Input placeholder="Enter project name" />
-              </Form.Item>
-
-              {/* Project Type */}
-              <Form.Item
-                label="Project Type"
-                name="project_type"
-                rules={[{ required: true, message: 'Project type is required' }]}
-              >
-                <Select
-                  placeholder="Select project type"
-                  options={projectTypes}
-                  loading={projectTypes.length === 0}
-                />
-              </Form.Item>
-
-              {/* Project Template */}
-              <Form.Item
-                label="Project Template (Optional)"
-                name="project_template"
-              >
-                <Select
-                  placeholder="Select a template to auto-populate tasks"
-                  options={projectTemplates}
-                  allowClear
-                  onChange={setSelectedTemplate}
-                  value={selectedTemplate}
-                />
-              </Form.Item>
-
-              {/* Software Product */}
-              <Form.Item
-                label="Software Product (Optional)"
-                name="custom_software_product"
-                tooltip="Link this project to a software product. RACI Template will be auto-fetched from the product."
-              >
-                <Select
-                  placeholder="Select a software product"
-                  options={softwareProducts}
-                  allowClear
-                  loading={loadingSoftwareProducts}
-                  showSearch
-                  filterOption={(input, option) =>
-                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                  }
-                />
-              </Form.Item>
-
-              {/* Dates */}
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Expected Start Date"
-                    name="expected_start_date"
-                    rules={[{ required: true, message: 'Start date is required' }]}
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(24, 144, 255, 0.3)'
+                    }}
                   >
-                    <DatePicker style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Expected End Date"
-                    name="expected_end_date"
-                    rules={[{ required: true, message: 'End date is required' }]}
-                  >
-                    <DatePicker style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-              </Row>
+                    <InfoCircleOutlined style={{ fontSize: '24px', color: '#fff' }} />
+                  </div>
+                  <div>
+                    <Title level={4} style={{ margin: 0, fontSize: '18px' }}>
+                      Software Product
+                    </Title>
+                    <Text type="secondary" style={{ fontSize: '13px' }}>
+                      Select a product to auto-populate RACI template, project template, and team members
+                    </Text>
+                  </div>
+                </div>
 
-              {/* Priority and Department */}
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Priority"
-                    name="priority"
-                    initialValue="Medium"
-                  >
-                    <Select
-                      options={[
-                        { label: 'Low', value: 'Low' },
-                        { label: 'Medium', value: 'Medium' },
-                        { label: 'High', value: 'High' }
-                      ]}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Department"
-                    name="department"
-                  >
-                    <Select
-                      placeholder="Select department (optional)"
-                      options={departments}
-                      allowClear
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              {/* Notes */}
-              <Form.Item
-                label="Project Notes"
-                name="notes"
-              >
-                <Input.TextArea
-                  placeholder="Enter project notes or description (optional)"
-                  rows={4}
-                />
-              </Form.Item>
-
-              {/* Submit Button */}
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  icon={<SaveOutlined />}
-                  loading={loading}
-                  block
+                <Form.Item
+                  name="custom_software_product"
+                  style={{ marginBottom: 0 }}
                 >
-                  Create Project
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
+                  <Select
+                    size="large"
+                    placeholder="Select a software product (optional but recommended)"
+                    options={softwareProducts}
+                    allowClear
+                    loading={loadingSoftwareProducts}
+                    showSearch
+                    onChange={handleSoftwareProductChange}
+                    filterOption={(input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    suffixIcon={fetchingProductDetails ? <Spin size="small" /> : undefined}
+                    style={{ fontSize: '15px' }}
+                  />
+                </Form.Item>
+
+                {autoPopulatedData && (
+                  <Alert
+                    message="Auto-populated from Software Product"
+                    description={
+                      <div>
+                        {autoPopulatedData.raciTemplate && (
+                          <div style={{ marginBottom: '4px' }}>
+                            <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
+                            RACI Template: <strong>{autoPopulatedData.raciTemplate}</strong>
+                          </div>
+                        )}
+                        {autoPopulatedData.projectTemplate && (
+                          <div style={{ marginBottom: '4px' }}>
+                            <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
+                            Project Template: <strong>{autoPopulatedData.projectTemplate}</strong>
+                          </div>
+                        )}
+                        {autoPopulatedData.teamMembers && (
+                          <div>
+                            <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
+                            Team Members: <strong>{autoPopulatedData.teamMembers} members added</strong>
+                          </div>
+                        )}
+                      </div>
+                    }
+                    type="success"
+                    showIcon
+                    style={{ marginTop: '12px' }}
+                  />
+                )}
+              </Space>
+            </Card>
+
+            {/* SECONDARY SECTION - Core Project Details */}
+            <Card
+              title={
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      width: '8px',
+                      height: '24px',
+                      borderRadius: '4px',
+                      background: 'linear-gradient(180deg, #52c41a 0%, #389e0d 100%)'
+                    }}
+                  />
+                  <Text strong style={{ fontSize: '16px' }}>Project Information</Text>
+                </div>
+              }
+              style={{
+                marginBottom: '24px',
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+              }}
+            >
+              <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                {/* Project Name - Most important field */}
+                <Form.Item
+                  label={<Text strong style={{ fontSize: '14px' }}>Project Name</Text>}
+                  name="project_name"
+                  rules={[
+                    { required: true, message: 'Project name is required' },
+                    { min: 3, message: 'Project name must be at least 3 characters' }
+                  ]}
+                >
+                  <Input
+                    size="large"
+                    placeholder="Enter a descriptive project name"
+                    style={{ fontSize: '15px' }}
+                  />
+                </Form.Item>
+
+                {/* Project Type and Template - Grouped by similarity */}
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label={<Text strong style={{ fontSize: '14px' }}>Project Type</Text>}
+                      name="project_type"
+                      rules={[{ required: true, message: 'Project type is required' }]}
+                    >
+                      <Select
+                        size="large"
+                        placeholder="Select type"
+                        options={projectTypes}
+                        loading={projectTypes.length === 0}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label={<Text strong style={{ fontSize: '14px' }}>Project Template</Text>}
+                      name="project_template"
+                      tooltip="Auto-populated from Software Product, or select manually"
+                    >
+                      <Select
+                        size="large"
+                        placeholder="Select template"
+                        options={projectTemplates}
+                        allowClear
+                        onChange={setSelectedTemplate}
+                        value={selectedTemplate}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                {/* RACI Template - Full width for prominence */}
+                <Row gutter={16}>
+                  <Col xs={24}>
+                    <Form.Item
+                      label={<Text strong style={{ fontSize: '14px' }}>Default RACI Template</Text>}
+                      name="custom_default_raci_template"
+                      tooltip="Auto-populated from Software Product, or select manually"
+                    >
+                      <Select
+                        size="large"
+                        placeholder="Select RACI template (optional)"
+                        options={raciTemplates}
+                        allowClear
+                        loading={loadingRaciTemplates}
+                        showSearch
+                        filterOption={(input, option) =>
+                          (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                        }
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                {/* Dates - Grouped by temporal relationship */}
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label={<Text strong style={{ fontSize: '14px' }}>Start Date</Text>}
+                      name="expected_start_date"
+                      rules={[{ required: true, message: 'Start date is required' }]}
+                    >
+                      <DatePicker
+                        size="large"
+                        style={{ width: '100%' }}
+                        format="YYYY-MM-DD"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label={<Text strong style={{ fontSize: '14px' }}>End Date</Text>}
+                      name="expected_end_date"
+                      rules={[{ required: true, message: 'End date is required' }]}
+                    >
+                      <DatePicker
+                        size="large"
+                        style={{ width: '100%' }}
+                        format="YYYY-MM-DD"
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                {/* Priority and Department - Grouped by administrative function */}
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label={<Text strong style={{ fontSize: '14px' }}>Priority</Text>}
+                      name="priority"
+                      initialValue="Medium"
+                    >
+                      <Select
+                        size="large"
+                        options={[
+                          { label: '🔴 High', value: 'High' },
+                          { label: '🟡 Medium', value: 'Medium' },
+                          { label: '🟢 Low', value: 'Low' }
+                        ]}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      label={<Text strong style={{ fontSize: '14px' }}>Department</Text>}
+                      name="department"
+                    >
+                      <Select
+                        size="large"
+                        placeholder="Select department"
+                        options={departments}
+                        allowClear
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                {/* Notes - Full width for continuity */}
+                <Form.Item
+                  label={<Text strong style={{ fontSize: '14px' }}>Project Notes</Text>}
+                  name="notes"
+                >
+                  <Input.TextArea
+                    placeholder="Add project description, objectives, or important notes..."
+                    rows={4}
+                    style={{ fontSize: '14px' }}
+                  />
+                </Form.Item>
+              </Space>
+            </Card>
+
+            {/* Submit Button - Strong visual closure */}
+            <Button
+              type="primary"
+              htmlType="submit"
+              icon={<SaveOutlined />}
+              loading={loading}
+              block
+              size="large"
+              style={{
+                height: '48px',
+                fontSize: '16px',
+                fontWeight: 600,
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(24, 144, 255, 0.3)'
+              }}
+            >
+              Create Project
+            </Button>
+          </Form>
         </Col>
 
-        {/* Team Members Sidebar */}
+        {/* Team Members Sidebar - 1/3 width, complementary */}
         <Col xs={24} lg={8}>
-          <Card title="Team Members" style={{ height: '100%' }}>
+          <Card
+            title={
+              <div>
+                <Text strong style={{ fontSize: '16px' }}>Team Members</Text>
+                <div style={{ marginTop: '4px' }}>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    {teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''} added
+                  </Text>
+                </div>
+              </div>
+            }
+            style={{
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              position: 'sticky',
+              top: '24px'
+            }}
+          >
             {/* Add User Section */}
-            <div style={{ marginBottom: '16px' }}>
-              <Text type="secondary" style={{ fontSize: '12px' }}>ADD TEAM MEMBER</Text>
+            <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#fafafa', borderRadius: '8px' }}>
+              <Text type="secondary" strong style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Add Team Member
+              </Text>
               <Input
-                placeholder="Search user (min 2 characters)..."
+                placeholder="Search user (min 2 chars)..."
                 onChange={(e) => handleUserSearch(e.target.value)}
-                style={{ marginTop: '8px', marginBottom: '8px' }}
+                style={{ marginTop: '12px', marginBottom: '12px' }}
               />
               {isDebouncing && (
-                <div style={{ textAlign: 'center', padding: '8px', color: '#8c8c8c' }}>
-                  <Spin size="small" style={{ marginRight: '4px' }} />
-                  Searching...
+                <div style={{ textAlign: 'center', padding: '12px', color: '#8c8c8c' }}>
+                  <Spin size="small" style={{ marginRight: '8px' }} />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>Searching...</Text>
                 </div>
               )}
               {!isDebouncing && userSearchResults.length > 0 && (
                 <div style={{
                   border: '1px solid #d9d9d9',
-                  borderRadius: '4px',
-                  maxHeight: '150px',
+                  borderRadius: '6px',
+                  maxHeight: '180px',
                   overflowY: 'auto',
-                  marginBottom: '8px'
+                  marginBottom: '12px',
+                  backgroundColor: '#fff'
                 }}>
                   {userSearchResults.map(user => (
                     <div
                       key={user.name}
                       onClick={() => setSelectedUserToAdd(user.name)}
                       style={{
-                        padding: '8px',
+                        padding: '10px 12px',
                         cursor: 'pointer',
                         backgroundColor: selectedUserToAdd === user.name ? '#e6f7ff' : 'transparent',
-                        borderBottom: '1px solid #f0f0f0'
+                        borderBottom: '1px solid #f0f0f0',
+                        transition: 'background-color 0.2s'
                       }}
                     >
-                      <Text style={{ fontSize: '12px' }}>{user.full_name}</Text>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Avatar size="small" src={user.user_image} icon={<UserOutlined />} />
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: 500 }}>{user.full_name}</div>
+                          <div style={{ fontSize: '11px', color: '#8c8c8c' }}>{user.email}</div>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -594,7 +874,7 @@ function ProjectCreateForm({ navigateToRoute }) {
                   label: d.designation_name || d.name,
                   value: d.name
                 }))}
-                style={{ width: '100%', marginBottom: '8px' }}
+                style={{ width: '100%', marginBottom: '12px' }}
                 filterOption={false}
                 notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
               />
@@ -610,62 +890,82 @@ function ProjectCreateForm({ navigateToRoute }) {
               </Button>
             </div>
 
-            <Divider />
+            <Divider style={{ margin: '16px 0' }} />
 
             {/* Team Members List */}
             <div>
-              <Text type="secondary" style={{ fontSize: '12px' }}>MEMBERS ({teamMembers.length})</Text>
-              <div style={{ marginTop: '12px' }}>
+              <Text type="secondary" strong style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Team ({teamMembers.length})
+              </Text>
+              <div style={{ marginTop: '16px' }}>
                 {teamMembers.length > 0 ? (
-                  teamMembers.map((member) => (
-                    <div key={member.user} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: '8px',
-                      padding: '8px',
-                      backgroundColor: '#fafafa',
-                      borderRadius: '4px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                        <Avatar src={member.image} icon={<UserOutlined />} size="small" />
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                            <Text strong style={{ fontSize: '12px' }}>{member.full_name}</Text>
-                            {member.custom_is_change_approver === 1 && (
-                              <Tag color="green" style={{ margin: 0, fontSize: '11px' }}>
-                                <LockOutlined style={{ fontSize: '10px', marginRight: '4px' }} />
-                                Change Approver
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    {teamMembers.map((member) => (
+                      <div key={member.user} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px',
+                        backgroundColor: '#fafafa',
+                        borderRadius: '8px',
+                        border: '1px solid #f0f0f0'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                          <Avatar src={member.image} icon={<UserOutlined />} size={36} />
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                              <Text strong style={{ fontSize: '13px' }}>{member.full_name}</Text>
+                              {member.custom_is_change_approver === 1 && (
+                                <Tag color="green" style={{ margin: 0, fontSize: '10px', padding: '0 6px' }}>
+                                  <LockOutlined style={{ fontSize: '9px', marginRight: '3px' }} />
+                                  Approver
+                                </Tag>
+                              )}
+                            </div>
+                            <Text type="secondary" style={{ fontSize: '11px', display: 'block' }}>
+                              {member.email}
+                            </Text>
+                            {member.custom_business_function && (
+                              <Tag color="blue" style={{ marginTop: '6px', fontSize: '11px' }}>
+                                {member.custom_business_function}
                               </Tag>
                             )}
                           </div>
-                          <Text type="secondary" style={{ fontSize: '10px' }}>{member.email}</Text>
-                          {member.custom_business_function && (
-                            <div style={{ marginTop: 4 }}>
-                              <Tag color="blue">{member.custom_business_function}</Tag>
-                            </div>
-                          )}
                         </div>
+                        <Space size="small">
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditMember(member)}
+                          />
+                          <Button
+                            type="text"
+                            danger
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemoveTeamMember(member.user)}
+                          />
+                        </Space>
                       </div>
-                      <Space>
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<EditOutlined />}
-                          onClick={() => handleEditMember(member)}
-                        />
-                        <Button
-                          type="text"
-                          danger
-                          size="small"
-                          icon={<DeleteOutlined />}
-                          onClick={() => handleRemoveTeamMember(member.user)}
-                        />
-                      </Space>
-                    </div>
-                  ))
+                    ))}
+                  </Space>
                 ) : (
-                  <Text type="secondary" style={{ fontSize: '12px' }}>No team members added yet</Text>
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '32px 16px',
+                    backgroundColor: '#fafafa',
+                    borderRadius: '8px',
+                    border: '2px dashed #d9d9d9'
+                  }}>
+                    <UserOutlined style={{ fontSize: '32px', color: '#d9d9d9', marginBottom: '12px' }} />
+                    <Text type="secondary" style={{ display: 'block', fontSize: '13px' }}>
+                      No team members yet
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      Search and add members above
+                    </Text>
+                  </div>
                 )}
               </div>
             </div>
@@ -675,7 +975,7 @@ function ProjectCreateForm({ navigateToRoute }) {
 
       {/* Edit Team Member Modal */}
       <Modal
-        title={memberBeingEdited ? `Edit Team Member — ${memberBeingEdited.full_name}` : 'Edit Team Member'}
+        title={memberBeingEdited ? `Edit — ${memberBeingEdited.full_name}` : 'Edit Team Member'}
         open={showEditMemberModal}
         onCancel={() => {
           setShowEditMemberModal(false)
@@ -693,39 +993,48 @@ function ProjectCreateForm({ navigateToRoute }) {
             Cancel
           </Button>,
           <Button key="save" type="primary" onClick={handleSaveMemberEdit}>
-            Save
+            Save Changes
           </Button>
         ]}
       >
-        <div style={{ marginBottom: '16px' }}>
-          <Text type="secondary" style={{ fontSize: '12px' }}>DESIGNATION</Text>
-          <AutoComplete
-            allowClear
-            placeholder="Search designation"
-            value={editBusinessFunction}
-            onChange={setEditBusinessFunction}
-            onSearch={handleDesignationSearch}
-            options={designations.map(d => ({
-              label: d.designation_name || d.name,
-              value: d.name
-            }))}
-            style={{ width: '100%', marginTop: '8px' }}
-            filterOption={false}
-            notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
-          />
-        </div>
-        <div>
-          <Checkbox
-            checked={editIsChangeApprover}
-            onChange={(e) => setEditIsChangeApprover(e.target.checked)}
-          >
-            Change Approver
-          </Checkbox>
-        </div>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: '8px' }}>Designation</Text>
+            <AutoComplete
+              allowClear
+              placeholder="Search designation"
+              value={editBusinessFunction}
+              onChange={setEditBusinessFunction}
+              onSearch={handleDesignationSearch}
+              options={designations.map(d => ({
+                label: d.designation_name || d.name,
+                value: d.name
+              }))}
+              style={{ width: '100%' }}
+              filterOption={false}
+              notFoundContent={designationSearchLoading ? <Spin size="small" /> : 'No designations found'}
+            />
+          </div>
+          <div>
+            <Checkbox
+              checked={editIsChangeApprover}
+              onChange={(e) => setEditIsChangeApprover(e.target.checked)}
+            >
+              <Space>
+                <LockOutlined />
+                <Text strong>Change Approver</Text>
+              </Space>
+            </Checkbox>
+            <div style={{ marginTop: '8px' }}>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                Change approvers can approve change requests for this project
+              </Text>
+            </div>
+          </div>
+        </Space>
       </Modal>
     </div>
   )
 }
 
 export default ProjectCreateForm
-

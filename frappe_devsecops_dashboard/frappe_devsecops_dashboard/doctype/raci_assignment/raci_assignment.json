@@ -5,47 +5,51 @@
   "editable_grid": 1,
   "engine": "InnoDB",
   "field_order": [
-    "business_function",
     "task_name",
-    "task_link",
     "task_type",
+    "task_link",
     "task_type_priority",
     "column_break_roles",
     "responsible",
     "accountable",
     "consulted",
-    "informed"
+    "informed",
+    "section_break_optional",
+    "business_function"
   ],
   "fields": [
-    {
-      "fieldname": "business_function",
-      "fieldtype": "Select",
-      "in_list_view": 1,
-      "label": "Business Function",
-      "options": "Development\nQA\nDevOps\nSecurity\nInfrastructure\nArchitecture\nProduct Management\nProject Management",
-      "reqd": 1
-    },
     {
       "fieldname": "task_name",
       "fieldtype": "Data",
       "in_list_view": 1,
       "label": "Task Name",
       "reqd": 1,
-      "read_only": 1
+      "read_only": 0
+    },
+    {
+      "fieldname": "task_type",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "Task Type",
+      "read_only": 1,
+      "hidden": 0
     },
     {
       "fieldname": "task_link",
       "fieldtype": "Link",
       "label": "Task",
       "options": "Task",
-      "hidden": 1
+      "hidden": 0,
+      "read_only": 1
     },
     {
-      "fieldname": "task_type",
-      "fieldtype": "Data",
-      "label": "Task Type",
-      "read_only": 1,
-      "hidden": 1
+      "fieldname": "business_function",
+      "fieldtype": "Select",
+      "in_list_view": 0,
+      "label": "Business Function (Legacy)",
+      "options": "Development\nQA\nDevOps\nSecurity\nInfrastructure\nArchitecture\nProduct Management\nProject Management",
+      "reqd": 0,
+      "description": "Legacy field - use RACI roles instead"
     },
     {
       "fieldname": "task_type_priority",
@@ -64,7 +68,8 @@
       "in_list_view": 1,
       "label": "Responsible (R)",
       "options": "Designation",
-      "description": "Designation responsible for doing the work"
+      "description": "Designation responsible for doing the work",
+      "read_only": 1
     },
     {
       "fieldname": "accountable",
@@ -72,21 +77,30 @@
       "in_list_view": 1,
       "label": "Accountable (A)",
       "options": "Designation",
-      "description": "Designation who is the final decision maker"
+      "description": "Designation who is the final decision maker",
+      "read_only": 1
     },
     {
       "fieldname": "consulted",
       "fieldtype": "Link",
       "label": "Consulted (C)",
       "options": "Designation",
-      "description": "Designation that provides input/expertise"
+      "description": "Designation that provides input/expertise",
+      "read_only": 1
     },
     {
       "fieldname": "informed",
       "fieldtype": "Link",
       "label": "Informed (I)",
       "options": "Designation",
-      "description": "Designation kept in the loop"
+      "description": "Designation kept in the loop",
+      "read_only": 1
+    },
+    {
+      "fieldname": "section_break_optional",
+      "fieldtype": "Section Break",
+      "label": "Optional Fields",
+      "collapsible": 1
     }
   ],
   "index_web_pages_for_search": 0,

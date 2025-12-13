@@ -28,6 +28,7 @@ import {
   List,
   Collapse,
   Divider,
+  Alert,
   theme
 } from 'antd'
 import {
@@ -183,7 +184,23 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       return
     }
     try {
-      await navigator.clipboard.writeText(zenHubId)
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(zenHubId)
+      } else {
+        // Fallback for browsers that don't support clipboard API
+        const textArea = document.createElement('textarea')
+        textArea.value = zenHubId
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        textArea.style.top = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+      }
+
       await Swal.fire({
         icon: 'success',
         title: 'ZenHub ID copied to clipboard',
@@ -193,10 +210,11 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         timer: 3000
       })
     } catch (error) {
-
+      console.error('Error copying ZenHub ID:', error)
       await Swal.fire({
         icon: 'error',
         title: 'Failed to copy ZenHub ID',
+        text: error.message || 'Please copy manually',
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
@@ -830,6 +848,19 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           </Col>
         </Row>
 
+        {/* Permission Alert Banner */}
+        {!canEditProject && !checkingProjectPermissions && (
+          <Alert
+            message="Read-Only Access"
+            description="You have read-only access to this project. Only Administrator or Project Manager roles can edit projects and tasks."
+            type="info"
+            showIcon
+            icon={<LockOutlined />}
+            style={{ marginBottom: '16px', marginTop: '16px' }}
+            closable
+          />
+        )}
+
         {/* Notes/Description Section */}
         {projectData?.notes && projectData.notes.trim() && (
           <Row gutter={[16, 16]} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f0f0f0' }}>
@@ -1454,7 +1485,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                                               {task.description.substring(0, 80)}...
                                             </div>
                                           )}
-                                          <div style={{ marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                          <div style={{ marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                                             <Tag color={task.priority === 'High' ? 'red' : task.priority === 'Medium' ? 'orange' : 'green'} style={{ fontSize: '10px' }}>
                                               {task.priority || 'Normal'}
                                             </Tag>
@@ -1465,6 +1496,20 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                                               <Tag style={{ fontSize: '10px' }}>
                                                 Due: {formatDate(task.exp_end_date)}
                                               </Tag>
+                                            )}
+                                            {task.assigned_users && task.assigned_users.length > 0 && (
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '4px' }}>
+                                                <UserOutlined style={{ fontSize: '10px', color: '#666' }} />
+                                                <Avatar.Group maxCount={3} size="small">
+                                                  {task.assigned_users.map((assignment, aIdx) => (
+                                                    <Tooltip key={aIdx} title={assignment.full_name}>
+                                                      <Avatar size="small" style={{ backgroundColor: '#1890ff', fontSize: '10px' }}>
+                                                        {assignment.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                                                      </Avatar>
+                                                    </Tooltip>
+                                                  ))}
+                                                </Avatar.Group>
+                                              </div>
                                             )}
                                           </div>
                                         </div>
@@ -1749,6 +1794,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         onCreate={handleCreateTask}
         onUpdate={handleUpdateTask}
         loading={taskFormLoading || editTaskFormLoading}
+        canEdit={canEditProject}
       />
 
       {/* Sprint Report Dialog */}

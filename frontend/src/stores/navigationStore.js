@@ -50,6 +50,10 @@ const useNavigationStore = create(
       // Risk Register state
       selectedRiskRegisterId: null,
 
+      // Wiki state
+      selectedWikiSpaceSlug: null,
+      selectedWikiPageSlug: null,
+
       // Mobile state
       isMobile: false,
       mobileMenuVisible: false,
@@ -442,6 +446,61 @@ const useNavigationStore = create(
               showSwaggerDetail: false
             })
             window.location.hash = 'swagger-collections'
+            break
+
+          case 'wiki':
+            set({
+              currentRoute: 'wiki',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false,
+              selectedWikiSpaceSlug: null,
+              selectedWikiPageSlug: null
+            })
+            window.location.hash = 'wiki'
+            break
+
+          case 'wiki-space':
+            if (projectId) { // reuse projectId to carry space slug
+              set({
+                currentRoute: 'wiki-space',
+                selectedWikiSpaceSlug: projectId,
+                selectedWikiPageSlug: null,
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
+              })
+              window.location.hash = `wiki/space/${projectId}`
+            }
+            break
+
+          case 'wiki-page':
+            if (projectId && appId) { // reuse projectId for space slug, appId for page slug
+              set({
+                currentRoute: 'wiki-page',
+                selectedWikiSpaceSlug: projectId,
+                selectedWikiPageSlug: appId,
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
+              })
+              window.location.hash = `wiki/space/${projectId}/page/${appId}`
+            }
             break
 
           case 'devops-config':
@@ -1032,6 +1091,21 @@ const useNavigationStore = create(
             selectedSwaggerId: swaggerId,
             showSwaggerDetail: true
           })
+        } else if (hash === 'wiki') {
+          get().navigateToRoute('wiki')
+        } else if (hash.startsWith('wiki/space/')) {
+          const parts = hash.split('/')
+          const spaceSlug = parts[2]
+          const pageAction = parts[3] // 'page' or undefined
+          const pageSlug = parts[4] // page slug if pageAction is 'page'
+
+          if (pageAction === 'page' && pageSlug) {
+            // Handle wiki page route
+            get().navigateToRoute('wiki-page', spaceSlug, pageSlug)
+          } else {
+            // Handle wiki space route
+            get().navigateToRoute('wiki-space', spaceSlug)
+          }
         } else if (hash === 'raci-template') {
           get().navigateToRoute('raci-template')
         } else if (hash === 'raci-template/create') {
@@ -1296,6 +1370,27 @@ const useNavigationStore = create(
                 { title: 'Edit' }
               )
               break
+            case 'wiki':
+              items.push(
+                { title: 'Ops', onClick: () => get().navigateToRoute('wiki') },
+                { title: 'Wiki' }
+              )
+              break
+            case 'wiki-space':
+              items.push(
+                { title: 'Ops', onClick: () => get().navigateToRoute('wiki') },
+                { title: 'Wiki', onClick: () => get().navigateToRoute('wiki') },
+                { title: state.selectedWikiSpaceSlug || 'Space' }
+              )
+              break
+            case 'wiki-page':
+              items.push(
+                { title: 'Ops', onClick: () => get().navigateToRoute('wiki') },
+                { title: 'Wiki', onClick: () => get().navigateToRoute('wiki') },
+                { title: state.selectedWikiSpaceSlug || 'Space', onClick: () => get().navigateToRoute('wiki-space', state.selectedWikiSpaceSlug) },
+                { title: state.selectedWikiPageSlug || 'Page' }
+              )
+              break
             default:
               items.push({ title: 'Dashboard' })
           }
@@ -1319,6 +1414,8 @@ const useNavigationStore = create(
         showSwaggerDetail: false,
         selectedChangeRequestId: null,
         showChangeRequestForm: false,
+        selectedWikiSpaceSlug: null,
+        selectedWikiPageSlug: null,
         mobileMenuVisible: false,
         breadcrumbs: []
       })

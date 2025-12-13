@@ -14,7 +14,13 @@
     "test:e2e:headed": "cypress run --spec 'cypress/e2e/**/*.cy.js' --headed",
     "test:dashboard": "cypress run --spec 'cypress/e2e/dashboard.cy.js'",
     "test:responsive": "cypress run --spec 'cypress/e2e/responsive.cy.js'",
-    "test:accessibility": "cypress run --spec 'cypress/e2e/accessibility.cy.js'"
+    "test:accessibility": "cypress run --spec 'cypress/e2e/accessibility.cy.js'",
+    "playwright:test": "playwright test",
+    "playwright:test:headed": "playwright test --headed",
+    "playwright:test:wiki": "playwright test tests/e2e/wiki.spec.ts",
+    "playwright:test:wiki:headed": "playwright test tests/e2e/wiki.spec.ts --headed",
+    "playwright:debug": "playwright test --debug",
+    "playwright:ui": "playwright test --ui"
   },
   "dependencies": {
     "@ant-design/icons": "^5.4.0",

@@ -143,6 +143,17 @@ def get_product_detail(name: str) -> Dict[str, Any]:
                     except Exception:
                         team_member['member_full_name'] = team_member['member']
 
+        # Fetch project_template from linked RACI Template
+        if data.get('default_raci_template'):
+            try:
+                raci_doc = frappe.get_doc('RACI Template', data['default_raci_template'])
+                if raci_doc.has_permission('read'):
+                    data['project_template'] = raci_doc.project_template
+            except Exception as e:
+                # If RACI template doesn't exist or can't be read, just log and continue
+                frappe.log_error(f"Could not fetch RACI template {data['default_raci_template']}: {str(e)}", "Software Product API")
+                data['project_template'] = None
+
         return {
             'success': True,
             'data': data

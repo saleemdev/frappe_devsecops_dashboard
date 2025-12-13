@@ -41,9 +41,10 @@ async function apiCall(endpoint, options = {}) {
   try {
     const response = await fetch(endpoint, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'X-Frappe-CSRF-Token': window.csrf_token,
+        'X-Frappe-CSRF-Token': window.csrf_token || '',
         ...options.headers
       },
       ...options

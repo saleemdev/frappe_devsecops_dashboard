@@ -198,7 +198,7 @@ def enhance_project_with_task_data(project):
             limit_page_length=None  # Get all tasks user has access to
         )
 
-        # Enhance tasks with task type information using ORM
+        # Enhance tasks with task type information and assignments using ORM
         enhanced_tasks = []
         for task in tasks:
             try:
@@ -208,14 +208,30 @@ def enhance_project_with_task_data(project):
                     task['task_type_description'] = task_type_doc.get('description', '')
                 else:
                     task['task_type_description'] = ''
+
+                # Get task assignments from ToDo doctype
+                from frappe_devsecops_dashboard.api.task import get_task_assignments
+                task_assignments = get_task_assignments(task.get('name'))
+                task['assigned_users'] = task_assignments
+
+                # For backward compatibility, create a comma-separated string of assigned names
+                if task_assignments:
+                    task['assigned_to'] = ', '.join([a['full_name'] for a in task_assignments])
+                else:
+                    task['assigned_to'] = ''
+
                 enhanced_tasks.append(task)
             except frappe.DoesNotExistError:
                 # Task type doesn't exist, continue without description
                 task['task_type_description'] = ''
+                task['assigned_users'] = []
+                task['assigned_to'] = ''
                 enhanced_tasks.append(task)
             except frappe.PermissionError:
                 # User doesn't have access to this task type, skip description
                 task['task_type_description'] = ''
+                task['assigned_users'] = []
+                task['assigned_to'] = ''
                 enhanced_tasks.append(task)
 
         tasks = enhanced_tasks
@@ -276,7 +292,7 @@ def enhance_project_with_task_data(project):
 def calculate_project_lifecycle_phases(tasks):
     """
     Calculate lifecycle phases based on Task Types and their progress with null safety
-    Task Type ordering will be handled by custom_priority field in future
+    Ordered by Task Type custom_priority field (ascending)
 
     Args:
         tasks (list): List of tasks for a project
@@ -299,9 +315,30 @@ def calculate_project_lifecycle_phases(tasks):
                 task_types[task_type] = []
             task_types[task_type].append(task)
 
-        # Process task types in alphabetical order (no custom ordering)
+        # Fetch Task Type priorities from database
+        task_type_priorities = {}
+        try:
+            task_type_list = frappe.get_all(
+                'Task Type',
+                fields=['name', 'custom_priority'],
+                filters={'name': ['in', list(task_types.keys())]}
+            )
+            task_type_priorities = {
+                tt['name']: tt.get('custom_priority') or 999
+                for tt in task_type_list
+            }
+        except Exception as e:
+            frappe.log_error(f"Error fetching Task Type priorities: {str(e)}", "DevSecOps Dashboard")
+
+        # Sort task types by custom_priority (ascending), then by name
+        sorted_task_types = sorted(
+            task_types.keys(),
+            key=lambda tt: (task_type_priorities.get(tt, 999), tt)
+        )
+
+        # Process task types in priority order
         phases = []
-        for i, task_type_name in enumerate(sorted(task_types.keys())):
+        for i, task_type_name in enumerate(sorted_task_types):
             task_type_tasks = task_types.get(task_type_name, [])
             if not task_type_tasks:
                 continue
@@ -491,6 +528,7 @@ def get_devsecops_lifecycle_phases():
     """
     Get the standard DevSecOps lifecycle phases from Task Types
     Uses frappe.get_list() which respects user permissions
+    Ordered by custom_priority field (ascending)
 
     Returns:
         list: Standard lifecycle phases (only those user has access to)
@@ -499,17 +537,19 @@ def get_devsecops_lifecycle_phases():
         # Use frappe.get_list() to get Task Types with permission checking
         # frappe.get_list() automatically filters based on user permissions
         # Only returns Task Types the current user has read access to
+        # Order by custom_priority (ascending) to maintain DevSecOps timeline order
         task_types = frappe.get_list(
             "Task Type",
-            fields=["name", "description"],
-            order_by="name",
+            fields=["name", "description", "custom_priority"],
+            order_by="custom_priority asc, name asc",
             limit_page_length=None
         )
 
         return [
             {
                 "name": tt.get('name'),
-                "description": tt.get('description') or f"{tt.get('name')} phase of the DevSecOps lifecycle"
+                "description": tt.get('description') or f"{tt.get('name')} phase of the DevSecOps lifecycle",
+                "priority": tt.get('custom_priority') or 999
             }
             for tt in task_types
         ]
@@ -2113,6 +2153,10 @@ def get_project_tasks(project_name):
     """
     Get all tasks for a project
 
+    Role-based filtering:
+    - Administrator and Project Manager: see all tasks
+    - Other users: see only tasks they are assigned to
+
     Args:
         project_name (str): Name of the project
 
@@ -2120,10 +2164,49 @@ def get_project_tasks(project_name):
         dict: List of tasks
     """
     try:
-        # Get all tasks for the project
+        # Get current user and their roles
+        current_user = frappe.session.user
+        user_roles = frappe.get_roles(current_user)
+
+        # Check if user is Administrator or has Project Manager role
+        is_admin_or_pm = (
+            current_user == 'Administrator' or
+            'Administrator' in user_roles or
+            'Project Manager' in user_roles
+        )
+
+        # Build task filters
+        task_filters = {"project": project_name}
+
+        # If user is not admin/PM, filter to only assigned tasks
+        if not is_admin_or_pm:
+            # Get task names where user is assigned via ToDo
+            assigned_task_names = frappe.get_all(
+                'ToDo',
+                filters={
+                    'reference_type': 'Task',
+                    'allocated_to': current_user,
+                    'status': ['in', ['Open', 'Pending']]
+                },
+                fields=['reference_name'],
+                pluck='reference_name'
+            )
+
+            # If user has no assigned tasks, return empty list
+            if not assigned_task_names:
+                return {
+                    "success": True,
+                    "tasks": [],
+                    "filtered_by_assignment": True
+                }
+
+            # Add filter to only show assigned tasks
+            task_filters['name'] = ['in', assigned_task_names]
+
+        # Get all tasks for the project (filtered by assignment if needed)
         tasks = frappe.get_list(
             "Task",
-            filters={"project": project_name},
+            filters=task_filters,
             fields=[
                 "name",
                 "subject",
@@ -2140,9 +2223,21 @@ def get_project_tasks(project_name):
             limit_page_length=None
         )
 
+        # Enrich tasks with assignment information
+        from frappe_devsecops_dashboard.api.task import get_task_assignments
+        for task in tasks:
+            task_assignments = get_task_assignments(task.get('name'))
+            task['assigned_users'] = task_assignments
+            # For backward compatibility, create a comma-separated string of assigned names
+            if task_assignments:
+                task['assigned_to'] = ', '.join([a['full_name'] for a in task_assignments])
+            else:
+                task['assigned_to'] = ''
+
         return {
             "success": True,
-            "tasks": tasks or []
+            "tasks": tasks or [],
+            "filtered_by_assignment": not is_admin_or_pm
         }
     except frappe.PermissionError:
         frappe.log_error(f"Permission denied for project {project_name}", "DevSecOps Dashboard")

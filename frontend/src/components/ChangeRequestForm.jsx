@@ -851,8 +851,9 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Frappe-CSRF-Token': window.csrf_token
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
           },
+          credentials: 'include',
           body: JSON.stringify({
             change_request_name: id,
             resolution_status: values.resolution_status,

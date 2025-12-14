@@ -167,36 +167,54 @@ def enhance_project_with_task_data(project):
         frappe.log_error(f"Error fetching project manager for {project_name}: {str(e)}", "Project Manager Fetch Error")
         project['project_manager'] = None
 
-    # Get tasks for this project using frappe.get_list() with permission checking
+    # Get tasks for this project - only show tasks user is assigned to
     try:
-        # Use frappe.get_list() to get tasks with permission checking
-        # frappe.get_list() automatically filters based on user permissions
-        # Only returns tasks the current user has read access to
-        tasks = frappe.get_list(
-            "Task",
-            fields=[
-                "name",
-                "subject",
-                "status",
-                "type",
-                "progress",
-                "priority",
-                "exp_start_date",
-                "exp_end_date",
-                "act_start_date",
-                "act_end_date",
-                "completed_on",
-                "is_milestone",
-                "owner",
-                "description",
-                "idx"
-            ],
+        # Get current user
+        current_user = frappe.session.user
+
+        # Get task names where user is assigned via ToDo
+        assigned_task_names = frappe.get_all(
+            'ToDo',
             filters={
-                "project": project_name
+                'reference_type': 'Task',
+                'allocated_to': current_user,
+                'status': ['in', ['Open', 'Pending']]
             },
-            order_by="type, idx",
-            limit_page_length=None  # Get all tasks user has access to
+            fields=['reference_name'],
+            pluck='reference_name'
         )
+
+        # If user has no assigned tasks, use empty list for filters
+        if not assigned_task_names:
+            tasks = []
+        else:
+            # Fetch only assigned tasks for this project
+            tasks = frappe.get_list(
+                "Task",
+                fields=[
+                    "name",
+                    "subject",
+                    "status",
+                    "type",
+                    "progress",
+                    "priority",
+                    "exp_start_date",
+                    "exp_end_date",
+                    "act_start_date",
+                    "act_end_date",
+                    "completed_on",
+                    "is_milestone",
+                    "owner",
+                    "description",
+                    "idx"
+                ],
+                filters={
+                    "project": project_name,
+                    "name": ['in', assigned_task_names]
+                },
+                order_by="type, idx",
+                limit_page_length=None
+            )
 
         # Enhance tasks with task type information and assignments using ORM
         enhanced_tasks = []
@@ -2153,9 +2171,8 @@ def get_project_tasks(project_name):
     """
     Get all tasks for a project
 
-    Role-based filtering:
-    - Administrator and Project Manager: see all tasks
-    - Other users: see only tasks they are assigned to
+    Task visibility:
+    - All users (including Administrator) only see tasks they are assigned to
 
     Args:
         project_name (str): Name of the project
@@ -2164,46 +2181,36 @@ def get_project_tasks(project_name):
         dict: List of tasks
     """
     try:
-        # Get current user and their roles
+        # Get current user
         current_user = frappe.session.user
-        user_roles = frappe.get_roles(current_user)
 
-        # Check if user is Administrator or has Project Manager role
-        is_admin_or_pm = (
-            current_user == 'Administrator' or
-            'Administrator' in user_roles or
-            'Project Manager' in user_roles
+        # Get task names where user is assigned via ToDo
+        assigned_task_names = frappe.get_all(
+            'ToDo',
+            filters={
+                'reference_type': 'Task',
+                'allocated_to': current_user,
+                'status': ['in', ['Open', 'Pending']]
+            },
+            fields=['reference_name'],
+            pluck='reference_name'
         )
 
-        # Build task filters
-        task_filters = {"project": project_name}
+        # If user has no assigned tasks, return empty list
+        if not assigned_task_names:
+            return {
+                "success": True,
+                "tasks": [],
+                "filtered_by_assignment": True
+            }
 
-        # If user is not admin/PM, filter to only assigned tasks
-        if not is_admin_or_pm:
-            # Get task names where user is assigned via ToDo
-            assigned_task_names = frappe.get_all(
-                'ToDo',
-                filters={
-                    'reference_type': 'Task',
-                    'allocated_to': current_user,
-                    'status': ['in', ['Open', 'Pending']]
-                },
-                fields=['reference_name'],
-                pluck='reference_name'
-            )
+        # Build task filters - only show assigned tasks for this project
+        task_filters = {
+            "project": project_name,
+            "name": ['in', assigned_task_names]
+        }
 
-            # If user has no assigned tasks, return empty list
-            if not assigned_task_names:
-                return {
-                    "success": True,
-                    "tasks": [],
-                    "filtered_by_assignment": True
-                }
-
-            # Add filter to only show assigned tasks
-            task_filters['name'] = ['in', assigned_task_names]
-
-        # Get all tasks for the project (filtered by assignment if needed)
+        # Get all tasks for the project (filtered by assignment)
         tasks = frappe.get_list(
             "Task",
             filters=task_filters,
@@ -2237,7 +2244,7 @@ def get_project_tasks(project_name):
         return {
             "success": True,
             "tasks": tasks or [],
-            "filtered_by_assignment": not is_admin_or_pm
+            "filtered_by_assignment": True
         }
     except frappe.PermissionError:
         frappe.log_error(f"Permission denied for project {project_name}", "DevSecOps Dashboard")
@@ -2893,11 +2900,29 @@ def get_dashboard_metrics():
         active_projects = len(frappe.get_list("Project", filters=[["status", "=", "Open"]], fields=["name"]))
         completed_projects = len(frappe.get_list("Project", filters=[["status", "=", "Completed"]], fields=["name"]))
 
-        # Count tasks by status using optimized queries
-        total_tasks = len(frappe.get_list("Task", fields=["name"]))
-        completed_tasks = len(frappe.get_list("Task", filters=[["status", "=", "Completed"]], fields=["name"]))
-        in_progress_tasks = len(frappe.get_list("Task", filters=[["status", "in", ["Open", "Working"]]], fields=["name"]))
-        overdue_tasks = len(frappe.get_list("Task", filters=[["status", "=", "Overdue"]], fields=["name"]))
+        # Count tasks by status - only for tasks assigned to current user
+        current_user = frappe.session.user
+        assigned_task_names = frappe.get_all(
+            'ToDo',
+            filters={
+                'reference_type': 'Task',
+                'allocated_to': current_user,
+                'status': ['in', ['Open', 'Pending']]
+            },
+            fields=['reference_name'],
+            pluck='reference_name'
+        )
+
+        if not assigned_task_names:
+            total_tasks = 0
+            completed_tasks = 0
+            in_progress_tasks = 0
+            overdue_tasks = 0
+        else:
+            total_tasks = len(frappe.get_list("Task", filters=[["name", "in", assigned_task_names]], fields=["name"]))
+            completed_tasks = len(frappe.get_list("Task", filters=[["name", "in", assigned_task_names], ["status", "=", "Completed"]], fields=["name"]))
+            in_progress_tasks = len(frappe.get_list("Task", filters=[["name", "in", assigned_task_names], ["status", "in", ["Open", "Working"]]], fields=["name"]))
+            overdue_tasks = len(frappe.get_list("Task", filters=[["name", "in", assigned_task_names], ["status", "=", "Overdue"]], fields=["name"]))
 
         # Count incidents by status using optimized queries
         total_incidents = len(frappe.get_list("Devsecops Dashboard Incident", fields=["name"]))

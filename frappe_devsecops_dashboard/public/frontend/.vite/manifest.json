@@ -1,6 +1,6 @@
 {
   "index.html": {
-    "file": "assets/index-Ba0VpC4Y.js",
+    "file": "assets/index-CxtF0Jf-.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -10,7 +10,7 @@
       "node_modules/axios/index.js"
     ],
     "css": [
-      "assets/index-BG1YrSPX.css"
+      "assets/index-C3phv7se.css"
     ]
   },
   "node_modules/axios/index.js": {

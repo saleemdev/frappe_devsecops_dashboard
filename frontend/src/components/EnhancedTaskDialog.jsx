@@ -805,88 +805,115 @@ const EnhancedTaskDialog = ({
             </div>
           </div>
 
-          {/* Comments List - Compact */}
+          {/* Comments List - Enhanced */}
           <div style={{
             background: token.colorBgContainer,
-            padding: '16px',
+            padding: '20px',
             borderRadius: '8px',
             border: `1px solid ${token.colorBorderSecondary}`,
-            maxHeight: '500px',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+            maxHeight: '550px',
             overflowY: 'auto'
           }}>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '12px',
-              paddingBottom: '8px',
-              borderBottom: `1px solid ${token.colorBorderSecondary}`
+              marginBottom: '16px',
+              paddingBottom: '10px',
+              borderBottom: `2px solid ${token.colorBorderSecondary}`
             }}>
-              <Text strong style={{ fontSize: '13px', color: token.colorTextSecondary }}>
-                Comments
-              </Text>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+              <Space>
+                <CommentOutlined style={{ fontSize: '16px', color: token.colorPrimary }} />
+                <Text strong style={{ fontSize: '14px', color: token.colorText }}>
+                  Comments
+                </Text>
+              </Space>
+              <Tag color={token.colorPrimary} style={{ margin: 0 }}>
                 {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
-              </Text>
+              </Tag>
             </div>
 
             {loadingComments ? (
-              <div style={{ textAlign: 'center', padding: '20px' }}>
-                <Spin size="small" />
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <Spin size="default" tip="Loading comments..." />
               </div>
             ) : comments.length === 0 ? (
               <div style={{
                 textAlign: 'center',
-                padding: '24px 12px',
-                color: token.colorTextSecondary
+                padding: '40px 20px',
+                color: token.colorTextSecondary,
+                background: token.colorBgLayout,
+                borderRadius: '6px'
               }}>
-                <CommentOutlined style={{ fontSize: '32px', color: token.colorTextDisabled, marginBottom: '8px' }} />
-                <div style={{ fontSize: '12px' }}>No comments yet</div>
+                <CommentOutlined style={{ fontSize: '48px', color: token.colorTextDisabled, marginBottom: '12px' }} />
+                <div style={{ fontSize: '14px', marginBottom: '4px', fontWeight: 500 }}>No comments yet</div>
+                <div style={{ fontSize: '12px', color: token.colorTextTertiary }}>Be the first to comment on this task</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {comments.map((comment, index) => (
                   <div
                     key={comment.name || index}
                     style={{
-                      background: index % 2 === 0 ? token.colorBgLayout : 'transparent',
-                      padding: '10px',
-                      borderRadius: '6px',
-                      borderLeft: `2px solid ${token.colorPrimary}`,
-                      transition: 'background 0.2s'
+                      background: token.colorBgLayout,
+                      padding: '14px',
+                      borderRadius: '8px',
+                      borderLeft: `3px solid ${token.colorPrimary}`,
+                      transition: 'all 0.2s',
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                      ':hover': {
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)'
+                      }
                     }}
                   >
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
                       <Avatar
-                        size={28}
+                        size={32}
                         icon={<UserOutlined />}
                         src={comment.user_image}
                         style={{
                           backgroundColor: token.colorPrimary,
                           flexShrink: 0,
-                          fontSize: '12px'
+                          fontSize: '14px'
                         }}
-                      />
+                      >
+                        {!comment.user_image && comment.user_full_name ? comment.user_full_name.charAt(0).toUpperCase() : null}
+                      </Avatar>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'baseline',
-                          marginBottom: '4px',
-                          gap: '8px'
+                          alignItems: 'flex-start',
+                          marginBottom: '6px',
+                          gap: '12px',
+                          flexWrap: 'wrap'
                         }}>
-                          <Text strong style={{ fontSize: '12px', color: token.colorText }}>
-                            {comment.comment_by || comment.sender_full_name || comment.sender || 'Unknown User'}
-                          </Text>
-                          <Text type="secondary" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
-                            {dayjs(comment.creation).fromNow()}
-                          </Text>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <Text strong style={{ fontSize: '13px', color: token.colorText }}>
+                              {comment.user_full_name || comment.comment_by || comment.sender_full_name || comment.sender || 'Unknown User'}
+                            </Text>
+                            {comment.user_email && comment.user_email !== comment.user_full_name && (
+                              <Text type="secondary" style={{ fontSize: '11px' }}>
+                                {comment.user_email}
+                              </Text>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                            <Text type="secondary" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
+                              {dayjs(comment.creation).fromNow()}
+                            </Text>
+                            <Text type="secondary" style={{ fontSize: '10px', whiteSpace: 'nowrap' }}>
+                              {dayjs(comment.creation).format('MMM DD, YYYY [at] HH:mm')}
+                            </Text>
+                          </div>
                         </div>
                         <div
                           style={{
-                            fontSize: '12px',
-                            lineHeight: '1.5',
-                            color: token.colorText
+                            fontSize: '13px',
+                            lineHeight: '1.6',
+                            color: token.colorText,
+                            wordBreak: 'break-word'
                           }}
                           dangerouslySetInnerHTML={{ __html: comment.content }}
                         />

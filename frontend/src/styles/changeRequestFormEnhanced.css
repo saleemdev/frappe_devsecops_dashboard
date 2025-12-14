@@ -1,0 +1,391 @@
+/**
+ * Enhanced Change Request Form Styles
+ * Professional flat design with Gestalt principles and visual hierarchy
+ */
+
+/* Container improvements */
+.cr-form-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Enhanced header */
+.cr-form-header {
+  background: linear-gradient(135deg, #ffffff 0%, #f5f7fa 100%);
+  padding: 24px 32px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e8ecf1;
+}
+
+/* Status cards with better visual hierarchy */
+.cr-status-banner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.cr-status-card {
+  background: #ffffff;
+  padding: 20px 24px;
+  border-radius: 8px;
+  border: 2px solid #e8ecf1;
+  transition: all 0.2s ease;
+}
+
+.cr-status-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.cr-status-card-approved {
+  border-left: 4px solid #52c41a;
+}
+
+.cr-status-card-pending {
+  border-left: 4px solid #1890ff;
+}
+
+.cr-status-card-rejected {
+  border-left: 4px solid #ff4d4f;
+}
+
+/* Transform tabs into visual sections */
+.ant-tabs-nav {
+  background: #ffffff;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e8ecf1;
+  margin-bottom: 24px;
+}
+
+.ant-tabs-tab {
+  padding: 12px 24px !important;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.ant-tabs-tab:hover {
+  background: #f5f7fa;
+}
+
+.ant-tabs-tab-active {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%) !important;
+  color: #ffffff !important;
+}
+
+.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #ffffff !important;
+}
+
+.ant-tabs-ink-bar {
+  display: none;
+}
+
+/* Tab content with better spacing */
+.ant-tabs-tabpane {
+  background: #ffffff;
+  padding: 28px 32px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e8ecf1;
+}
+
+/* Field groups */
+.cr-field-group {
+  background: #fafbfc;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #e8ecf1;
+}
+
+.cr-field-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e8ecf1;
+}
+
+.cr-field-group-title .anticon {
+  font-size: 16px;
+  color: #1890ff;
+}
+
+/* Enhanced form items */
+.ant-form-item-label > label {
+  font-weight: 500;
+  color: #262626;
+  font-size: 14px;
+}
+
+.ant-input, .ant-input-number, .ant-picker, .ant-select-selector {
+  border-radius: 6px !important;
+  border-color: #d9d9d9 !important;
+  transition: all 0.2s ease !important;
+}
+
+.ant-input:hover, .ant-input-number:hover, .ant-picker:hover, .ant-select-selector:hover {
+  border-color: #1890ff !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1) !important;
+}
+
+.ant-input:focus, .ant-input-number:focus, .ant-picker:focus, .ant-select-focused .ant-select-selector {
+  border-color: #1890ff !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2) !important;
+}
+
+/* Button enhancements */
+.cr-action-bar {
+  background: #ffffff;
+  padding: 20px 32px;
+  border-radius: 12px;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e8ecf1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
+  margin-top: 24px;
+}
+
+.cr-primary-button {
+  height: 44px !important;
+  padding: 0 32px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.3) !important;
+}
+
+.cr-secondary-button {
+  height: 44px !important;
+  padding: 0 24px !important;
+  font-size: 15px !important;
+  border-radius: 8px !important;
+}
+
+/* Approvers table enhancement */
+.cr-approvers-section {
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #e8ecf1;
+  margin-top: 20px;
+}
+
+.cr-approvers-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e8ecf1;
+}
+
+/* Rich text editor styling */
+.ql-container {
+  border-radius: 0 0 6px 6px !important;
+  border-color: #d9d9d9 !important;
+}
+
+.ql-toolbar {
+  border-radius: 6px 6px 0 0 !important;
+  border-color: #d9d9d9 !important;
+  background: #fafbfc !important;
+}
+
+/* Section dividers */
+.cr-section-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #e8ecf1 50%, transparent 100%);
+  margin: 32px 0;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .cr-status-banner {
+    grid-template-columns: 1fr;
+  }
+
+  .ant-tabs-nav {
+    padding: 12px;
+  }
+
+  .ant-tabs-tab {
+    padding: 8px 16px !important;
+    font-size: 13px;
+  }
+
+  .ant-tabs-tabpane {
+    padding: 20px 16px;
+  }
+
+  .cr-action-bar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .cr-action-bar > * {
+    width: 100%;
+  }
+}
+
+/* Loading state */
+.cr-form-loading {
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Success animation */
+@keyframes successPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(82, 196, 26, 0);
+  }
+}
+
+.cr-status-card-approved {
+  animation: successPulse 2s ease-in-out infinite;
+}
+
+/* Accessibility improvements */
+.ant-form-item-required::before {
+  color: #ff4d4f !important;
+  font-size: 16px !important;
+}
+
+/* Focus visible for keyboard navigation */
+.ant-btn:focus-visible,
+.ant-input:focus-visible,
+.ant-select-selector:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* Prominent fields styling */
+.cr-prominent-field {
+  background: linear-gradient(135deg, #fff7e6 0%, #fffbf0 100%);
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px solid #ffa940;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(250, 140, 22, 0.1);
+  position: relative;
+}
+
+.cr-prominent-field::before {
+  content: '★';
+  position: absolute;
+  top: -12px;
+  left: 16px;
+  background: #ffa940;
+  color: #ffffff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cr-prominent-field-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #d46b08;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cr-prominent-field-title .anticon {
+  font-size: 18px;
+  color: #fa8c16;
+}
+
+.cr-prominent-field .ant-form-item-label > label {
+  font-weight: 600;
+  color: #d46b08;
+  font-size: 15px;
+}
+
+.cr-prominent-field .ant-input,
+.cr-prominent-field .ant-picker,
+.cr-prominent-field .ant-checkbox-wrapper {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.cr-prominent-field .ant-picker {
+  border: 2px solid #ffa940 !important;
+}
+
+.cr-prominent-field .ant-picker:hover,
+.cr-prominent-field .ant-picker:focus {
+  border-color: #fa8c16 !important;
+  box-shadow: 0 0 0 2px rgba(250, 140, 22, 0.2) !important;
+}
+
+.cr-prominent-checkbox {
+  background: #fff7e6;
+  padding: 16px 20px;
+  border-radius: 8px;
+  border: 2px solid #ffa940;
+  display: inline-block;
+  margin-top: 8px;
+}
+
+.cr-prominent-checkbox .ant-checkbox-wrapper {
+  font-size: 15px;
+  font-weight: 600;
+  color: #d46b08;
+}
+
+.cr-prominent-checkbox .ant-checkbox-inner {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+  border-color: #ffa940;
+}
+
+.cr-prominent-checkbox .ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #fa8c16;
+  border-color: #fa8c16;
+}
+
+.cr-prominent-checkbox .ant-checkbox-wrapper:hover .ant-checkbox-inner {
+  border-color: #fa8c16;
+}
+
+/* Print styles */
+@media print {
+  .cr-action-bar,
+  .ant-tabs-nav,
+  .ant-btn {
+    display: none !important;
+  }
+
+  .ant-tabs-tabpane {
+    box-shadow: none !important;
+    border: 1px solid #000 !important;
+  }
+}

@@ -30,7 +30,10 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   ToolOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  ArrowLeftOutlined,
+  CalendarOutlined,
+  WarningOutlined
 } from '@ant-design/icons'
 import Swal from 'sweetalert2'
 import dayjs from 'dayjs'
@@ -42,6 +45,7 @@ import ApprovalTrackingComponent from './ApprovalTrackingComponent'
 import ApprovalActionModal from './ApprovalActionModal'
 import ApproversTable from './ApproversTable'
 import { getChangeRequestActivity } from '../utils/projectAttachmentsApi'
+import '../styles/changeRequestFormEnhanced.css'
 
 // Extend dayjs with relativeTime plugin
 dayjs.extend(relativeTime)
@@ -996,69 +1000,78 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
   }
 
   return (
-    <Card loading={loading}>
-      <Space style={{ marginBottom: 16 }}>
-        <Button onClick={() => navigateToRoute('change-requests')}>Back to List</Button>
-        <Title level={4} style={{ margin: 0 }}>
-          {mode === 'edit' ? `Edit Change Request${id ? `: ${id}` : ''}` : 'New Change Request'}
-        </Title>
-      </Space>
+    <div className="cr-form-container">
+      <Card loading={loading} className="cr-form-card" bordered={false}>
+        <div className="cr-form-header">
+          <Space align="center" style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <Space>
+              <Button
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigateToRoute('change-requests')}
+                size="large"
+                className="cr-secondary-button"
+              >
+                Back
+              </Button>
+              <Title level={3} style={{ margin: 0 }}>
+                {mode === 'edit' ? `Change Request: ${id}` : 'New Change Request'}
+              </Title>
+            </Space>
+            {mode === 'edit' && (
+              <Space>
+                <Tag color="blue" style={{ fontSize: '13px', padding: '4px 12px', borderRadius: '6px' }}>
+                  {id}
+                </Tag>
+              </Space>
+            )}
+          </Space>
+        </div>
 
-      {/* Status Indicator - Prominent display of Change Request Acceptance and Workflow State */}
+      {/* Enhanced Status Banner */}
       {mode === 'edit' && (
-        <div style={{
-          marginBottom: 24,
-          padding: '16px',
-          backgroundColor: '#fafafa',
-          borderRadius: '4px',
-          border: '2px solid #e8e8e8',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '24px',
-          flexWrap: 'wrap'
-        }}>
-          {/* Change Request Acceptance Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '250px' }}>
-            {getStatusConfig(approvalStatus).icon}
-            <div>
-              <span style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Change Request Acceptance:</span>
-              <span style={{
-                fontSize: '16px',
-                fontWeight: 'bold',
-                color: getStatusConfig(approvalStatus).color
-              }}>
+        <div className="cr-status-banner">
+          <div className={`cr-status-card ${getStatusConfig(approvalStatus).label === 'Approved for Implementation' ? 'cr-status-card-approved' : getStatusConfig(approvalStatus).label.includes('Not') ? 'cr-status-card-rejected' : 'cr-status-card-pending'}`}>
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Space>
+                {getStatusConfig(approvalStatus).icon}
+                <Typography.Text type="secondary" style={{ fontSize: '12px', fontWeight: 500 }}>
+                  Approval Status
+                </Typography.Text>
+              </Space>
+              <Typography.Text strong style={{ fontSize: '16px', color: getStatusConfig(approvalStatus).color }}>
                 {getStatusConfig(approvalStatus).label}
-              </span>
-            </div>
+              </Typography.Text>
+            </Space>
           </div>
 
-          {/* Implementation Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '250px' }}>
-            {getWorkflowStateConfig(workflowState).icon}
-            <div>
-              <span style={{ fontSize: '12px', color: '#666', marginRight: '8px' }}>Implementation Status:</span>
-              <span style={{
-                fontSize: '16px',
-                fontWeight: 'bold',
-                color: getWorkflowStateConfig(workflowState).color
-              }}>
+          <div className={`cr-status-card cr-status-card-${workflowState === 'Deployed' ? 'approved' : 'pending'}`}>
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Space>
+                {getWorkflowStateConfig(workflowState).icon}
+                <Typography.Text type="secondary" style={{ fontSize: '12px', fontWeight: 500 }}>
+                  Implementation Status
+                </Typography.Text>
+              </Space>
+              <Typography.Text strong style={{ fontSize: '16px', color: getWorkflowStateConfig(workflowState).color }}>
                 {getWorkflowStateConfig(workflowState).label}
-              </span>
-            </div>
+              </Typography.Text>
+            </Space>
           </div>
 
-          {/* DevOps Resolution Button */}
-          <Tooltip title={approvalStatus !== 'Approved for Implementation' ? 'DevOps Resolution is only available when Change Request Acceptance is "Approved for Implementation"' : ''}>
-            <Button
-              type="primary"
-              icon={<ToolOutlined />}
-              onClick={handleDevopsResolutionClick}
-              disabled={approvalStatus !== 'Approved for Implementation'}
-            >
-              DevOps Resolution
-            </Button>
-          </Tooltip>
+          <div className="cr-status-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Tooltip title={approvalStatus !== 'Approved for Implementation' ? 'Available when status is "Approved for Implementation"' : ''}>
+              <Button
+                type="primary"
+                size="large"
+                icon={<ToolOutlined />}
+                onClick={handleDevopsResolutionClick}
+                disabled={approvalStatus !== 'Approved for Implementation'}
+                style={{ width: '100%', height: '64px', fontSize: '15px', fontWeight: 600 }}
+              >
+                DevOps Resolution
+              </Button>
+            </Tooltip>
+          </div>
         </div>
       )}
 
@@ -1200,9 +1213,14 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="downtime_expected" valuePropName="checked" label=" ">
-                  <Checkbox>Downtime Expected</Checkbox>
-                </Form.Item>
+                <div className="cr-prominent-checkbox">
+                  <Form.Item name="downtime_expected" valuePropName="checked" style={{ marginBottom: 0 }}>
+                    <Checkbox>
+                      <WarningOutlined style={{ marginRight: 8 }} />
+                      Downtime Expected
+                    </Checkbox>
+                  </Form.Item>
+                </div>
               </Col>
             </Row>
             <Collapse
@@ -1231,18 +1249,24 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           </TabPane>
 
           <TabPane tab="Implementation" key="3">
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="implementation_date" label="Implementation/Deployment Date">
-                  <DatePicker style={{ width: '100%' }} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="implementation_time" label="Implementation/Deployment Time">
-                  <TimePicker style={{ width: '100%' }} format="HH:mm" />
-                </Form.Item>
-              </Col>
-            </Row>
+            <div className="cr-prominent-field">
+              <div className="cr-prominent-field-title">
+                <CalendarOutlined />
+                Change Timeline (Critical)
+              </div>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item name="implementation_date" label="Implementation/Deployment Date">
+                    <DatePicker style={{ width: '100%' }} size="large" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item name="implementation_time" label="Implementation/Deployment Time">
+                    <TimePicker style={{ width: '100%' }} format="HH:mm" size="large" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
             <Collapse
               items={[
                 {
@@ -1483,6 +1507,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         </Form>
       </Modal>
     </Card>
+    </div>
   )
 }
 

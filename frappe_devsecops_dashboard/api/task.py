@@ -131,6 +131,22 @@ def get_task_comments(task_name: str, start: int = 0, limit: int = 100) -> Dict[
             limit=limit
         )
 
+        # Enrich comments with user full names
+        for comment in comments:
+            # Try to get full name from comment_by or owner
+            user_id = comment.get('comment_by') or comment.get('owner')
+            if user_id:
+                try:
+                    user_full_name = frappe.db.get_value('User', user_id, 'full_name')
+                    comment['user_full_name'] = user_full_name or user_id
+                    comment['user_email'] = user_id
+                except Exception:
+                    comment['user_full_name'] = user_id
+                    comment['user_email'] = user_id
+            else:
+                comment['user_full_name'] = 'Unknown User'
+                comment['user_email'] = ''
+
         return {
             'success': True,
             'data': comments,

@@ -147,7 +147,7 @@ def get_change_request(name: str) -> Dict[str, Any]:
 @frappe.whitelist()
 def create_change_request(data: str) -> Dict[str, Any]:
     """
-    Create a new Change Request
+    Create a new Change Request and send approval notifications
 
     Args:
         data: JSON string of Change Request fields
@@ -169,6 +169,26 @@ def create_change_request(data: str) -> Dict[str, Any]:
 
         # Check create permission
         doc.insert()
+
+        # Enqueue approval notification emails (non-blocking)
+        # This runs asynchronously to avoid blocking the save operation
+        if doc.change_approvers:
+            try:
+                frappe.enqueue(
+                    'frappe_devsecops_dashboard.api.change_request_notifications.send_approval_notifications',
+                    queue='default',
+                    timeout=300,
+                    change_request_name=doc.name,
+                    is_async=True,
+                    now=False  # Run in background
+                )
+                frappe.logger().info(f"[CR Notification] Enqueued approval notifications for {doc.name}")
+            except Exception as e:
+                # Log error but don't fail the creation
+                frappe.log_error(
+                    f"Failed to enqueue approval notifications for {doc.name}: {str(e)}",
+                    "Change Request Notification"
+                )
 
         return {
             'success': True,
@@ -375,6 +395,27 @@ def sync_approvers_from_project(change_request_name: str) -> Dict[str, Any]:
         if approvers_added > 0:
             doc.save()
 
+            # Enqueue approval notification emails for newly added approvers (non-blocking)
+            # Only new approvers will receive emails (those with notification_sent = 0)
+            try:
+                frappe.enqueue(
+                    'frappe_devsecops_dashboard.api.change_request_notifications.send_approval_notifications',
+                    queue='default',
+                    timeout=300,
+                    change_request_name=doc.name,
+                    is_async=True,
+                    now=False  # Run in background
+                )
+                frappe.logger().info(
+                    f"[CR Notification] Enqueued approval notifications for {approvers_added} new approver(s) in {doc.name}"
+                )
+            except Exception as e:
+                # Log error but don't fail the sync
+                frappe.log_error(
+                    f"Failed to enqueue approval notifications for {doc.name}: {str(e)}",
+                    "Change Request Notification"
+                )
+
         return {
             'success': True,
             'message': _('Synced {0} approver(s) from Project team members').format(approvers_added),
@@ -457,9 +498,11 @@ def update_change_request_approval(
         if approver.user != current_user:
             frappe.throw(_('You can only approve/reject your own approval requests'), frappe.PermissionError)
 
-        # Update the approver record
+        # Update the approver record with timestamp
         approver.approval_status = approval_status
         approver.remarks = remarks
+        # Set approval datetime to current time (this is when the decision was made)
+        approver.approval_datetime = frappe.utils.now_datetime()
 
         # Check if all approvers have responded
         all_approved = True
@@ -491,6 +534,7 @@ def update_change_request_approval(
                 'user': approver.user,
                 'approval_status': approver.approval_status,
                 'remarks': approver.remarks,
+                'approval_datetime': approver.approval_datetime,
                 'change_request_status': doc.approval_status,
                 'modified': doc.modified
             }

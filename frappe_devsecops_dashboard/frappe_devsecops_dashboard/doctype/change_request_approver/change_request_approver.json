@@ -11,7 +11,8 @@
   "business_function",
   "approval_status",
   "remarks",
-  "approval_datetime"
+  "approval_datetime",
+  "notification_sent"
  ],
  "fields": [
   {
@@ -46,10 +47,17 @@
    "label": "Remarks"
   },
   {
-   "default": "now",
    "fieldname": "approval_datetime",
    "fieldtype": "Datetime",
-   "label": "Approval DateTime"
+   "label": "Approval DateTime",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "notification_sent",
+   "fieldtype": "Check",
+   "label": "Notification Sent",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,

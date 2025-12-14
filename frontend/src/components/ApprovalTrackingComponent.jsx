@@ -96,9 +96,15 @@ export default function ApprovalTrackingComponent({
     const userName = approver.user || 'Unknown User'
     const businessFunction = approver.business_function || 'N/A'
 
-    // Format timestamp if available
-    const timestamp = approver.modified || approver.creation
-    const timeDisplay = timestamp ? dayjs(timestamp).format('MMM DD, YYYY HH:mm') : 'Not yet acted'
+    // Format timestamp - use approval_datetime if available (when decision was made)
+    // This field is only set when the approver makes their decision (Approved/Rejected)
+    const timestamp = approver.approval_datetime
+    const hasActed = approver.approval_status && approver.approval_status.toLowerCase() !== 'pending'
+
+    // Show relative time for recent actions, absolute time for older ones
+    const timeDisplay = timestamp && hasActed
+      ? `${dayjs(timestamp).format('MMM DD, YYYY [at] HH:mm')} (${dayjs(timestamp).fromNow()})`
+      : 'Pending - Not yet acted'
 
     return {
       dot: statusConfig.icon,

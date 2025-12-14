@@ -125,23 +125,13 @@ app_license = "MIT"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"frappe_devsecops_dashboard.tasks.all"
-# 	],
-# 	"daily": [
-# 		"frappe_devsecops_dashboard.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"frappe_devsecops_dashboard.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"frappe_devsecops_dashboard.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"frappe_devsecops_dashboard.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"cron": {
+		"0 */4 * * *": [
+			"frappe_devsecops_dashboard.api.change_request_reminders.send_approval_reminders"
+		]
+	}
+}
 
 # Testing
 # -------

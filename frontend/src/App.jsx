@@ -56,7 +56,7 @@ import APIProvisioning from './components/APIProvisioning'
 import APIRouteForm from './components/APIRouteForm'
 import WikiHome from './components/WikiHome'
 import WikiSpaceDetail from './components/WikiSpaceDetail'
-import WikiPageView from './components/WikiPageView'
+import WikiPageViewEnhanced from './components/WikiPageViewEnhanced'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -509,7 +509,7 @@ function AppContent({
       case 'wiki-space':
         return <WikiSpaceDetail spaceSlug={selectedWikiSpaceSlug} navigateToRoute={navigateToRoute} />
       case 'wiki-page':
-        return <WikiPageView pageSlug={selectedWikiPageSlug} navigateToRoute={navigateToRoute} />
+        return <WikiPageViewEnhanced pageSlug={selectedWikiPageSlug} navigateToRoute={navigateToRoute} />
       case 'devops-config':
         return <DevOpsConfig />
       case 'system-test':

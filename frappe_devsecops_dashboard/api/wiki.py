@@ -26,16 +26,16 @@ def get_wiki_spaces(filters=None, limit_start=0, limit_page_length=20):
 		spaces = frappe.get_list(
 			"Wiki Space",
 			filters=filters,
-			fields=["name", "route"],
+			fields=["name", "route", "space_name", "description"],
 			limit_start=cint(limit_start),
 			limit_page_length=cint(limit_page_length),
 			order_by="modified desc"
 		)
 
-		# Enrich with page count and title
+		# Enrich with page count and use space_name as title
 		for space in spaces:
-			space['title'] = space.get('name', '')
-			space['description'] = ''
+			space['title'] = space.get('space_name') or space.get('route', '')
+			space['description'] = space.get('description') or ''
 			# Count pages in this space
 			page_count = frappe.db.count(
 				"Wiki Page",
@@ -64,7 +64,7 @@ def get_wiki_space(space_name):
 		space = frappe.get_doc("Wiki Space", space_name)
 		frappe.has_permission("Wiki Space", "read", space_name, throw=True)
 		space_dict = space.as_dict()
-		space_dict['title'] = space_dict.get('name', '')
+		space_dict['title'] = space_dict.get('space_name') or space_dict.get('route', '')
 		return space_dict
 	except frappe.PermissionError:
 		frappe.throw(_("You do not have permission to view this wiki space"))
@@ -89,7 +89,7 @@ def create_wiki_space(name, route, description=None):
 		frappe.has_permission("Wiki Space", "create", throw=True)
 
 		space = frappe.new_doc("Wiki Space")
-		space.name = name
+		space.space_name = name
 		space.route = route
 		if description:
 			space.description = description

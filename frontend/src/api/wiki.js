@@ -5,6 +5,9 @@
 
 import { message } from 'antd'
 
+// Frappe is available globally in Frappe framework
+const frappe = window.frappe
+
 /**
  * Get list of Wiki Spaces
  * @param {Object} filters - Filter conditions

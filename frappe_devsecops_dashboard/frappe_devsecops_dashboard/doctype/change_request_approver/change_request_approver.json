@@ -12,7 +12,8 @@
   "approval_status",
   "remarks",
   "approval_datetime",
-  "notification_sent"
+  "notification_sent",
+  "last_reminder_sent"
  ],
  "fields": [
   {
@@ -57,6 +58,12 @@
    "fieldname": "notification_sent",
    "fieldtype": "Check",
    "label": "Notification Sent",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_reminder_sent",
+   "fieldtype": "Datetime",
+   "label": "Last Reminder Sent",
    "read_only": 1
   }
  ],

@@ -170,25 +170,8 @@ def create_change_request(data: str) -> Dict[str, Any]:
         # Check create permission
         doc.insert()
 
-        # Enqueue approval notification emails (non-blocking)
-        # This runs asynchronously to avoid blocking the save operation
-        if doc.change_approvers:
-            try:
-                frappe.enqueue(
-                    'frappe_devsecops_dashboard.api.change_request_notifications.send_approval_notifications',
-                    queue='default',
-                    timeout=300,
-                    change_request_name=doc.name,
-                    is_async=True,
-                    now=False  # Run in background
-                )
-                frappe.logger().info(f"[CR Notification] Enqueued approval notifications for {doc.name}")
-            except Exception as e:
-                # Log error but don't fail the creation
-                frappe.log_error(
-                    f"Failed to enqueue approval notifications for {doc.name}: {str(e)}",
-                    "Change Request Notification"
-                )
+        # Note: Email notifications are handled by the DocType's after_insert hook
+        # This ensures notifications are sent AFTER the transaction commits, avoiding save delays
 
         return {
             'success': True,
@@ -393,28 +376,12 @@ def sync_approvers_from_project(change_request_name: str) -> Dict[str, Any]:
 
         # Save if approvers were added
         if approvers_added > 0:
+            # Set flag to trigger email notifications in on_update hook
+            doc._approvers_just_synced = True
             doc.save()
 
-            # Enqueue approval notification emails for newly added approvers (non-blocking)
-            # Only new approvers will receive emails (those with notification_sent = 0)
-            try:
-                frappe.enqueue(
-                    'frappe_devsecops_dashboard.api.change_request_notifications.send_approval_notifications',
-                    queue='default',
-                    timeout=300,
-                    change_request_name=doc.name,
-                    is_async=True,
-                    now=False  # Run in background
-                )
-                frappe.logger().info(
-                    f"[CR Notification] Enqueued approval notifications for {approvers_added} new approver(s) in {doc.name}"
-                )
-            except Exception as e:
-                # Log error but don't fail the sync
-                frappe.log_error(
-                    f"Failed to enqueue approval notifications for {doc.name}: {str(e)}",
-                    "Change Request Notification"
-                )
+            # Note: Email notifications are handled by the DocType's on_update hook
+            # This ensures notifications are sent AFTER the transaction commits, avoiding save delays
 
         return {
             'success': True,

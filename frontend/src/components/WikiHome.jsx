@@ -50,12 +50,15 @@ const WikiHome = ({ navigateToRoute }) => {
         route: values.route || generateSlug(values.spaceName),
         description: values.description || ''
       }
-      await createWikiSpace(spaceData)
+      const createdSpace = await createWikiSpace(spaceData)
       form.resetFields()
       setShowCreateModal(false)
+      message.success('Wiki space created successfully')
       loadWikiSpaces()
-      // Navigate to the new space
-      navigateToRoute('wiki-space', spaceData.name)
+      // Navigate to the new space using the returned name (hash)
+      if (createdSpace && createdSpace.name) {
+        navigateToRoute('wiki-space', createdSpace.name)
+      }
     } catch (error) {
       console.error(error)
     } finally {

@@ -5,8 +5,16 @@
 
 import { message } from 'antd'
 
-// Frappe is available globally in Frappe framework
-const frappe = window.frappe
+/**
+ * Get frappe instance safely
+ * Frappe is available globally in Frappe framework
+ */
+const getFrappe = () => {
+  if (!window.frappe) {
+    throw new Error('Frappe framework is not loaded')
+  }
+  return window.frappe
+}
 
 /**
  * Get list of Wiki Spaces
@@ -17,6 +25,7 @@ const frappe = window.frappe
  */
 export const getWikiSpaces = async (filters = {}, limitStart = 0, limitPageLength = 20) => {
   try {
+    const frappe = getFrappe()
     const response = await frappe.call({
       method: 'frappe_devsecops_dashboard.api.wiki.get_wiki_spaces',
       args: {
@@ -40,6 +49,7 @@ export const getWikiSpaces = async (filters = {}, limitStart = 0, limitPageLengt
  */
 export const getWikiSpace = async (spaceName) => {
   try {
+    const frappe = getFrappe()
     const response = await frappe.call({
       method: 'frappe_devsecops_dashboard.api.wiki.get_wiki_space',
       args: { space_name: spaceName }
@@ -61,6 +71,7 @@ export const getWikiSpace = async (spaceName) => {
  */
 export const getWikiPagesForSpace = async (spaceName, limitStart = 0, limitPageLength = 20) => {
   try {
+    const frappe = getFrappe()
     const response = await frappe.call({
       method: 'frappe_devsecops_dashboard.api.wiki.get_wiki_pages_for_space',
       args: {
@@ -86,6 +97,7 @@ export const getWikiPagesForSpace = async (spaceName, limitStart = 0, limitPageL
  */
 export const getWikiPagesForProject = async (projectName, limitStart = 0, limitPageLength = 20) => {
   try {
+    const frappe = getFrappe()
     const response = await frappe.call({
       method: 'frappe_devsecops_dashboard.api.wiki.get_wiki_pages_for_project',
       args: {
@@ -109,6 +121,7 @@ export const getWikiPagesForProject = async (projectName, limitStart = 0, limitP
  */
 export const getWikiPage = async (pageName) => {
   try {
+    const frappe = getFrappe()
     const response = await frappe.call({
       method: 'frappe_devsecops_dashboard.api.wiki.get_wiki_page',
       args: { page_name: pageName }
@@ -128,6 +141,7 @@ export const getWikiPage = async (pageName) => {
  */
 export const createWikiPage = async (pageData) => {
   try {
+    const frappe = getFrappe()
     const response = await frappe.call({
       method: 'frappe_devsecops_dashboard.api.wiki.create_wiki_page',
       args: {
@@ -156,6 +170,7 @@ export const createWikiPage = async (pageData) => {
  */
 export const updateWikiPage = async (pageName, updates) => {
   try {
+    const frappe = getFrappe()
     const response = await frappe.call({
       method: 'frappe.client.set_value',
       args: {
@@ -180,6 +195,7 @@ export const updateWikiPage = async (pageName, updates) => {
  */
 export const deleteWikiPage = async (pageName) => {
   try {
+    const frappe = getFrappe()
     await frappe.call({
       method: 'frappe.client.delete',
       args: {
@@ -202,6 +218,7 @@ export const deleteWikiPage = async (pageName) => {
  */
 export const createWikiSpace = async (spaceData) => {
   try {
+    const frappe = getFrappe()
     const response = await frappe.call({
       method: 'frappe_devsecops_dashboard.api.wiki.create_wiki_space',
       args: {
@@ -227,6 +244,7 @@ export const createWikiSpace = async (spaceData) => {
  */
 export const updateWikiSpace = async (spaceName, updates) => {
   try {
+    const frappe = getFrappe()
     const response = await frappe.call({
       method: 'frappe_devsecops_dashboard.api.wiki.update_wiki_space',
       args: {
@@ -250,6 +268,7 @@ export const updateWikiSpace = async (spaceName, updates) => {
  */
 export const deleteWikiSpace = async (spaceName) => {
   try {
+    const frappe = getFrappe()
     await frappe.call({
       method: 'frappe_devsecops_dashboard.api.wiki.delete_wiki_space',
       args: {

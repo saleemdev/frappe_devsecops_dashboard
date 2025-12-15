@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Button, Empty, Spin, message, Space, Input, Table, Tag, Modal, Form, Typography, Popconfirm } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { Card, Button, Empty, Spin, message, Space, Input, Table, Tag, Modal, Form, Typography, Popconfirm, Row, Col, Tooltip, Checkbox } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined, ArrowLeftOutlined, EyeOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { getWikiSpace, getWikiPagesForSpace, createWikiPage, deleteWikiPage } from '../api/wiki'
 
 const { Title, Text } = Typography
@@ -13,6 +13,7 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [creating, setCreating] = useState(false)
   const [form] = Form.useForm()
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     if (spaceSlug) {
@@ -50,6 +51,12 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
     setShowCreateModal(true)
   }
 
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadSpaceData()
+    setRefreshing(false)
+  }
+
   const handleCreatePageSubmit = async (values) => {
     try {
       setCreating(true)
@@ -61,11 +68,13 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
         published: values.published ? 1 : 0
       }
       await createWikiPage(pageData)
+      message.success('Wiki page created successfully')
       form.resetFields()
       setShowCreateModal(false)
       loadSpaceData()
     } catch (error) {
       console.error(error)
+      message.error('Failed to create wiki page')
     } finally {
       setCreating(false)
     }
@@ -74,9 +83,11 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
   const handleDeletePage = async (pageName) => {
     try {
       await deleteWikiPage(pageName)
+      message.success('Wiki page deleted successfully')
       loadSpaceData()
     } catch (error) {
       console.error(error)
+      message.error('Failed to delete wiki page')
     }
   }
 
@@ -93,14 +104,17 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
     page.name?.toLowerCase().includes(searchText.toLowerCase())
   )
 
+  // Table columns configuration
   const columns = [
     {
       title: 'Title',
       dataIndex: 'title',
       key: 'title',
+      ellipsis: true,
+      sorter: (a, b) => (a.title || a.name).localeCompare(b.title || b.name),
       render: (text, record) => (
         <a onClick={() => handlePageClick(record.name)}>
-          <FileTextOutlined style={{ marginRight: '8px' }} />
+          <FileTextOutlined style={{ marginRight: '8px', color: '#1677ff' }} />
           {text || record.name}
         </a>
       )
@@ -109,6 +123,7 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
       title: 'Status',
       dataIndex: 'published',
       key: 'published',
+      width: 100,
       render: (published) => (
         <Tag color={published ? 'green' : 'default'}>
           {published ? 'Published' : 'Draft'}
@@ -119,6 +134,8 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
       title: 'Modified',
       dataIndex: 'modified',
       key: 'modified',
+      width: 140,
+      sorter: (a, b) => new Date(a.modified || 0) - new Date(b.modified || 0),
       render: (date) => {
         try {
           return new Date(date).toLocaleDateString()
@@ -130,31 +147,38 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 100,
+      width: 180,
       render: (_, record) => (
-        <Space>
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handlePageClick(record.name)}
-            title="Edit page"
-          />
-          <Popconfirm
-            title="Delete Page"
-            description="Are you sure you want to delete this page?"
-            onConfirm={() => handleDeletePage(record.name)}
-            okText="Yes"
-            cancelText="No"
-          >
+        <Space size="small">
+          <Tooltip title="View Page">
             <Button
               type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              title="Delete page"
+              icon={<EyeOutlined />}
+              onClick={() => handlePageClick(record.name)}
             />
-          </Popconfirm>
+          </Tooltip>
+          <Tooltip title="Edit Page">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => handlePageClick(record.name)}
+            />
+          </Tooltip>
+          <Tooltip title="Delete Page">
+            <Popconfirm
+              title="Delete Page"
+              description="Are you sure you want to delete this page?"
+              onConfirm={() => handleDeletePage(record.name)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+              />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       )
     }
@@ -170,6 +194,7 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Back Button */}
       <Button
         type="text"
         onClick={handleBack}
@@ -179,6 +204,7 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
         Back to Wiki
       </Button>
 
+      {/* Header Section */}
       <div style={{ marginBottom: '32px' }}>
         <Title level={2} style={{ marginBottom: '8px' }}>{space?.title || spaceSlug}</Title>
         {space?.description && (
@@ -191,24 +217,40 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
         </div>
       </div>
 
+      {/* Toolbar Section */}
       <Card style={{ marginBottom: '24px' }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <Input
-            placeholder="Search pages..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: '300px', minWidth: '200px' }}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreatePage}
-          >
-            New Page
-          </Button>
-        </Space>
+        <Row gutter={[16, 16]} align="middle">
+          <Col flex="auto">
+            <Input
+              placeholder="Search pages..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+            />
+          </Col>
+          <Col>
+            <Tooltip title="Refresh">
+              <Button
+                icon={<ReloadOutlined />}
+                loading={refreshing}
+                onClick={handleRefresh}
+              />
+            </Tooltip>
+          </Col>
+          <Col>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreatePage}
+            >
+              New Page
+            </Button>
+          </Col>
+        </Row>
       </Card>
 
+      {/* Content Section */}
       {filteredPages.length === 0 ? (
         <Empty
           description={searchText ? 'No pages found' : 'No pages in this space'}
@@ -225,10 +267,12 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
           columns={columns}
           dataSource={filteredPages}
           rowKey="name"
-          pagination={{ pageSize: 10 }}
+          pagination={{ pageSize: 10, showSizeChanger: true }}
+          loading={loading}
         />
       )}
 
+      {/* Create Wiki Page Modal */}
       <Modal
         title="Create Wiki Page"
         open={showCreateModal}
@@ -238,6 +282,7 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
         }}
         onOk={() => form.submit()}
         confirmLoading={creating}
+        width={500}
       >
         <Form
           form={form}
@@ -252,7 +297,10 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
               { min: 2, message: 'Page title must be at least 2 characters' }
             ]}
           >
-            <Input placeholder="e.g., Getting Started" />
+            <Input
+              placeholder="e.g., Getting Started"
+              size="large"
+            />
           </Form.Item>
 
           <Form.Item
@@ -261,8 +309,12 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
             rules={[
               { pattern: /^[a-z0-9-]*$/, message: 'Route can only contain lowercase letters, numbers, and hyphens' }
             ]}
+            tooltip="Auto-generated from page title if left empty"
           >
-            <Input placeholder="Auto-generated from page title" />
+            <Input
+              placeholder="Auto-generated from page title"
+              size="large"
+            />
           </Form.Item>
 
           <Form.Item
@@ -271,7 +323,7 @@ const WikiSpaceDetail = ({ spaceSlug, navigateToRoute }) => {
             valuePropName="checked"
             initialValue={false}
           >
-            <input type="checkbox" />
+            <Checkbox>Publish this page immediately</Checkbox>
           </Form.Item>
         </Form>
       </Modal>

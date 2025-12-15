@@ -7,7 +7,7 @@ BMX
 Doctypes:
 Diagnosis Category 
     Code - eg SHA-06-022 (Docname)
-    Insurer eg SHA
+    Insurer eg SHA - consider coding this as a link to Insurer doctype
     Diagnosis Description e.g Breast Cancer
     ICD 11
     Required Params(Checkbox): GFR Glomerular Filtration Rate (float), Body Surface Area BSA(float), Age (integer), Gender (codeable concept),
@@ -15,8 +15,8 @@ Regimen:
     Diagnosis Category: Link
     Regimen Code (Docname) eg SHA-06-022-1
     Regimen Description eg Breast Cancer Regimen 1
-    Cycles (integer): eg 6
-    Frequency Link(Uom) eg Weekly, Fortnightly, Monthly, Quarterly, Half Yearly, Yearly
+    Cycle (integer): eg 6. Limit
+    Time between cycles (Uom) eg Weekly, Fortnightly, Monthly, Quarterly, Half Yearly, Yearly
     Regimen Items (Table)
         Item (Link to Item) - Sync from catalog
         Units (float): eg 1000
@@ -24,6 +24,7 @@ Regimen:
         Days of Administration: D1, D2, D3, D4, D5, D6, D7
 BMX doctypes above
 -----------------------------------------------------------------------------------------------------
+=====================================================================================================
 CarePlan:
     Patient (Link to Patient)
     Regimen : Data
@@ -39,7 +40,7 @@ CarePlan:
         UOM (Link(uom))
         Date of Administration: 2025-10-10
         Status (select): Draft, Active, Completed, Cancelled, Prescribed, Dispensed
-Medication Administration:
+Medication Administration, MedicationRequest, MedicationDispense:
     Link to Care Plan
     Date of Administration
     Status (select): Draft, Active, Completed, Cancelled, Prescribed, Dispensed
@@ -57,7 +58,9 @@ App: erpnext,healthcare, payments, practice
 UAT Instance : practice.kenya-hie.health
 Prod: practice.tiberbu.health
 helper classes: Create Schedules as Per FHIR elements
-endpoint: /v1/validate_patient_regimen?cr_id&regimen_code
+
+--------------------
+polling endpoint: /v1/validate_patient_regimen?cr_id&regimen_code
 
 
 ============================================================================

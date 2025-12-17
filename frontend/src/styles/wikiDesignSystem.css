@@ -1,0 +1,283 @@
+/* ================================================
+   WIKI DESIGN SYSTEM
+   Centralized variables matching IncidentDetail/ProjectDetail patterns
+   ================================================ */
+
+:root {
+  /* ===== GRADIENTS ===== */
+  --wiki-header-gradient-light: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --wiki-header-gradient-dark: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+
+  /* ===== SPACING (Gestalt: Proximity) ===== */
+  --wiki-section-spacing: 24px;    /* Between major sections */
+  --wiki-group-spacing: 16px;      /* Between related groups */
+  --wiki-item-spacing: 8px;        /* Within component families */
+  --wiki-card-padding: 20px;       /* Internal card padding */
+
+  /* ===== BORDER RADIUS (Gestalt: Closure) ===== */
+  --wiki-border-radius-lg: 8px;    /* Large sections, cards */
+  --wiki-border-radius-md: 6px;    /* Medium elements, buttons */
+  --wiki-border-radius-sm: 4px;    /* Small elements, tags, code blocks */
+
+  /* ===== COLORS (Primary) ===== */
+  --wiki-primary: #1890ff;
+  --wiki-primary-hover: #40a9ff;
+  --wiki-primary-active: #096dd9;
+
+  /* ===== COLORS (Status) ===== */
+  --wiki-status-critical: #ff4d4f;
+  --wiki-status-high: #fa8c16;
+  --wiki-status-medium: #faad14;
+  --wiki-status-low: #52c41a;
+  --wiki-status-success: #52c41a;
+  --wiki-status-info: #1890ff;
+
+  /* ===== BORDERS (Gestalt: Similarity) ===== */
+  --wiki-border-color: #e8e8e8;
+  --wiki-border-color-light: #f0f0f0;
+  --wiki-border-width: 1px;
+
+  /* ===== BACKGROUNDS ===== */
+  --wiki-bg-primary: #ffffff;
+  --wiki-bg-secondary: #fafafa;
+  --wiki-bg-tertiary: #f5f5f5;
+  --wiki-bg-code: #f6f8fa;
+
+  /* ===== TEXT COLORS ===== */
+  --wiki-text-primary: #262626;
+  --wiki-text-secondary: rgba(0, 0, 0, 0.45);
+  --wiki-text-tertiary: #8c8c8c;
+  --wiki-text-inverse: #ffffff;
+
+  /* ===== SHADOWS (Gestalt: Figure-Ground) ===== */
+  --wiki-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --wiki-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --wiki-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --wiki-shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --wiki-shadow-hover: 0 12px 48px rgba(0, 0, 0, 0.15);
+
+  /* ===== TYPOGRAPHY ===== */
+  --wiki-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --wiki-font-family-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+
+  /* Header titles */
+  --wiki-font-size-h1: 36px;
+  --wiki-font-size-h2: 32px;
+  --wiki-font-size-h3: 24px;
+  --wiki-font-weight-h1: 700;
+  --wiki-font-weight-h2: 600;
+  --wiki-letter-spacing-title: -0.5px;
+
+  /* Section labels (UPPERCASE) */
+  --wiki-font-size-label: 11px;
+  --wiki-font-weight-label: 500;
+  --wiki-letter-spacing-label: 0.5px;
+
+  /* Body text */
+  --wiki-font-size-body: 14px;
+  --wiki-font-size-body-lg: 16px;
+  --wiki-font-size-body-sm: 13px;
+  --wiki-line-height-body: 1.6;
+
+  /* ===== TRANSITIONS (Gestalt: Common Fate) ===== */
+  --wiki-transition-fast: 0.2s ease;
+  --wiki-transition-normal: 0.3s ease;
+  --wiki-transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ===== Z-INDEX LAYERS ===== */
+  --wiki-z-dropdown: 1000;
+  --wiki-z-modal: 1050;
+  --wiki-z-tooltip: 1100;
+  --wiki-z-notification: 1150;
+}
+
+/* ===== DARK MODE OVERRIDES ===== */
+[data-theme='dark'] {
+  /* Backgrounds */
+  --wiki-bg-primary: #141414;
+  --wiki-bg-secondary: #262626;
+  --wiki-bg-tertiary: #1f1f1f;
+  --wiki-bg-code: #1a1a1a;
+
+  /* Text */
+  --wiki-text-primary: rgba(255, 255, 255, 0.85);
+  --wiki-text-secondary: rgba(255, 255, 255, 0.45);
+  --wiki-text-tertiary: rgba(255, 255, 255, 0.30);
+
+  /* Borders */
+  --wiki-border-color: #434343;
+  --wiki-border-color-light: #303030;
+
+  /* Shadows (more pronounced in dark mode) */
+  --wiki-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --wiki-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --wiki-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --wiki-shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Spacing utilities */
+.wiki-section-gap {
+  margin-bottom: var(--wiki-section-spacing);
+}
+
+.wiki-group-gap {
+  margin-bottom: var(--wiki-group-spacing);
+}
+
+.wiki-item-gap {
+  margin-bottom: var(--wiki-item-spacing);
+}
+
+/* Typography utilities */
+.wiki-label {
+  font-size: var(--wiki-font-size-label);
+  font-weight: var(--wiki-font-weight-label);
+  text-transform: uppercase;
+  letter-spacing: var(--wiki-letter-spacing-label);
+  color: var(--wiki-text-secondary);
+}
+
+.wiki-title-h1 {
+  font-size: var(--wiki-font-size-h1);
+  font-weight: var(--wiki-font-weight-h1);
+  letter-spacing: var(--wiki-letter-spacing-title);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.wiki-title-h2 {
+  font-size: var(--wiki-font-size-h2);
+  font-weight: var(--wiki-font-weight-h2);
+  letter-spacing: var(--wiki-letter-spacing-title);
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* Border utilities */
+.wiki-border {
+  border: var(--wiki-border-width) solid var(--wiki-border-color);
+}
+
+.wiki-border-light {
+  border: var(--wiki-border-width) solid var(--wiki-border-color-light);
+}
+
+/* Shadow utilities */
+.wiki-shadow-sm {
+  box-shadow: var(--wiki-shadow-sm);
+}
+
+.wiki-shadow-md {
+  box-shadow: var(--wiki-shadow-md);
+}
+
+.wiki-shadow-lg {
+  box-shadow: var(--wiki-shadow-lg);
+}
+
+/* Hover effects (Gestalt: Common Fate) */
+.wiki-hover-lift {
+  transition: transform var(--wiki-transition-normal), box-shadow var(--wiki-transition-normal);
+}
+
+.wiki-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--wiki-shadow-lg);
+}
+
+/* Card patterns (Gestalt: Closure) */
+.wiki-card {
+  background: var(--wiki-bg-primary);
+  border: var(--wiki-border-width) solid var(--wiki-border-color);
+  border-radius: var(--wiki-border-radius-lg);
+  padding: var(--wiki-card-padding);
+  box-shadow: var(--wiki-shadow-sm);
+}
+
+.wiki-card-header {
+  background: var(--wiki-header-gradient-light);
+  border-radius: var(--wiki-border-radius-lg);
+  padding: var(--wiki-card-padding);
+  margin-bottom: var(--wiki-group-spacing);
+}
+
+[data-theme='dark'] .wiki-card-header {
+  background: var(--wiki-header-gradient-dark);
+}
+
+/* Stat card pattern (from ProjectDetail) */
+.wiki-stat-card {
+  flex: 1 1 calc(20% - 10px);
+  min-width: 100px;
+  text-align: center;
+  padding: 16px 12px;
+  background: var(--wiki-bg-primary);
+  border: var(--wiki-border-width) solid var(--wiki-border-color);
+  border-radius: var(--wiki-border-radius-lg);
+  box-shadow: var(--wiki-shadow-sm);
+  transition: transform var(--wiki-transition-normal), box-shadow var(--wiki-transition-normal);
+}
+
+.wiki-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--wiki-shadow-lg);
+}
+
+.wiki-stat-card-icon {
+  font-size: 24px;
+  margin-bottom: var(--wiki-item-spacing);
+}
+
+.wiki-stat-card-label {
+  font-size: var(--wiki-font-size-label);
+  color: var(--wiki-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: var(--wiki-letter-spacing-label);
+  margin-bottom: 4px;
+}
+
+.wiki-stat-card-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Copyable link pattern (from IncidentDetail) */
+.wiki-copyable-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wiki-item-spacing);
+  padding: 6px 12px;
+  background: var(--wiki-bg-secondary);
+  border: var(--wiki-border-width) solid var(--wiki-border-color);
+  border-radius: var(--wiki-border-radius-sm);
+  font-family: var(--wiki-font-family-mono);
+  font-size: 13px;
+}
+
+.wiki-copy-button {
+  padding: 2px 4px;
+  height: auto;
+  font-size: 12px;
+  transition: all var(--wiki-transition-fast);
+}
+
+.wiki-copy-button:hover {
+  color: var(--wiki-primary);
+  transform: scale(1.1);
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+  :root {
+    --wiki-font-size-h1: 28px;
+    --wiki-font-size-h2: 24px;
+    --wiki-section-spacing: 16px;
+  }
+
+  .wiki-stat-card {
+    flex: 1 1 calc(50% - 10px);
+  }
+}

@@ -28,3 +28,13 @@ export const getHeaderBannerStyle = (token) => {
 export const getHeaderIconColor = (token) => {
   return token.colorPrimary || '#1890ff'
 }
+
+/**
+ * Check if dark mode is enabled
+ * @param {Object} token - Ant Design theme token from theme.useToken()
+ * @returns {boolean} True if dark mode is enabled
+ */
+export const getIsDarkMode = (token) => {
+  return token.colorBgContainer &&
+    parseInt(token.colorBgContainer.replace('#', ''), 16) < 0x808080
+}

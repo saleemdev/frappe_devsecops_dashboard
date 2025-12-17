@@ -1,21 +1,55 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Button, Empty, Spin, message, Space, Input, Tooltip, Modal, Form, Typography, Table, Tag, Popconfirm, Row, Col } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, FolderOutlined, EyeOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
-import { getWikiSpaces, createWikiSpace, deleteWikiSpace } from '../api/wiki'
+import { Card, Button, Empty, Spin, message, Space, Input, Tooltip, Typography, Table, Tag, Popconfirm, Row, Col, theme } from 'antd'
+import { PlusOutlined, DeleteOutlined, FolderOutlined, EyeOutlined, SearchOutlined, ReloadOutlined, EditOutlined, CopyOutlined, LinkOutlined } from '@ant-design/icons'
+import { getWikiSpaces, deleteWikiSpace } from '../api/wiki'
+import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
+import '../styles/wikiDesignSystem.css'
 
 const { Title, Text } = Typography
 
 const WikiHome = ({ navigateToRoute }) => {
+  const { token } = theme.useToken()
   const [spaces, setSpaces] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [form] = Form.useForm()
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     loadWikiSpaces()
+  }, [])
+
+  // After returning from create, ensure list refreshes and bypass any cache
+  useEffect(() => {
+    (async () => {
+      try {
+        const shouldRefresh = sessionStorage.getItem('wiki:refreshOnNextVisit')
+        if (shouldRefresh) {
+          sessionStorage.removeItem('wiki:refreshOnNextVisit')
+          await loadWikiSpaces()
+          // Double refresh after short delay in case backend index updates slightly later
+          setTimeout(() => { loadWikiSpaces() }, 500)
+        }
+      } catch (e) { /* ignore */ }
+    })()
+  }, [])
+
+  // Reload list when coming back to #wiki via hashchange or when tab becomes visible
+  useEffect(() => {
+    const refreshIfWiki = () => {
+      const hash = (window.location.hash || '').replace(/^#/, '')
+      if (hash === 'wiki') {
+        loadWikiSpaces()
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshIfWiki()
+    }
+    window.addEventListener('hashchange', refreshIfWiki)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('hashchange', refreshIfWiki)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [])
 
   const loadWikiSpaces = async () => {
@@ -30,41 +64,8 @@ const WikiHome = ({ navigateToRoute }) => {
     }
   }
 
-  const generateSlug = (text) => {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-  }
-
   const handleCreateSpace = () => {
-    setShowCreateModal(true)
-  }
-
-  const handleCreateSpaceSubmit = async (values) => {
-    try {
-      setCreating(true)
-      const spaceData = {
-        name: values.spaceName,
-        route: values.route || generateSlug(values.spaceName),
-        description: values.description || ''
-      }
-      const createdSpace = await createWikiSpace(spaceData)
-      form.resetFields()
-      setShowCreateModal(false)
-      message.success('Wiki space created successfully')
-      loadWikiSpaces()
-      // Navigate to the new space using the returned name (hash)
-      if (createdSpace && createdSpace.name) {
-        navigateToRoute('wiki-space', createdSpace.name)
-      }
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setCreating(false)
-    }
+    navigateToRoute('wiki-create')
   }
 
   const handleSpaceClick = (spaceSlug) => {
@@ -88,24 +89,78 @@ const WikiHome = ({ navigateToRoute }) => {
     }
   }
 
+  const copyToClipboard = (text) => {
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text)
+    }
+
+    // Fallback for older browsers or non-HTTPS contexts
+    return new Promise((resolve, reject) => {
+      try {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        const success = document.execCommand('copy')
+        document.body.removeChild(textarea)
+
+        if (success) {
+          resolve()
+        } else {
+          reject(new Error('Copy failed'))
+        }
+      } catch (err) {
+        reject(err)
+      }
+    })
+  }
+
+  const handleCopyLink = (spaceName) => {
+    // Find the space to get its route
+    const space = spaces.find(s => s.name === spaceName)
+    // Use route as-is - it already contains the full path
+    const url = space?.route
+      ? `${window.location.origin}/${space.route}`
+      : `${window.location.origin}${window.location.pathname}#wiki/space/${spaceName}`
+
+    copyToClipboard(url).then(() => {
+      message.success('✓ Documentation link copied to clipboard!')
+    }).catch(() => {
+      message.error('Failed to copy link')
+    })
+  }
+
+  const handleOpenPublicSpace = (record) => {
+    if (record.route) {
+      // Use route as-is - it already contains the full path
+      const url = `${window.location.origin}/${record.route}`
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } else {
+      message.info('This space does not have a public URL yet')
+    }
+  }
+
   const filteredSpaces = spaces.filter(space =>
-    space.title?.toLowerCase().includes(searchText.toLowerCase()) ||
-    space.name?.toLowerCase().includes(searchText.toLowerCase()) ||
-    space.description?.toLowerCase().includes(searchText.toLowerCase())
+    (space.space_name || space.name || '').toLowerCase().includes(searchText.toLowerCase()) ||
+    (space.name || '').toLowerCase().includes(searchText.toLowerCase()) ||
+    (space.description || '').toLowerCase().includes(searchText.toLowerCase())
   )
 
   // Table columns configuration
   const columns = [
     {
       title: 'Title',
-      dataIndex: 'title',
-      key: 'title',
+      dataIndex: 'space_name',
+      key: 'space_name',
       ellipsis: true,
-      sorter: (a, b) => (a.title || a.name).localeCompare(b.title || b.name),
+      sorter: (a, b) => (a.space_name || a.name || '').localeCompare(b.space_name || b.name || ''),
       render: (text, record) => (
         <a onClick={() => handleSpaceClick(record.name)}>
           <FolderOutlined style={{ marginRight: '8px', color: '#1677ff' }} />
-          {text || record.name}
+          {(record.space_name || record.name)}
         </a>
       )
     },
@@ -141,14 +196,32 @@ const WikiHome = ({ navigateToRoute }) => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 180,
+      width: 260,
       render: (_, record) => (
         <Space size="small">
+          {record.route && (
+            <Tooltip title="Open public space">
+              <Button
+                type="text"
+                icon={<LinkOutlined />}
+                onClick={() => handleOpenPublicSpace(record)}
+                style={{ color: '#52c41a' }}
+              />
+            </Tooltip>
+          )}
           <Tooltip title="View Space">
             <Button
               type="text"
               icon={<EyeOutlined />}
               onClick={() => handleSpaceClick(record.name)}
+            />
+          </Tooltip>
+          <Tooltip title="Copy Documentation Link">
+            <Button
+              type="text"
+              icon={<CopyOutlined />}
+              onClick={() => handleCopyLink(record.name)}
+              style={{ color: '#1890ff' }}
             />
           </Tooltip>
           <Tooltip title="Edit Space">
@@ -165,6 +238,7 @@ const WikiHome = ({ navigateToRoute }) => {
               onConfirm={() => handleDeleteSpace(record.name)}
               okText="Yes"
               cancelText="No"
+              okButtonProps={{ danger: true }}
             >
               <Button
                 type="text"
@@ -181,12 +255,29 @@ const WikiHome = ({ navigateToRoute }) => {
   return (
     <div style={{ padding: '24px' }}>
       {/* Header Section */}
-      <div style={{ marginBottom: '32px' }}>
-        <Title level={2} style={{ marginBottom: '8px' }}>Wiki Documentation</Title>
-        <Text type="secondary">
-          Use wiki spaces to group documentation by product, domain, or project. Easily manage and share knowledge with your team.
-        </Text>
-      </div>
+      <Card style={{ marginBottom: 16, ...getHeaderBannerStyle(token) }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Space direction="vertical" size="small">
+              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                <FolderOutlined style={{ marginRight: 16, color: getHeaderIconColor(token), fontSize: '32px' }} />
+                Wiki Documentation
+              </Title>
+              <Text type="secondary">Use wiki spaces to group documentation by product, domain, or project.</Text>
+            </Space>
+          </Col>
+          <Col>
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={refreshing}>
+                Refresh
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateSpace}>
+                New Wiki Space
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
 
       {/* Toolbar Section */}
       <Card style={{ marginBottom: '24px' }}>
@@ -199,24 +290,6 @@ const WikiHome = ({ navigateToRoute }) => {
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
             />
-          </Col>
-          <Col>
-            <Tooltip title="Refresh">
-              <Button
-                icon={<ReloadOutlined />}
-                loading={refreshing}
-                onClick={handleRefresh}
-              />
-            </Tooltip>
-          </Col>
-          <Col>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleCreateSpace}
-            >
-              New Wiki Space
-            </Button>
           </Col>
         </Row>
       </Card>
@@ -242,67 +315,19 @@ const WikiHome = ({ navigateToRoute }) => {
           columns={columns}
           dataSource={filteredSpaces}
           rowKey="name"
-          pagination={{ pageSize: 10, showSizeChanger: true }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total, range) => (
+              <Text strong style={{ fontSize: '13px' }}>
+                {range[0]}-{range[1]} of {total} spaces
+              </Text>
+            )
+          }}
           loading={loading}
         />
       )}
 
-      {/* Create Wiki Space Modal */}
-      <Modal
-        title="Create Wiki Space"
-        open={showCreateModal}
-        onCancel={() => {
-          setShowCreateModal(false)
-          form.resetFields()
-        }}
-        onOk={() => form.submit()}
-        confirmLoading={creating}
-        width={500}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreateSpaceSubmit}
-        >
-          <Form.Item
-            label="Space Name"
-            name="spaceName"
-            rules={[
-              { required: true, message: 'Please enter a space name' },
-              { min: 2, message: 'Space name must be at least 2 characters' }
-            ]}
-          >
-            <Input
-              placeholder="e.g., API Documentation"
-              size="large"
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Route (URL slug)"
-            name="route"
-            rules={[
-              { pattern: /^[a-z0-9-]*$/, message: 'Route can only contain lowercase letters, numbers, and hyphens' }
-            ]}
-            tooltip="Auto-generated from space name if left empty"
-          >
-            <Input
-              placeholder="Auto-generated from space name"
-              size="large"
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Description (optional)"
-            name="description"
-          >
-            <Input.TextArea
-              placeholder="Brief description of this wiki space"
-              rows={3}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   )
 }

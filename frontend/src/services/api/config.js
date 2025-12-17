@@ -79,6 +79,25 @@ const API_CONFIG = {
     dashboard: {
       metrics: '/api/method/frappe_devsecops_dashboard.api.dashboard.get_dashboard_metrics',
       projects: '/api/method/frappe_devsecops_dashboard.api.dashboard.get_projects_with_tasks'
+    },
+
+    // Wiki
+    wiki: {
+      spaces: {
+        list: '/api/method/frappe_devsecops_dashboard.api.wiki.get_wiki_spaces',
+        detail: '/api/method/frappe_devsecops_dashboard.api.wiki.get_wiki_space',
+        create: '/api/method/frappe_devsecops_dashboard.api.wiki.create_wiki_space',
+        update: '/api/method/frappe_devsecops_dashboard.api.wiki.update_wiki_space',
+        delete: '/api/method/frappe_devsecops_dashboard.api.wiki.delete_wiki_space'
+      },
+      pages: {
+        list: '/api/method/frappe_devsecops_dashboard.api.wiki.get_wiki_pages_for_space',
+        listByProject: '/api/method/frappe_devsecops_dashboard.api.wiki.get_wiki_pages_for_project',
+        detail: '/api/method/frappe_devsecops_dashboard.api.wiki.get_wiki_page',
+        create: '/api/method/frappe_devsecops_dashboard.api.wiki.create_wiki_page',
+        update: '/api/method/frappe_devsecops_dashboard.api.wiki.update_wiki_page',
+        delete: '/api/method/frappe_devsecops_dashboard.api.wiki.delete_wiki_page'
+      }
     }
   },
 

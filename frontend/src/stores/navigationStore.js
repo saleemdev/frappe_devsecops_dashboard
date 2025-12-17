@@ -465,6 +465,23 @@ const useNavigationStore = create(
             window.location.hash = 'wiki'
             break
 
+          case 'wiki-create':
+            set({
+              currentRoute: 'wiki-create',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false,
+              selectedWikiSpaceSlug: null,
+              selectedWikiPageSlug: null
+            })
+            window.location.hash = 'wiki/create'
+            break
+
           case 'wiki-space':
             if (projectId) { // reuse projectId to carry space slug
               set({
@@ -481,6 +498,25 @@ const useNavigationStore = create(
                 showSwaggerDetail: false
               })
               window.location.hash = `wiki/space/${projectId}`
+            }
+            break
+
+          case 'wiki-page-create':
+            if (projectId) { // reuse projectId for space slug
+              set({
+                currentRoute: 'wiki-page-create',
+                selectedWikiSpaceSlug: projectId,
+                selectedWikiPageSlug: null,
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
+              })
+              window.location.hash = `wiki/space/${projectId}/page/new`
             }
             break
 
@@ -1093,17 +1129,22 @@ const useNavigationStore = create(
           })
         } else if (hash === 'wiki') {
           get().navigateToRoute('wiki')
+        } else if (hash === 'wiki/create') {
+          get().navigateToRoute('wiki-create')
         } else if (hash.startsWith('wiki/space/')) {
           const parts = hash.split('/')
           const spaceSlug = parts[2]
           const pageAction = parts[3] // 'page' or undefined
           const pageSlug = parts[4] // page slug if pageAction is 'page'
 
-          if (pageAction === 'page' && pageSlug) {
-            // Handle wiki page route
+          if (pageAction === 'page' && pageSlug === 'new') {
+            // Create page route
+            get().navigateToRoute('wiki-page-create', spaceSlug)
+          } else if (pageAction === 'page' && pageSlug) {
+            // View page route
             get().navigateToRoute('wiki-page', spaceSlug, pageSlug)
           } else {
-            // Handle wiki space route
+            // Space route
             get().navigateToRoute('wiki-space', spaceSlug)
           }
         } else if (hash === 'raci-template') {
@@ -1376,11 +1417,26 @@ const useNavigationStore = create(
                 { title: 'Wiki' }
               )
               break
+            case 'wiki-create':
+              items.push(
+                { title: 'Ops', onClick: () => get().navigateToRoute('wiki') },
+                { title: 'Wiki', onClick: () => get().navigateToRoute('wiki') },
+                { title: 'Create Space' }
+              )
+              break
             case 'wiki-space':
               items.push(
                 { title: 'Ops', onClick: () => get().navigateToRoute('wiki') },
                 { title: 'Wiki', onClick: () => get().navigateToRoute('wiki') },
                 { title: state.selectedWikiSpaceSlug || 'Space' }
+              )
+              break
+            case 'wiki-page-create':
+              items.push(
+                { title: 'Ops', onClick: () => get().navigateToRoute('wiki') },
+                { title: 'Wiki', onClick: () => get().navigateToRoute('wiki') },
+                { title: state.selectedWikiSpaceSlug || 'Space', onClick: () => get().navigateToRoute('wiki-space', state.selectedWikiSpaceSlug) },
+                { title: 'Create Page' }
               )
               break
             case 'wiki-page':

@@ -16,7 +16,7 @@ Regimen:
     Regimen Code (Docname) eg SHA-06-022-1
     Regimen Description eg Breast Cancer Regimen 1
     Cycle (integer): eg 6. Limit
-    Time between cycles (Uom) eg Weekly, Fortnightly, Monthly, Quarterly, Half Yearly, Yearly
+    Time between cycles (Uom): eg Weekly, Fortnightly, Monthly, Quarterly, Half Yearly, Yearly
     Regimen Items (Table)
         Item (Link to Item) - Sync from catalog
         Units (float): eg 1000
@@ -40,6 +40,8 @@ CarePlan:
         UOM (Link(uom))
         Date of Administration: 2025-10-10
         Status (select): Draft, Active, Completed, Cancelled, Prescribed, Dispensed
+		Cycle (integer): eg 6. Limit
+																										
 Medication Administration, MedicationRequest, MedicationDispense:
     Link to Care Plan
     Date of Administration

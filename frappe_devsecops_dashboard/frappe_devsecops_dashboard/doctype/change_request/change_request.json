@@ -110,7 +110,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Related Incident",
-   "options": "Incident"
+   "options": "Devsecops Dashboard Incident"
   },
   {
    "fieldname": "section_break_2",

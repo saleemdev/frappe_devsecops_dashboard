@@ -1099,11 +1099,13 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
       {/* Prominent Approval Notification for Current User - Only in edit mode */}
       {mode === 'edit' && (() => {
         const currentUserEmail = user?.email || user?.name
-        const currentUserApprover = approvers.find(
+        const approverIndex = approvers.findIndex(
           approver => approver.user === currentUserEmail && approver.approval_status === 'Pending'
         )
 
-        if (!currentUserApprover) return null
+        if (approverIndex === -1) return null
+
+        const currentUserApprover = approvers[approverIndex]
 
         return (
           <Card
@@ -1154,15 +1156,30 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 border: '1px solid #ffe58f'
               }}>
                 <Text type="secondary" style={{ fontSize: '13px', display: 'block', marginBottom: '12px' }}>
-                  This change request requires your approval. Please scroll down to the <strong>Approvals</strong> section to approve or reject.
+                  This change request requires your approval. Take action now:
                 </Text>
-                <Button
-                  type="primary"
-                  onClick={() => setActiveTab('4')}
-                  style={{ fontWeight: 600 }}
-                >
-                  Go to Approvals Section
-                </Button>
+                <Space size="middle">
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleFilled />}
+                    onClick={() => handleApproveClick(approverIndex, currentUserApprover)}
+                    style={{
+                      backgroundColor: '#52c41a',
+                      borderColor: '#52c41a',
+                      fontWeight: 600
+                    }}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    danger
+                    icon={<CloseCircleFilled />}
+                    onClick={() => handleRejectClick(approverIndex, currentUserApprover)}
+                    style={{ fontWeight: 600 }}
+                  >
+                    Reject
+                  </Button>
+                </Space>
               </div>
             </Space>
           </Card>

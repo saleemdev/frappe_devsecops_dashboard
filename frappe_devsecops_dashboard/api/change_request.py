@@ -130,7 +130,7 @@ def get_change_request(name: str) -> Dict[str, Any]:
         # Enrich with incident details if linked
         if data.get('incident'):
             try:
-                incident_doc = frappe.get_doc('Incident', data['incident'])
+                incident_doc = frappe.get_doc('Devsecops Dashboard Incident', data['incident'])
                 if incident_doc.has_permission('read'):
                     data['incident_details'] = {
                         'name': incident_doc.name,

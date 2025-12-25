@@ -55,10 +55,11 @@ import AskAI from './components/AskAI'
 import APIProvisioning from './components/APIProvisioning'
 import APIRouteForm from './components/APIRouteForm'
 import WikiHome from './components/WikiHome'
-import WikiSpaceDetail from './components/WikiSpaceDetail'
+import WikiSpacePages from './components/WikiSpacePages'
 import WikiPageViewEnhanced from './components/WikiPageViewEnhanced'
 import WikiCreateForm from './components/WikiCreateForm'
 import WikiPageCreate from './components/WikiPageCreate'
+import WikiPageEdit from './components/WikiPageEdit'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -508,12 +509,19 @@ function AppContent({
         return <SwaggerCollections />
       case 'wiki':
         return <WikiHome navigateToRoute={navigateToRoute} />
+      case 'wiki-space':
+        return (
+          <WikiSpacePages
+            spaceId={selectedWikiSpaceSlug}
+            navigateToRoute={navigateToRoute}
+          />
+        )
       case 'wiki-create':
         return <WikiCreateForm navigateToRoute={navigateToRoute} />
-      case 'wiki-space':
-        return <WikiSpaceDetail spaceSlug={selectedWikiSpaceSlug} navigateToRoute={navigateToRoute} />
       case 'wiki-page-create':
-        return <WikiPageCreate spaceSlug={selectedWikiSpaceSlug} navigateToRoute={navigateToRoute} />
+        return <WikiPageEdit mode="create" wikiSpaceName={selectedWikiSpaceSlug} navigateToRoute={navigateToRoute} />
+      case 'wiki-page-edit':
+        return <WikiPageEdit mode="edit" pageId={selectedWikiPageSlug} navigateToRoute={navigateToRoute} />
       case 'wiki-page':
         return <WikiPageViewEnhanced pageSlug={selectedWikiPageSlug} navigateToRoute={navigateToRoute} />
       case 'devops-config':

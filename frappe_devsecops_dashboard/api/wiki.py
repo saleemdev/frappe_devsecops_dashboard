@@ -113,14 +113,28 @@ def get_wiki_space(space_name):
 	Get a specific Wiki Space with its details
 
 	Args:
-		space_name: name of the wiki space
+		space_name: name or route of the wiki space
 
 	Returns:
 		wiki space document
 	"""
 	try:
-		space = frappe.get_doc("Wiki Space", space_name)
-		frappe.has_permission("Wiki Space", "read", space_name, throw=True)
+		# First try to get by name
+		if frappe.db.exists("Wiki Space", space_name):
+			space = frappe.get_doc("Wiki Space", space_name)
+		else:
+			# Try to find by route
+			space_doc = frappe.get_all(
+				"Wiki Space",
+				filters={"route": space_name},
+				fields=["name"],
+				limit=1
+			)
+			if not space_doc:
+				frappe.throw(_("Wiki Space not found"))
+			space = frappe.get_doc("Wiki Space", space_doc[0].name)
+
+		frappe.has_permission("Wiki Space", "read", space.name, throw=True)
 		space_dict = space.as_dict()
 		space_dict['title'] = space_dict.get('space_name') or space_dict.get('route', '')
 		return space_dict
@@ -131,14 +145,19 @@ def get_wiki_space(space_name):
 
 
 @frappe.whitelist()
-def create_wiki_space(name, route, description=None):
+def create_wiki_space(name, route, description=None, app_switcher_logo=None,
+                     favicon=None, light_mode_logo=None, dark_mode_logo=None):
 	"""
-	Create a new Wiki Space
+	Create a new Wiki Space with full metadata including branding
 
 	Args:
 		name: space name/title
 		route: unique route for the space
 		description: optional space description
+		app_switcher_logo: optional app switcher logo file URL
+		favicon: optional favicon file URL
+		light_mode_logo: optional light mode logo file URL
+		dark_mode_logo: optional dark mode logo file URL
 
 	Returns:
 		created wiki space document
@@ -149,8 +168,17 @@ def create_wiki_space(name, route, description=None):
 		space = frappe.new_doc("Wiki Space")
 		space.space_name = name
 		space.route = route
+
 		if description:
 			space.description = description
+		if app_switcher_logo:
+			space.app_switcher_logo = app_switcher_logo
+		if favicon:
+			space.favicon = favicon
+		if light_mode_logo:
+			space.light_mode_logo = light_mode_logo
+		if dark_mode_logo:
+			space.dark_mode_logo = dark_mode_logo
 
 		space.insert()
 		return space.as_dict()
@@ -366,15 +394,17 @@ def create_wiki_page(title, content, route, wiki_space=None, project_name=None, 
 		page.route = route
 		page.published = cint(published)
 
-		if wiki_space:
-			page.wiki_space = wiki_space
+		# Note: wiki_space Link field removed - only use sidebars child table
+		# if wiki_space:
+		#     page.wiki_space = wiki_space
 
 		if project_name:
 			page.custom_linked_project = project_name
 
 		page.insert()
 
-		# If linked to a Wiki Space, ensure the space's sidebar (child table) includes this page
+		# If linked to a Wiki Space, add to the space's sidebar (child table)
+		# This is the ONLY way pages link to spaces now
 		if wiki_space:
 			# Check if Wiki Space exists
 			if not frappe.db.exists("Wiki Space", wiki_space):
@@ -658,50 +688,33 @@ def delete_wiki_page(page_name):
 
 @frappe.whitelist()
 def get_wiki_space_sidebar(space_name):
-	"""
-	Get Wiki Space sidebar items with current ordering
+	"""Get Wiki Space sidebar items - SIMPLE VERSION"""
+	# Get the Wiki Space document
+	doc = frappe.get_doc("Wiki Space", space_name)
 
-	Args:
-		space_name: name of the wiki space
+	# Get child table items
+	sidebar_items = doc.get("wiki_sidebars") or []
 
-	Returns:
-		list of sidebar items ordered by idx
-	"""
-	try:
-		frappe.has_permission("Wiki Space", "read", space_name, throw=True)
-
-		# Get all Wiki Group Items for this space, ordered by idx
-		sidebar_items = frappe.get_all(
-			"Wiki Group Item",
-			filters={
-				"parenttype": "Wiki Space",
-				"parent": space_name
-			},
-			fields=["name", "wiki_page", "parent_label", "idx", "hide_on_sidebar"],
-			order_by="idx asc"
-		)
-
-		# Enrich with Wiki Page title if parent_label is empty
-		for item in sidebar_items:
-			if item.wiki_page:
+	# Loop and enrich with Wiki Page details
+	result = []
+	for item in sidebar_items:
+		if item.wiki_page:
+			try:
 				page = frappe.get_doc("Wiki Page", item.wiki_page)
-				item["page_title"] = page.title
-				item["page_route"] = page.route
-				item["page_published"] = page.published
-			else:
-				item["page_title"] = item.parent_label or "Untitled"
-				item["page_route"] = None
-				item["page_published"] = 0
+				result.append({
+					"name": item.name,
+					"wiki_page": item.wiki_page,
+					"parent_label": item.parent_label,
+					"idx": item.idx,
+					"page_title": page.title,
+					"page_route": page.route,
+					"page_published": page.published,
+					"page_name": page.name
+				})
+			except Exception as e:
+				frappe.log_error(f"Error loading page {item.wiki_page}: {str(e)}")
 
-		return sidebar_items
-
-	except frappe.PermissionError:
-		frappe.throw(_("You do not have permission to view this wiki space"))
-	except frappe.DoesNotExistError:
-		frappe.throw(_("Wiki Space not found"))
-	except Exception as e:
-		frappe.log_error(f"Error fetching wiki space sidebar: {str(e)}")
-		frappe.throw(_("Failed to fetch wiki space sidebar"))
+	return result
 
 
 @frappe.whitelist()
@@ -710,7 +723,7 @@ def update_wiki_space_sidebar(space_name, sidebar_items):
 	Update Wiki Space sidebar ordering and settings
 
 	Args:
-		space_name: name of the wiki space
+		space_name: name or route of the wiki space
 		sidebar_items: list of sidebar items with updated idx values
 		                Format: [{"name": "item-id", "idx": 1, "parent_label": "Label"}, ...]
 
@@ -718,7 +731,21 @@ def update_wiki_space_sidebar(space_name, sidebar_items):
 		success message with updated sidebar
 	"""
 	try:
-		frappe.has_permission("Wiki Space", "write", space_name, throw=True)
+		# Resolve space name (handle both name and route)
+		actual_space_name = space_name
+		if not frappe.db.exists("Wiki Space", space_name):
+			# Try to find by route
+			space_doc = frappe.get_all(
+				"Wiki Space",
+				filters={"route": space_name},
+				fields=["name"],
+				limit=1
+			)
+			if not space_doc:
+				frappe.throw(_("Wiki Space not found"))
+			actual_space_name = space_doc[0].name
+
+		frappe.has_permission("Wiki Space", "write", actual_space_name, throw=True)
 
 		if isinstance(sidebar_items, str):
 			import json
@@ -756,7 +783,7 @@ def update_wiki_space_sidebar(space_name, sidebar_items):
 			frappe.logger().warning(f"Could not clear sidebar cache: {str(cache_err)}")
 
 		# Return updated sidebar
-		updated_sidebar = get_wiki_space_sidebar(space_name)
+		updated_sidebar = get_wiki_space_sidebar(actual_space_name)
 
 		return {
 			"message": "Wiki space sidebar updated successfully",

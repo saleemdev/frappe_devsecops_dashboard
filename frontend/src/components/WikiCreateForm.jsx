@@ -9,12 +9,14 @@ import {
   Space,
   message,
   Typography,
-  Divider
+  Divider,
+  Upload
 } from 'antd'
 import {
   ArrowLeftOutlined,
   SaveOutlined,
-  FolderOutlined
+  FolderOutlined,
+  PlusOutlined
 } from '@ant-design/icons'
 import { createWikiSpace } from '../api/wiki'
 
@@ -28,6 +30,12 @@ const { Title, Text } = Typography
 function WikiCreateForm({ navigateToRoute }) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [fileList, setFileList] = useState({
+    appSwitcherLogo: [],
+    favicon: [],
+    lightModeLogo: [],
+    darkModeLogo: []
+  })
 
   const generateSlug = (text) => {
     return text
@@ -45,7 +53,11 @@ function WikiCreateForm({ navigateToRoute }) {
       const spaceData = {
         name: values.spaceName,
         route: values.route || generateSlug(values.spaceName),
-        description: values.description || ''
+        description: values.description || '',
+        app_switcher_logo: null, // TODO: Implement file upload
+        favicon: null,
+        light_mode_logo: null,
+        dark_mode_logo: null
       }
 
       console.log('Creating wiki space with data:', spaceData)
@@ -63,14 +75,8 @@ function WikiCreateForm({ navigateToRoute }) {
         }
       } catch (e) { /* ignore storage errors */ }
 
-      // Navigate to the new space or back to wiki home
-      if (createdSpace && createdSpace.name) {
-        console.log('Navigating to wiki-space:', createdSpace.name)
-        navigateToRoute('wiki-space', createdSpace.name)
-      } else {
-        console.log('No space name in response, navigating to wiki home')
-        navigateToRoute('wiki')
-      }
+      // Navigate back to wiki home
+      navigateToRoute('wiki')
     } catch (error) {
       console.error('Error creating wiki space:', error)
       message.error(error.message || 'Failed to create wiki space')
@@ -160,6 +166,109 @@ function WikiCreateForm({ navigateToRoute }) {
                   rows={4}
                 />
               </Form.Item>
+
+              <Divider />
+
+              {/* Branding Section */}
+              <Title level={4} style={{ marginTop: 24, marginBottom: 16 }}>
+                Branding & Icons (Optional)
+              </Title>
+
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    label="App Switcher Logo"
+                    name="appSwitcherLogo"
+                    tooltip="Logo displayed in the application switcher"
+                  >
+                    <Upload
+                      listType="picture-card"
+                      maxCount={1}
+                      beforeUpload={() => false}
+                      accept="image/*"
+                      onChange={(info) => setFileList({ ...fileList, appSwitcherLogo: info.fileList })}
+                    >
+                      {fileList.appSwitcherLogo.length === 0 && (
+                        <div>
+                          <PlusOutlined />
+                          <div style={{ marginTop: 8 }}>Upload</div>
+                        </div>
+                      )}
+                    </Upload>
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    label="Favicon"
+                    name="favicon"
+                    tooltip="Favicon for the wiki space"
+                  >
+                    <Upload
+                      listType="picture-card"
+                      maxCount={1}
+                      beforeUpload={() => false}
+                      accept="image/*"
+                      onChange={(info) => setFileList({ ...fileList, favicon: info.fileList })}
+                    >
+                      {fileList.favicon.length === 0 && (
+                        <div>
+                          <PlusOutlined />
+                          <div style={{ marginTop: 8 }}>Upload</div>
+                        </div>
+                      )}
+                    </Upload>
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    label="Light Mode Logo"
+                    name="lightModeLogo"
+                    tooltip="Logo for light theme"
+                  >
+                    <Upload
+                      listType="picture-card"
+                      maxCount={1}
+                      beforeUpload={() => false}
+                      accept="image/*"
+                      onChange={(info) => setFileList({ ...fileList, lightModeLogo: info.fileList })}
+                    >
+                      {fileList.lightModeLogo.length === 0 && (
+                        <div>
+                          <PlusOutlined />
+                          <div style={{ marginTop: 8 }}>Upload</div>
+                        </div>
+                      )}
+                    </Upload>
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    label="Dark Mode Logo"
+                    name="darkModeLogo"
+                    tooltip="Logo for dark theme"
+                  >
+                    <Upload
+                      listType="picture-card"
+                      maxCount={1}
+                      beforeUpload={() => false}
+                      accept="image/*"
+                      onChange={(info) => setFileList({ ...fileList, darkModeLogo: info.fileList })}
+                    >
+                      {fileList.darkModeLogo.length === 0 && (
+                        <div>
+                          <PlusOutlined />
+                          <div style={{ marginTop: 8 }}>Upload</div>
+                        </div>
+                      )}
+                    </Upload>
+                  </Form.Item>
+                </Col>
+              </Row>
 
               <Divider />
 

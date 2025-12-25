@@ -539,6 +539,25 @@ const useNavigationStore = create(
             }
             break
 
+          case 'wiki-page-edit':
+            if (projectId) { // projectId is the page document name
+              set({
+                currentRoute: 'wiki-page-edit',
+                selectedWikiPageSlug: projectId,
+                selectedWikiSpaceSlug: null,
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
+              })
+              window.location.hash = `wiki/page/edit/${projectId}`
+            }
+            break
+
           case 'devops-config':
             set({
               currentRoute: 'devops-config',
@@ -1131,6 +1150,10 @@ const useNavigationStore = create(
           get().navigateToRoute('wiki')
         } else if (hash === 'wiki/create') {
           get().navigateToRoute('wiki-create')
+        } else if (hash.startsWith('wiki/page/edit/')) {
+          // Edit page route: wiki/page/edit/{pageDocName}
+          const pageId = hash.replace('wiki/page/edit/', '')
+          get().navigateToRoute('wiki-page-edit', pageId)
         } else if (hash.startsWith('wiki/space/')) {
           const parts = hash.split('/')
           const spaceSlug = parts[2]
@@ -1445,6 +1468,13 @@ const useNavigationStore = create(
                 { title: 'Wiki', onClick: () => get().navigateToRoute('wiki') },
                 { title: state.selectedWikiSpaceSlug || 'Space', onClick: () => get().navigateToRoute('wiki-space', state.selectedWikiSpaceSlug) },
                 { title: state.selectedWikiPageSlug || 'Page' }
+              )
+              break
+            case 'wiki-page-edit':
+              items.push(
+                { title: 'Ops', onClick: () => get().navigateToRoute('wiki') },
+                { title: 'Wiki', onClick: () => get().navigateToRoute('wiki') },
+                { title: 'Edit Page' }
               )
               break
             default:

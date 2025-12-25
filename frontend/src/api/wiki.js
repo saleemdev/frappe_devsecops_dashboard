@@ -197,8 +197,8 @@ class WikiService {
         title: pageData.title,
         content: pageData.content || '',
         route: pageData.route,
-        wiki_space: pageData.wikiSpace || null,
-        project_name: pageData.projectName || null,
+        wiki_space: pageData.wiki_space || pageData.wikiSpace || null,
+        project_name: pageData.project_name || pageData.projectName || null,
         published: pageData.published ? 1 : 0
       })
 
@@ -330,13 +330,15 @@ class WikiService {
       const response = await client.post(API_CONFIG.endpoints.wiki.spaces.create, {
         name: spaceData.name,
         route: spaceData.route,
-        description: spaceData.description || null
+        description: spaceData.description || null,
+        app_switcher_logo: spaceData.app_switcher_logo || null,
+        favicon: spaceData.favicon || null,
+        light_mode_logo: spaceData.light_mode_logo || null,
+        dark_mode_logo: spaceData.dark_mode_logo || null
       })
 
       console.log('WikiService: Raw response:', response)
       console.log('WikiService: Response data:', response.data)
-      // Interceptor flattens message; keep for reference
-      // console.log('WikiService: Response message:', response.data.message)
 
       return response.data
     } catch (error) {
@@ -388,12 +390,16 @@ class WikiService {
    */
   async getWikiSpaceSidebar(spaceName) {
     try {
+      console.log('[WikiAPI] getWikiSpaceSidebar called with spaceName:', spaceName)
       const client = await this.initClient()
-      const response = await client.post('/api/method/frappe_devsecops_dashboard.api.wiki.get_wiki_space_sidebar', {
-        space_name: spaceName
+      const response = await client.get('/api/method/frappe_devsecops_dashboard.api.wiki.get_wiki_space_sidebar', {
+        params: { space_name: spaceName }
       })
-      return response.data.message || []
+      console.log('[WikiAPI] getWikiSpaceSidebar response:', response.data)
+      // Backend returns array directly in response.data, not wrapped in .message
+      return Array.isArray(response.data) ? response.data : (response.data.message || [])
     } catch (error) {
+      console.error('[WikiAPI] getWikiSpaceSidebar error:', error)
       this.handleError(error, 'Failed to fetch wiki space sidebar')
     }
   }

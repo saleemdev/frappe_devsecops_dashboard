@@ -175,8 +175,8 @@ def send_approval_request_email(
         f"[CR Email] Preparing email for CR {change_request_doc.name} to {user_email}"
     )
 
-    # Get the Change Request URL
-    cr_url = get_url(f"/app/frappe-devsecops-dashboard/change-requests/{change_request_doc.name}")
+    # Get the Change Request URL - Updated to use frontend detail view
+    cr_url = get_url(f"/devsecops-ui#change-requests/detail/{change_request_doc.name}")
     frappe.logger().info(f"[CR Email] CR URL: {cr_url}")
 
     # Prepare email data

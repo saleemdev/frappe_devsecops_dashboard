@@ -50,7 +50,7 @@ import '../styles/changeRequestFormEnhanced.css'
 // Extend dayjs with relativeTime plugin
 dayjs.extend(relativeTime)
 
-const { Title } = Typography
+const { Title, Text } = Typography
 const { Option } = Select
 const { TabPane } = Tabs
 
@@ -87,6 +87,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('1')
   const [projects, setProjects] = useState([])
+  const [incidents, setIncidents] = useState([])
   const [notFound, setNotFound] = useState(false)
   const [approvers, setApprovers] = useState([])
   const [users, setUsers] = useState([])
@@ -227,6 +228,26 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
       navigateToRoute('change-requests')
     }
   }, [isAuthenticated, canWrite, navigateToRoute])
+
+  // Load incidents
+  useEffect(() => {
+    const loadIncidents = async () => {
+      try {
+        const res = await fetch('/api/method/frappe_devsecops_dashboard.api.incidents.get_incidents', {
+          credentials: 'include'
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.message?.data) {
+            setIncidents(data.message.data)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading incidents:', error)
+      }
+    }
+    loadIncidents()
+  }, [])
 
   // Load projects
   useEffect(() => {
@@ -967,7 +988,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
 
   // Switch to the tab containing the first validation error and show a message
   const fieldTabMap = {
-    title: '1', prepared_for: '1', submission_date: '1', project: '1', system_affected: '1', originator_name: '1', originator_organization: '1', originators_manager: '1',
+    title: '1', prepared_for: '1', submission_date: '1', project: '1', incident: '1', system_affected: '1', originator_name: '1', originator_organization: '1', originators_manager: '1',
     change_category: '2', downtime_expected: '2', detailed_description: '2', release_notes: '2',
     implementation_date: '3', implementation_time: '3', testing_plan: '3', rollback_plan: '3',
     approval_status: '4', workflow_state: '4'
@@ -1075,6 +1096,79 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         </div>
       )}
 
+      {/* Prominent Approval Notification for Current User - Only in edit mode */}
+      {mode === 'edit' && (() => {
+        const currentUserEmail = user?.email || user?.name
+        const currentUserApprover = approvers.find(
+          approver => approver.user === currentUserEmail && approver.approval_status === 'Pending'
+        )
+
+        if (!currentUserApprover) return null
+
+        return (
+          <Card
+            style={{
+              marginTop: 16,
+              marginBottom: 16,
+              background: 'linear-gradient(135deg, #fff7e6 0%, #fffbe6 100%)',
+              borderColor: '#faad14',
+              borderWidth: '2px',
+              boxShadow: '0 4px 12px rgba(250, 173, 20, 0.15)'
+            }}
+          >
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <ExclamationCircleOutlined style={{ fontSize: '24px', color: '#faad14' }} />
+                <Title level={4} style={{ margin: 0, color: '#d48806' }}>
+                  Your Approval Required
+                </Title>
+              </div>
+
+              <Row gutter={16}>
+                <Col span={12}>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>
+                      Business Function
+                    </Text>
+                    <Text strong style={{ fontSize: '14px' }}>
+                      {currentUserApprover.business_function}
+                    </Text>
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>
+                      Status
+                    </Text>
+                    <Tag icon={<ClockCircleOutlined />} color="warning" style={{ fontSize: '13px' }}>
+                      Pending Approval
+                    </Tag>
+                  </div>
+                </Col>
+              </Row>
+
+              <div style={{
+                padding: '16px',
+                background: '#fff',
+                borderRadius: '6px',
+                border: '1px solid #ffe58f'
+              }}>
+                <Text type="secondary" style={{ fontSize: '13px', display: 'block', marginBottom: '12px' }}>
+                  This change request requires your approval. Please scroll down to the <strong>Approvals</strong> section to approve or reject.
+                </Text>
+                <Button
+                  type="primary"
+                  onClick={() => setActiveTab('4')}
+                  style={{ fontWeight: 600 }}
+                >
+                  Go to Approvals Section
+                </Button>
+              </div>
+            </Space>
+          </Card>
+        )
+      })()}
+
       <Form form={form} layout="vertical" onFinish={onSubmit} onFinishFailed={onFinishFailed} validateTrigger="onSubmit">
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="Basic Information" key="1">
@@ -1101,6 +1195,26 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                   <Select placeholder="Select project" showSearch filterOption={(input, option) => (option?.children ?? '').toLowerCase().includes(input.toLowerCase())}>
                     {projects.map(p => (
                       <Option key={p.name} value={p.name}>{p.project_name || p.name}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item name="incident" label="Related Incident (Optional)">
+                  <Select
+                    placeholder="Select related incident"
+                    showSearch
+                    allowClear
+                    filterOption={(input, option) =>
+                      (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  >
+                    {incidents.map(inc => (
+                      <Option key={inc.name} value={inc.name}>
+                        {inc.name} - {inc.title}
+                      </Option>
                     ))}
                   </Select>
                 </Form.Item>

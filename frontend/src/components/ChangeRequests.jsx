@@ -176,28 +176,11 @@ const ChangeRequests = () => {
     }
   }
 
-  const handleView = async (record) => {
-    try {
-      // Fetch the full record with approvers data
-      const res = await fetch(`/api/method/frappe_devsecops_dashboard.api.change_request.get_change_request?name=${record.name}`, {
-        credentials: 'include'
-      })
-
-      if (!res.ok) {
-        message.error('Failed to load Change Request details')
-        return
-      }
-
-      const response = await res.json()
-      const fullRecord = response.message?.data || record
-
-      setViewingRecord(fullRecord)
-      setIsViewDrawerVisible(true)
-    } catch (error) {
-      console.error('Error fetching Change Request:', error)
-      // Fallback to the record from the list
-      setViewingRecord(record)
-      setIsViewDrawerVisible(true)
+  const handleView = (record) => {
+    if (record?.name) {
+      window.location.hash = `change-requests/detail/${record.name}`
+    } else {
+      message.error('Invalid Change Request record')
     }
   }
 
@@ -284,7 +267,16 @@ const ChangeRequests = () => {
       dataIndex: 'cr_number',
       key: 'cr_number',
       width: 130,
-      fixed: 'left'
+      fixed: 'left',
+      render: (text, record) => (
+        <Button
+          type="link"
+          onClick={() => handleView(record)}
+          style={{ padding: 0, height: 'auto', fontWeight: '500' }}
+        >
+          {text}
+        </Button>
+      )
     },
     {
       title: 'Title',

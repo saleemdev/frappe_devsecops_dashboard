@@ -141,9 +141,9 @@ def send_reminder_email(change_request_doc, approver):
             )
             return
 
-        # Get the Change Request URL
+        # Get the Change Request URL - Updated to use frontend detail view
         cr_url = get_url(
-            f"/app/frappe-devsecops-dashboard/change-requests/{change_request_doc.name}"
+            f"/devsecops-ui#change-requests/detail/{change_request_doc.name}"
         )
 
         # Prepare email

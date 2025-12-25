@@ -127,6 +127,26 @@ def get_change_request(name: str) -> Dict[str, Any]:
                         # If user not found, use the user ID
                         approver['user_full_name'] = approver['user']
 
+        # Enrich with incident details if linked
+        if data.get('incident'):
+            try:
+                incident_doc = frappe.get_doc('Incident', data['incident'])
+                if incident_doc.has_permission('read'):
+                    data['incident_details'] = {
+                        'name': incident_doc.name,
+                        'title': incident_doc.title,
+                        'status': incident_doc.status,
+                        'severity': incident_doc.severity,
+                        'category': incident_doc.category,
+                        'priority': incident_doc.priority,
+                        'reported_date': incident_doc.reported_date,
+                        'assigned_to': incident_doc.assigned_to,
+                        'assigned_to_full_name': incident_doc.assigned_to_full_name
+                    }
+            except Exception as e:
+                # If incident not found or no permission, just skip enrichment
+                frappe.logger().warning(f"Could not fetch incident details for {data.get('incident')}: {str(e)}")
+
         return {
             'success': True,
             'data': data

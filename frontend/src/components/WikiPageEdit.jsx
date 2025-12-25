@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, Button, Input, Space, Typography, message, theme, Row, Col, Alert, Tooltip, Divider, Spin, Tag, Switch } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined, FileMarkdownOutlined, EyeOutlined, InfoCircleOutlined, CheckCircleOutlined, EditOutlined, StopOutlined, GlobalOutlined } from '@ant-design/icons'
 import MDEditor from '@uiw/react-md-editor'
-import { createWikiPage, updateWikiPage, getWikiPage } from '../api/wiki'
+import { createWikiPage, updateWikiPage, getWikiPage, getWikiSpace } from '../api/wiki'
 import { getIsDarkMode, getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 import '../styles/wikiDesignSystem.css'
 
@@ -44,6 +44,26 @@ const WikiPageEdit = ({ mode = 'create', wikiSpaceName, pageId, navigateToRoute 
   const [published, setPublished] = useState(false)
   const [allowGuest, setAllowGuest] = useState(false)
   const [loadedWikiSpace, setLoadedWikiSpace] = useState(null)
+  const [spaceRoute, setSpaceRoute] = useState('')
+
+  // Load wiki space route in create mode
+  useEffect(() => {
+    if (isEditMode || !wikiSpaceName) return
+
+    let mounted = true
+    ;(async () => {
+      try {
+        const space = await getWikiSpace(wikiSpaceName)
+        if (mounted && space.route) {
+          setSpaceRoute(space.route)
+        }
+      } catch (error) {
+        console.error('Error loading wiki space:', error)
+      }
+    })()
+
+    return () => { mounted = false }
+  }, [isEditMode, wikiSpaceName])
 
   // Load existing page in edit mode
   useEffect(() => {
@@ -109,16 +129,22 @@ const WikiPageEdit = ({ mode = 'create', wikiSpaceName, pageId, navigateToRoute 
   const onTitleChange = (val) => {
     setTitle(val)
     if (!routeEdited && !isEditMode) {
-      setRoute(generateSlug(val))
+      const pageSlug = generateSlug(val)
+      const fullRoute = spaceRoute ? `${spaceRoute}/${pageSlug}` : pageSlug
+      setRoute(fullRoute)
     }
   }
 
   const onRouteChange = (val) => {
     setRouteEdited(true)
     const slug = generateSlug(val)
-    setRoute(slug)
-    const ok = /^[a-z0-9-]+$/.test(slug)
-    setRouteError(ok ? '' : 'Route can include lowercase letters, numbers, and hyphens only')
+    // Preserve space route prefix if in create mode
+    const fullRoute = (!isEditMode && spaceRoute && !slug.startsWith(spaceRoute))
+      ? `${spaceRoute}/${slug}`
+      : slug
+    setRoute(fullRoute)
+    const ok = /^[a-z0-9\/-]+$/.test(fullRoute)
+    setRouteError(ok ? '' : 'Route can include lowercase letters, numbers, hyphens, and slashes only')
   }
 
   const handleBack = () => {

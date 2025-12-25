@@ -901,6 +901,21 @@ const useNavigationStore = create(
             selectedChangeRequestId: null,
             showChangeRequestForm: true
           })
+        } else if (hash.startsWith('change-requests/detail/')) {
+          const changeId = hash.split('/')[2]
+          set({
+            currentRoute: 'change-requests-detail',
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false,
+            selectedChangeRequestId: changeId,
+            showChangeRequestForm: false
+          })
         } else if (hash.startsWith('change-requests/edit/')) {
           const changeId = hash.split('/')[2]
           set({

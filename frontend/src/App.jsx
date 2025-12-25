@@ -26,6 +26,7 @@ import UnauthorizedPage from './components/UnauthorizedPage'
 import ChangeRequests from './components/ChangeRequests'
 import ChangeRequestForm from './components/ChangeRequestForm'
 import ChangeRequestsDashboard from './components/ChangeRequestsDashboard'
+import ChangeRequestDetail from './components/ChangeRequestDetail'
 import ProjectApps from './components/ProjectApps'
 import ProjectAppDetail from './components/ProjectAppDetail'
 import ProjectEdit from './components/ProjectEdit'
@@ -427,6 +428,13 @@ function AppContent({
         return <ChangeRequests />
       case 'change-requests-dashboard':
         return <ChangeRequestsDashboard />
+      case 'change-requests-detail':
+        return (
+          <ChangeRequestDetail
+            changeRequestId={selectedChangeRequestId}
+            navigateToRoute={navigateToRoute}
+          />
+        )
       case 'change-requests-new':
         return <ChangeRequestForm mode="create" />
       case 'change-requests-edit':

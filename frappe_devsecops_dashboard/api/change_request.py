@@ -863,3 +863,56 @@ def get_change_request_activity(change_request_name: str, limit: int = 10) -> Di
 			'success': False,
 			'error': 'An error occurred while fetching comments'
 		}
+
+
+@frappe.whitelist()
+def get_software_products(search_term: str = '', limit: int = 50) -> Dict[str, Any]:
+	"""
+	Get list of Software Products for selection in Change Request form
+
+	Args:
+		search_term: Optional search string to filter products
+		limit: Maximum number of results to return (default 50)
+
+	Returns:
+		Dict with 'data' containing list of software products
+	"""
+	try:
+		# Add search filter if provided (search by name or product_name)
+		if search_term and len(search_term) >= 2:
+			# Use OR condition to search in both name and product_name
+			products = frappe.get_all(
+				'Software Product',
+				fields=['name', 'product_name', 'status', 'release_status'],
+				filters=[
+					['Software Product', 'name', 'like', f'%{search_term}%']
+				],
+				or_filters=[
+					['Software Product', 'product_name', 'like', f'%{search_term}%']
+				],
+				limit_page_length=limit,
+				order_by='modified desc'
+			)
+		else:
+			# Get all products when no search term
+			products = frappe.get_all(
+				'Software Product',
+				fields=['name', 'product_name', 'status', 'release_status'],
+				limit_page_length=limit,
+				order_by='modified desc'
+			)
+
+		return {
+			'success': True,
+			'data': products
+		}
+
+	except Exception as e:
+		error_msg = f"Error fetching software products: {str(e)}"
+		frappe.logger().error(f"[Software Products API] {error_msg}")
+		frappe.log_error(error_msg, "Software Products API")
+		return {
+			'success': False,
+			'error': 'An error occurred while fetching software products',
+			'data': []
+		}

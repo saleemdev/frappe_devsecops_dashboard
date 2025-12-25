@@ -301,6 +301,12 @@ const ChangeRequestDetail = ({ changeRequestId, navigateToRoute }) => {
     return iconMap[fieldName] || <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
   }
 
+  const stripHtmlTags = (html) => {
+    if (!html) return ''
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    return doc.body.textContent || ''
+  }
+
   if (loading) {
     return (
       <div style={{ padding: '24px' }}>
@@ -423,6 +429,34 @@ const ChangeRequestDetail = ({ changeRequestId, navigateToRoute }) => {
         </Card>
       )}
 
+      {/* Detailed Description Section - Prominent Display */}
+      {changeRequest.detailed_description && stripHtmlTags(changeRequest.detailed_description).trim() && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{
+            backgroundColor: '#fafafa',
+            border: '1px solid #e8e8e8',
+            borderRadius: '6px',
+            padding: '12px 16px',
+            transition: 'all 0.3s ease'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <Space size={4} align="center" style={{ marginBottom: '8px' }}>
+                  <FileTextOutlined style={{ fontSize: '14px', color: '#8c8c8c' }} />
+                  <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Change Description
+                  </Text>
+                </Space>
+                <div
+                  style={{ lineHeight: '1.6', color: '#262626' }}
+                  dangerouslySetInnerHTML={{ __html: changeRequest.detailed_description }}
+                />
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Change Request Details */}
       <Card
         title={
@@ -517,9 +551,14 @@ const ChangeRequestDetail = ({ changeRequestId, navigateToRoute }) => {
               </Space>
             }
           >
-            <Tag icon={<FolderOutlined />} style={{ fontSize: '13px' }}>
+            <Button
+              type="link"
+              icon={<FolderOutlined />}
+              onClick={() => window.location.hash = `software-product/detail/${changeRequest.system_affected}`}
+              style={{ padding: 0, height: 'auto', fontWeight: '500', fontSize: '14px' }}
+            >
               {changeRequest.system_affected}
-            </Tag>
+            </Button>
           </Descriptions.Item>
 
           <Descriptions.Item
@@ -803,12 +842,12 @@ const ChangeRequestDetail = ({ changeRequestId, navigateToRoute }) => {
         </Card>
       )}
 
-      {/* Detailed Information in Collapsibles */}
+      {/* Additional Information in Collapsibles */}
       <Card
         title={
           <Space>
             <FileTextOutlined style={{ color: getHeaderIconColor(token), fontSize: '18px' }} />
-            <span>Detailed Information</span>
+            <span>Additional Information</span>
           </Space>
         }
         style={{ marginBottom: 16 }}
@@ -817,18 +856,6 @@ const ChangeRequestDetail = ({ changeRequestId, navigateToRoute }) => {
             items={[
               {
                 key: '1',
-                label: 'Detailed Description',
-                children: (
-                  <div
-                    style={{ padding: '12px', background: '#f5f5f5', borderRadius: '4px' }}
-                    dangerouslySetInnerHTML={{
-                      __html: changeRequest.detailed_description || 'N/A'
-                    }}
-                  />
-                )
-              },
-              {
-                key: '2',
                 label: 'Release Notes',
                 children: (
                   <div
@@ -838,7 +865,7 @@ const ChangeRequestDetail = ({ changeRequestId, navigateToRoute }) => {
                 )
               },
               {
-                key: '3',
+                key: '2',
                 label: 'Testing Plan',
                 children: (
                   <div
@@ -848,7 +875,7 @@ const ChangeRequestDetail = ({ changeRequestId, navigateToRoute }) => {
                 )
               },
               {
-                key: '4',
+                key: '3',
                 label: 'Rollback Plan',
                 children: (
                   <div
@@ -858,7 +885,7 @@ const ChangeRequestDetail = ({ changeRequestId, navigateToRoute }) => {
                 )
               }
             ]}
-            defaultActiveKey={['1']}
+            defaultActiveKey={[]}
         />
       </Card>
     </div>

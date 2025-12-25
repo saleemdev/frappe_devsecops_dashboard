@@ -22,7 +22,8 @@ import {
   Tooltip,
   Timeline,
   Empty,
-  Skeleton
+  Skeleton,
+  Spin
 } from 'antd'
 import {
   CheckCircleFilled,
@@ -88,6 +89,8 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
   const [activeTab, setActiveTab] = useState('1')
   const [projects, setProjects] = useState([])
   const [incidents, setIncidents] = useState([])
+  const [softwareProducts, setSoftwareProducts] = useState([])
+  const [softwareProductsLoading, setSoftwareProductsLoading] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [approvers, setApprovers] = useState([])
   const [users, setUsers] = useState([])
@@ -268,6 +271,60 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
       }
     }
     load()
+  }, [])
+
+  // Load initial software products
+  const loadInitialProducts = async () => {
+    setSoftwareProductsLoading(true)
+    try {
+      const res = await fetch(
+        '/api/method/frappe_devsecops_dashboard.api.change_request.get_software_products?limit=50',
+        { credentials: 'include' }
+      )
+      if (res.ok) {
+        const response = await res.json()
+        const data = response.message || response
+        setSoftwareProducts(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error loading software products:', error)
+      setSoftwareProducts([])
+    } finally {
+      setSoftwareProductsLoading(false)
+    }
+  }
+
+  // Search software products with debouncing
+  const handleSoftwareProductSearch = async (searchValue) => {
+    if (!searchValue || searchValue.length < 2) {
+      // Load initial products when search is cleared
+      loadInitialProducts()
+      return
+    }
+
+    setSoftwareProductsLoading(true)
+    try {
+      const res = await fetch(
+        `/api/method/frappe_devsecops_dashboard.api.change_request.get_software_products?search_term=${encodeURIComponent(searchValue)}&limit=20`,
+        { credentials: 'include' }
+      )
+      if (res.ok) {
+        const response = await res.json()
+        const data = response.message || response
+        setSoftwareProducts(data.data || [])
+      } else {
+        setSoftwareProducts([])
+      }
+    } catch (error) {
+      console.error('Error searching software products:', error)
+      setSoftwareProducts([])
+    } finally {
+      setSoftwareProductsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadInitialProducts()
   }, [])
 
   // Load users for approvers table
@@ -1240,7 +1297,25 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item name="system_affected" label="System/Application Affected" rules={[{ required: true }]}>
-                  <Input placeholder="Enter system or application name" />
+                  <Select
+                    placeholder="Search and select software product"
+                    showSearch
+                    allowClear
+                    loading={softwareProductsLoading}
+                    onSearch={handleSoftwareProductSearch}
+                    filterOption={false}
+                    notFoundContent={softwareProductsLoading ? <Spin size="small" /> : 'No products found'}
+                  >
+                    {softwareProducts.map(product => (
+                      <Option key={product.name} value={product.name}>
+                        {product.name}
+                        {product.product_name && product.product_name !== product.name &&
+                          ` - ${product.product_name}`}
+                        {product.status &&
+                          ` [${product.status}]`}
+                      </Option>
+                    ))}
+                  </Select>
                 </Form.Item>
               </Col>
               <Col span={12}>

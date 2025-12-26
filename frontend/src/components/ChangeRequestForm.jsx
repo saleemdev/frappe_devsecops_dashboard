@@ -114,6 +114,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
   const [workflowState, setWorkflowState] = useState('Draft')
   const [activityLogs, setActivityLogs] = useState([])
   const [activityLogsLoading, setActivityLogsLoading] = useState(false)
+  const [isFormReadOnly, setIsFormReadOnly] = useState(false)
 
   const { hasPermission, isAuthenticated, user } = useAuthStore()
   const { navigateToRoute } = useNavigationStore()
@@ -389,6 +390,18 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         // Extract approvers from the response
         if (r.change_approvers && Array.isArray(r.change_approvers)) {
           setApprovers(r.change_approvers)
+
+          // Check if all approvers have completed their approvals (no pending approvals)
+          const hasPendingApprovals = r.change_approvers.some(
+            approver => approver.approval_status === 'Pending'
+          )
+
+          // Set form to read-only if there are no pending approvals and approvers exist
+          if (r.change_approvers.length > 0 && !hasPendingApprovals) {
+            setIsFormReadOnly(true)
+          } else {
+            setIsFormReadOnly(false)
+          }
         }
         // Set approval status for the status indicator
         setApprovalStatus(r.approval_status || 'Pending Review')
@@ -1243,7 +1256,34 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         )
       })()}
 
-      <Form form={form} layout="vertical" onFinish={onSubmit} onFinishFailed={onFinishFailed} validateTrigger="onSubmit">
+      {/* Read-Only Notice - Show when form is locked due to no pending approvals */}
+      {mode === 'edit' && isFormReadOnly && (
+        <Card
+          style={{
+            marginTop: 16,
+            marginBottom: 16,
+            background: '#f0f2f5',
+            borderColor: '#d9d9d9',
+            borderWidth: '1px'
+          }}
+        >
+          <Space align="center">
+            <ExclamationCircleOutlined style={{ fontSize: '20px', color: '#8c8c8c' }} />
+            <div>
+              <Text strong style={{ fontSize: '14px', color: '#262626' }}>
+                This Change Request is Read-Only
+              </Text>
+              <div style={{ marginTop: '4px' }}>
+                <Text type="secondary" style={{ fontSize: '13px' }}>
+                  All approvals have been completed. The form cannot be edited.
+                </Text>
+              </div>
+            </div>
+          </Space>
+        </Card>
+      )}
+
+      <Form form={form} layout="vertical" onFinish={onSubmit} onFinishFailed={onFinishFailed} validateTrigger="onSubmit" disabled={isFormReadOnly}>
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="Basic Information" key="1">
             <Row gutter={16}>
@@ -1588,10 +1628,14 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
 
         <Form.Item style={{ marginTop: 16 }}>
           <Space>
-            <Button onClick={() => navigateToRoute('change-requests')}>Cancel</Button>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              {mode === 'edit' ? 'Update' : 'Create'}
+            <Button onClick={() => navigateToRoute('change-requests')}>
+              {isFormReadOnly ? 'Back' : 'Cancel'}
             </Button>
+            {!isFormReadOnly && (
+              <Button type="primary" htmlType="submit" loading={loading}>
+                {mode === 'edit' ? 'Update' : 'Create'}
+              </Button>
+            )}
           </Space>
         </Form.Item>
       </Form>

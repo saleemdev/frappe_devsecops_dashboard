@@ -305,7 +305,7 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
     }
   }, [kpiData, filteredProjects])
 
-  // Enhanced Metrics Cards Component
+  // Management-Focused Metrics Cards Component - Only Strategic Metrics
   const renderMetricsCards = () => {
     if (!kpiData?.metrics) return null
 
@@ -313,16 +313,89 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
 
     return (
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        {/* Projects Metrics */}
+        {/* On-Time Delivery Rate - Key Business Outcome */}
         <Col xs={24} sm={12} lg={6}>
-          <Card hoverable style={{ height: '100%' }}>
+          <Card hoverable style={{ height: '100%', background: 'linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%)' }}>
             <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <ProjectOutlined style={{ fontSize: 32, color: token.colorPrimary }} />
+              <CheckCircleOutlined style={{ fontSize: 32, color: '#1890ff' }} />
               <Statistic
-                title="Total Projects"
-                value={metrics.total_projects}
-                suffix={<Text type="secondary" style={{ fontSize: 12 }}>({metrics.active_projects} active)</Text>}
-                valueStyle={{ fontSize: 24 }}
+                title="On-Time Delivery"
+                value={metrics.on_time_delivery_rate || 0}
+                suffix="%"
+                valueStyle={{ 
+                  fontSize: 28, 
+                  fontWeight: 600,
+                  color: metrics.on_time_delivery_rate >= 80 ? '#52c41a' : metrics.on_time_delivery_rate >= 60 ? '#faad14' : '#ff4d4f' 
+                }}
+              />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {metrics.on_time_projects || 0} on-time, {metrics.delayed_projects || 0} delayed
+              </Text>
+            </Space>
+          </Card>
+        </Col>
+
+        {/* Critical Risk Exposure - Risk Management */}
+        <Col xs={24} sm={12} lg={6}>
+          <Card hoverable style={{ height: '100%', background: 'linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%)' }}>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <WarningOutlined style={{ fontSize: 32, color: '#fa8c16' }} />
+              <Statistic
+                title="Critical Risk Exposure"
+                value={metrics.critical_risks || 0}
+                suffix={<Text type="secondary" style={{ fontSize: 12 }}>of {metrics.active_risks || 0} active</Text>}
+                valueStyle={{ 
+                  fontSize: 28, 
+                  fontWeight: 600,
+                  color: metrics.critical_risks > 5 ? '#ff4d4f' : metrics.critical_risks > 2 ? '#fa8c16' : '#52c41a' 
+                }}
+              />
+              {metrics.critical_risks > 0 && (
+                <Tag color={metrics.critical_risks > 5 ? 'red' : 'orange'} style={{ marginTop: 4 }}>
+                  Requires Attention
+                </Tag>
+              )}
+            </Space>
+          </Card>
+        </Col>
+
+        {/* Quality Health - Defect Rate */}
+        <Col xs={24} sm={12} lg={6}>
+          <Card hoverable style={{ height: '100%', background: 'linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%)' }}>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <ExclamationCircleOutlined style={{ fontSize: 32, color: '#ff4d4f' }} />
+              <Statistic
+                title="Quality Health"
+                value={metrics.defect_rate || 0}
+                suffix="%"
+                valueStyle={{ 
+                  fontSize: 28, 
+                  fontWeight: 600,
+                  color: metrics.defect_rate > 10 ? '#ff4d4f' : metrics.defect_rate > 5 ? '#faad14' : '#52c41a' 
+                }}
+              />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Defect rate (incidents per 100 tasks)
+              </Text>
+              {metrics.critical_incidents > 0 && (
+                <Tag color="red" style={{ marginTop: 4 }}>
+                  {metrics.critical_incidents} Critical Incidents
+                </Tag>
+              )}
+            </Space>
+          </Card>
+        </Col>
+
+        {/* Project Portfolio Health */}
+        <Col xs={24} sm={12} lg={6}>
+          <Card hoverable style={{ height: '100%', background: 'linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%)' }}>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <ProjectOutlined style={{ fontSize: 32, color: '#52c41a' }} />
+              <Statistic
+                title="Active Projects"
+                value={metrics.active_projects || 0}
+                suffix={<Text type="secondary" style={{ fontSize: 12 }}>of {metrics.total_projects || 0} total</Text>}
+                valueStyle={{ fontSize: 28, fontWeight: 600 }}
               />
               {metrics.completed_projects > 0 && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
@@ -332,131 +405,6 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
             </Space>
           </Card>
         </Col>
-
-        {/* Tasks Metrics */}
-        <Col xs={24} sm={12} lg={6}>
-          <Card hoverable style={{ height: '100%' }}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <CheckCircleOutlined style={{ fontSize: 32, color: token.colorSuccess }} />
-              <Statistic
-                title="Total Tasks"
-                value={metrics.total_tasks || 0}
-                suffix={<Text type="secondary" style={{ fontSize: 12 }}>({metrics.completed_tasks || 0} completed)</Text>}
-                valueStyle={{ fontSize: 24 }}
-              />
-              {metrics.task_completion_rate !== undefined && (
-                <Progress 
-                  percent={metrics.task_completion_rate} 
-                  size="small" 
-                  strokeColor={token.colorSuccess}
-                  format={percent => `${percent?.toFixed(1)}%`}
-                />
-              )}
-            </Space>
-          </Card>
-        </Col>
-
-        {/* Risks Metrics */}
-        <Col xs={24} sm={12} lg={6}>
-          <Card hoverable style={{ height: '100%' }}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <WarningOutlined style={{ fontSize: 32, color: '#faad14' }} />
-              <Statistic
-                title="Active Risks"
-                value={metrics.active_risks}
-                suffix={<Text type="secondary" style={{ fontSize: 12 }}>of {metrics.total_risks}</Text>}
-                valueStyle={{ fontSize: 24, color: '#faad14' }}
-              />
-              {metrics.critical_risks > 0 && (
-                <Tag color="red" style={{ marginTop: 4 }}>
-                  {metrics.critical_risks} Critical
-                </Tag>
-              )}
-            </Space>
-          </Card>
-        </Col>
-
-        {/* Change Requests Metrics */}
-        <Col xs={24} sm={12} lg={6}>
-          <Card hoverable style={{ height: '100%' }}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <FileTextOutlined style={{ fontSize: 32, color: token.colorInfo }} />
-              <Statistic
-                title="Pending Change Requests"
-                value={metrics.pending_change_requests}
-                suffix={<Text type="secondary" style={{ fontSize: 12 }}>of {metrics.total_change_requests}</Text>}
-                valueStyle={{ fontSize: 24 }}
-              />
-              {metrics.approved_change_requests > 0 && (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {metrics.approved_change_requests} approved
-                </Text>
-              )}
-            </Space>
-          </Card>
-        </Col>
-
-        {/* Incidents Metrics */}
-        <Col xs={24} sm={12} lg={6}>
-          <Card hoverable style={{ height: '100%' }}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <AlertOutlined style={{ fontSize: 32, color: '#ff4d4f' }} />
-              <Statistic
-                title="Open Incidents"
-                value={metrics.open_incidents}
-                suffix={<Text type="secondary" style={{ fontSize: 12 }}>of {metrics.total_incidents}</Text>}
-                valueStyle={{ fontSize: 24, color: '#ff4d4f' }}
-              />
-              {metrics.critical_incidents > 0 && (
-                <Tag color="red" style={{ marginTop: 4 }}>
-                  {metrics.critical_incidents} Critical
-                </Tag>
-              )}
-            </Space>
-          </Card>
-        </Col>
-
-        {/* Progress Metrics */}
-        {metrics.average_project_progress !== undefined && (
-          <Col xs={24} sm={12} lg={6}>
-            <Card hoverable style={{ height: '100%' }}>
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <ClockCircleOutlined style={{ fontSize: 32, color: token.colorPrimary }} />
-                <Statistic
-                  title="Avg. Project Progress"
-                  value={metrics.average_project_progress}
-                  suffix="%"
-                  valueStyle={{ fontSize: 24 }}
-                />
-                <Progress 
-                  percent={metrics.average_project_progress} 
-                  size="small" 
-                  strokeColor={token.colorPrimary}
-                />
-              </Space>
-            </Card>
-          </Col>
-        )}
-
-        {/* Team Metrics */}
-        {metrics.unique_team_members !== undefined && (
-          <Col xs={24} sm={12} lg={6}>
-            <Card hoverable style={{ height: '100%' }}>
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <TeamOutlined style={{ fontSize: 32, color: token.colorInfo }} />
-                <Statistic
-                  title="Team Members"
-                  value={metrics.unique_team_members}
-                  suffix={<Text type="secondary" style={{ fontSize: 12 }}>unique</Text>}
-                  valueStyle={{ fontSize: 24 }}
-                />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {metrics.total_team_members} total assignments
-                </Text>
-              </Space>
-            </Card>
-          </Col>
-        )}
       </Row>
     )
   }
@@ -567,7 +515,11 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
     const taskTypeData = kpiData.charts.task_types || []
     const productComparisonData = kpiData.charts.product_comparison || []
     const riskPriorityData = kpiData.charts.risk_priority || []
+    const riskScoreData = kpiData.charts.risk_score_distribution || []
+    const riskMitigationData = kpiData.charts.risk_mitigation_status || []
     const incidentSeverityData = kpiData.charts.incident_severity || []
+    const incidentResolutionData = kpiData.charts.incident_resolution_status || []
+    const advancedMetrics = kpiData.advanced_metrics || {}
 
     // Enhanced: Prepare task type data with status breakdown for bottleneck analysis
     // Sort by total count, then by overdue rate to highlight bottlenecks
@@ -805,6 +757,55 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
       }
     } : null
 
+    // Risk Score Distribution - Shows risk exposure levels
+    const riskScoreConfig = riskScoreData.length > 0 ? {
+      data: riskScoreData,
+      xField: 'score_range',
+      yField: 'count',
+      height: 250,
+      color: ({ score_range }) => {
+        const colorMap = {
+          '0-5': '#52C41A',
+          '6-10': '#FAAD14',
+          '11-15': '#FF7A45',
+          '16-20': '#FF4D4F',
+          '21+': '#8B0000'
+        }
+        return colorMap[score_range] || '#8C8C8C'
+      },
+      columnStyle: {
+        radius: [4, 4, 0, 0],
+      },
+      label: {
+        position: 'top',
+        formatter: (datum) => `${datum.count}`
+      }
+    } : null
+
+    // Risk Mitigation Status - Shows risk management progress
+    const riskMitigationConfig = riskMitigationData.length > 0 ? {
+      data: riskMitigationData,
+      xField: 'status',
+      yField: 'count',
+      height: 250,
+      color: ({ status }) => {
+        const colorMap = {
+          'Open': '#FF4D4F',
+          'Monitoring': '#FAAD14',
+          'Mitigated': '#1890FF',
+          'Closed': '#52C41A'
+        }
+        return colorMap[status] || '#8C8C8C'
+      },
+      columnStyle: {
+        radius: [4, 4, 0, 0],
+      },
+      label: {
+        position: 'top',
+        formatter: (datum) => `${datum.count}`
+      }
+    } : null
+
     // Incident severity horizontal bar chart (replaces pie)
     const incidentSeverityBarConfig = incidentSeverityData.length > 0 ? {
       data: incidentSeverityData.sort((a, b) => {
@@ -832,6 +833,30 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
       },
       label: {
         position: 'right',
+        formatter: (datum) => `${datum.count}`
+      }
+    } : null
+
+    // Incident Resolution Status - Shows operational efficiency
+    const incidentResolutionConfig = incidentResolutionData.length > 0 ? {
+      data: incidentResolutionData,
+      xField: 'status',
+      yField: 'count',
+      height: 250,
+      color: ({ status }) => {
+        const colorMap = {
+          'Open': '#FF4D4F',
+          'In Progress': '#FAAD14',
+          'Resolved': '#1890FF',
+          'Closed': '#52C41A'
+        }
+        return colorMap[status] || '#8C8C8C'
+      },
+      columnStyle: {
+        radius: [4, 4, 0, 0],
+      },
+      label: {
+        position: 'top',
         formatter: (datum) => `${datum.count}`
       }
     } : null
@@ -874,36 +899,163 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
           </Col>
         </Row>
 
-        {/* Project Status and Risk/Incident Charts Row */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          {projectStatusBarConfig && (
-            <Col xs={24} lg={8}>
+        {/* Project Status Chart */}
+        {projectStatusBarConfig && (
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={24} lg={12}>
               <Card title="Projects by Status" style={{ height: '100%' }}>
                 <Bar {...projectStatusBarConfig} />
               </Card>
             </Col>
-          )}
-          {riskPriorityBarConfig && (
-            <Col xs={24} lg={8}>
-              <Card title="Risks by Priority" style={{ height: '100%' }}>
+          </Row>
+        )}
+
+        {/* Enhanced Risk Analysis - Multi-dimensional */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} lg={8}>
+            <Card 
+              title={
+                <Space>
+                  <WarningOutlined />
+                  <span>Risk Priority Distribution</span>
+                </Space>
+              }
+              style={{ height: '100%' }}
+            >
+              {riskPriorityBarConfig ? (
                 <Bar {...riskPriorityBarConfig} />
-              </Card>
-            </Col>
-          )}
-          {incidentSeverityBarConfig && (
-            <Col xs={24} lg={8}>
-              <Card title="Incidents by Severity" style={{ height: '100%' }}>
-                <Bar {...incidentSeverityBarConfig} />
-              </Card>
-            </Col>
-          )}
+              ) : (
+                <Empty description="No risk data" />
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card 
+              title={
+                <Space>
+                  <WarningOutlined />
+                  <span>Risk Score Distribution</span>
+                </Space>
+              }
+              style={{ height: '100%' }}
+            >
+              {riskScoreConfig ? (
+                <Column {...riskScoreConfig} />
+              ) : (
+                <Empty description="No risk score data" />
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card 
+              title={
+                <Space>
+                  <CheckCircleOutlined />
+                  <span>Risk Mitigation Status</span>
+                </Space>
+              }
+              style={{ height: '100%' }}
+            >
+              {riskMitigationConfig ? (
+                <Column {...riskMitigationConfig} />
+              ) : (
+                <Empty description="No mitigation data" />
+              )}
+            </Card>
+          </Col>
         </Row>
 
-        {/* Product Comparison Chart */}
+        {/* Enhanced Incident Analysis - Multi-dimensional */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} lg={8}>
+            <Card 
+              title={
+                <Space>
+                  <AlertOutlined />
+                  <span>Incident Severity</span>
+                </Space>
+              }
+              style={{ height: '100%' }}
+            >
+              {incidentSeverityBarConfig ? (
+                <Bar {...incidentSeverityBarConfig} />
+              ) : (
+                <Empty description="No incident data" />
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card 
+              title={
+                <Space>
+                  <CheckCircleOutlined />
+                  <span>Incident Resolution Status</span>
+                </Space>
+              }
+              style={{ height: '100%' }}
+            >
+              {incidentResolutionConfig ? (
+                <Column {...incidentResolutionConfig} />
+              ) : (
+                <Empty description="No resolution data" />
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card 
+              title={
+                <Space>
+                  <ClockCircleOutlined />
+                  <span>Mean Time To Resolution (MTTR)</span>
+                </Space>
+              }
+              style={{ height: '100%' }}
+            >
+              {advancedMetrics.mttr_days !== undefined ? (
+                <Space direction="vertical" size="large" style={{ width: '100%', padding: '20px 0', textAlign: 'center' }}>
+                  <Statistic
+                    title="Average Resolution Time"
+                    value={advancedMetrics.mttr_days || 0}
+                    suffix="days"
+                    valueStyle={{ 
+                      fontSize: 36, 
+                      fontWeight: 600,
+                      color: advancedMetrics.mttr_days <= 1 ? '#52C41A' : advancedMetrics.mttr_days <= 3 ? '#FAAD14' : '#FF4D4F'
+                    }}
+                  />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {advancedMetrics.total_resolved_incidents || 0} incidents resolved
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    {advancedMetrics.mttr_hours?.toFixed(1) || 0} hours average
+                  </Text>
+                </Space>
+              ) : (
+                <Empty description="No MTTR data available" />
+              )}
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Enhanced Product Comparison - Health Score Visualization */}
         {productComparisonConfig && (
           <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
             <Col xs={24}>
-              <Card title="Product Comparison" style={{ height: '100%' }}>
+              <Card 
+                title={
+                  <Space>
+                    <ProjectOutlined />
+                    <span style={{ fontSize: '16px', fontWeight: 600 }}>Product Health Comparison</span>
+                    <Tag color="blue">{productComparisonDataWithNames.length} products</Tag>
+                  </Space>
+                }
+                extra={
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    Health score based on task completion, risk exposure, incidents, and delivery rate
+                  </Text>
+                }
+                style={{ height: '100%' }}
+              >
                 <Column {...productComparisonConfig} />
               </Card>
             </Col>

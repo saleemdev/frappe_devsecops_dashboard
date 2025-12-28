@@ -257,7 +257,7 @@ def get_product_kpi_data(product_name: Optional[str] = None) -> Dict[str, Any]:
 
         # Calculate stakeholder metrics
         # Delivery timeline metrics
-        today_date = frappe.utils.getdate(today)
+        today_date = frappe.utils.getdate(frappe.utils.today())
         on_time_projects = 0
         delayed_projects = 0
         total_project_duration_days = 0
@@ -434,8 +434,50 @@ def get_product_kpi_data(product_name: Optional[str] = None) -> Dict[str, Any]:
                 products_dict[product]['active_risks'] += project.get('risk_count', 0)
                 products_dict[product]['open_incidents'] += project.get('incident_count', 0)
 
-            product_comparison_chart = [
-                {
+            # Enhanced Product Comparison with Health Scores
+            product_comparison_chart = []
+            for product, data in products_dict.items():
+                # Calculate health score (0-100) based on multiple factors
+                total_tasks = data['total_tasks']
+                completed_tasks = data['completed_tasks']
+                active_risks = data['active_risks']
+                open_incidents = data['open_incidents']
+                project_count = data['project_count']
+                
+                # Task completion rate (0-40 points)
+                task_completion_rate = (completed_tasks / total_tasks * 40) if total_tasks > 0 else 0
+                
+                # Risk score (0-30 points) - lower risks = higher score
+                risk_score = max(0, 30 - (active_risks * 2)) if active_risks <= 15 else 0
+                
+                # Incident score (0-20 points) - lower incidents = higher score
+                incident_score = max(0, 20 - (open_incidents * 2)) if open_incidents <= 10 else 0
+                
+                # Project activity score (0-10 points) - more projects = higher score (capped)
+                project_score = min(10, project_count * 2)
+                
+                health_score = flt(task_completion_rate + risk_score + incident_score + project_score, 2)
+                
+                # Calculate delivery rate (on-time projects / total projects for this product)
+                product_projects = [p for p in enriched_projects if p.get('software_product') == product]
+                on_time_count = 0
+                delayed_count = 0
+                for proj in product_projects:
+                    if proj.get('status') == 'Completed':
+                        expected_end = proj.get('expected_end_date')
+                        actual_end = proj.get('actual_end_date')
+                        if expected_end and actual_end:
+                            expected = frappe.utils.getdate(expected_end)
+                            actual = frappe.utils.getdate(actual_end)
+                            if actual <= expected:
+                                on_time_count += 1
+                            else:
+                                delayed_count += 1
+                
+                total_tracked = on_time_count + delayed_count
+                delivery_rate = flt((on_time_count / total_tracked * 100), 2) if total_tracked > 0 else 0
+                
+                product_comparison_chart.append({
                     'product': product,
                     'project_count': data['project_count'],
                     'total_tasks': data['total_tasks'],
@@ -443,34 +485,107 @@ def get_product_kpi_data(product_name: Optional[str] = None) -> Dict[str, Any]:
                     'active_risks': data['active_risks'],
                     'open_incidents': data['open_incidents'],
                     'product_manager': data.get('product_manager'),
-                    'product_manager_id': data.get('product_manager_id')
-                }
-                for product, data in products_dict.items()
-            ]
+                    'product_manager_id': data.get('product_manager_id'),
+                    'health_score': health_score,
+                    'delivery_rate': delivery_rate,
+                    'task_completion_rate': flt((completed_tasks / total_tasks * 100), 2) if total_tasks > 0 else 0
+                })
 
-        # Risk priority chart
+        # Enhanced Risk Analysis - Priority, Score Distribution, Mitigation Status
         risk_priority_counts = {}
+        risk_score_distribution = {'0-5': 0, '6-10': 0, '11-15': 0, '16-20': 0, '21+': 0}
+        risk_mitigation_status = {'Open': 0, 'Mitigated': 0, 'Closed': 0, 'Monitoring': 0}
+        
         for p in enriched_projects:
             for r in p.get('risks', []):
+                # Priority counts
                 priority = r.get('priority') or 'Unknown'
                 risk_priority_counts[priority] = risk_priority_counts.get(priority, 0) + 1
+                
+                # Score distribution
+                score = r.get('risk_score', 0) or 0
+                if score <= 5:
+                    risk_score_distribution['0-5'] += 1
+                elif score <= 10:
+                    risk_score_distribution['6-10'] += 1
+                elif score <= 15:
+                    risk_score_distribution['11-15'] += 1
+                elif score <= 20:
+                    risk_score_distribution['16-20'] += 1
+                else:
+                    risk_score_distribution['21+'] += 1
+                
+                # Mitigation status
+                status = r.get('status') or 'Open'
+                if status in ['Mitigated', 'Closed']:
+                    risk_mitigation_status[status] = risk_mitigation_status.get(status, 0) + 1
+                elif status in ['Monitoring', 'Watching']:
+                    risk_mitigation_status['Monitoring'] = risk_mitigation_status.get('Monitoring', 0) + 1
+                else:
+                    risk_mitigation_status['Open'] = risk_mitigation_status.get('Open', 0) + 1
 
         risk_priority_chart = [
             {'priority': priority, 'count': count}
             for priority, count in risk_priority_counts.items()
         ]
+        
+        risk_score_chart = [
+            {'score_range': range_name, 'count': count}
+            for range_name, count in risk_score_distribution.items()
+        ]
+        
+        risk_mitigation_chart = [
+            {'status': status, 'count': count}
+            for status, count in risk_mitigation_status.items() if count > 0
+        ]
 
-        # Incident severity chart
+        # Enhanced Incident Analysis - Severity, Resolution Status, MTTR (Mean Time To Resolution)
         incident_severity_counts = {}
+        incident_resolution_status = {'Open': 0, 'In Progress': 0, 'Resolved': 0, 'Closed': 0}
+        incident_resolution_times = []  # Track resolution times for MTTR calculation
+        
         for p in enriched_projects:
             for inc in p.get('incidents', []):
+                # Severity counts
                 severity = inc.get('severity') or 'Unknown'
                 incident_severity_counts[severity] = incident_severity_counts.get(severity, 0) + 1
+                
+                # Resolution status
+                status = inc.get('status') or 'Open'
+                if status in ['Resolved', 'Closed']:
+                    incident_resolution_status[status] = incident_resolution_status.get(status, 0) + 1
+                elif status == 'In Progress':
+                    incident_resolution_status['In Progress'] = incident_resolution_status.get('In Progress', 0) + 1
+                else:
+                    incident_resolution_status['Open'] = incident_resolution_status.get('Open', 0) + 1
+                
+                # Calculate resolution time if resolved
+                if status in ['Resolved', 'Closed']:
+                    reported_date = inc.get('reported_date')
+                    resolved_date = inc.get('resolved_date') or inc.get('modified')
+                    if reported_date and resolved_date:
+                        try:
+                            reported = frappe.utils.getdate(reported_date)
+                            resolved = frappe.utils.getdate(resolved_date)
+                            resolution_hours = (resolved - reported).total_seconds() / 3600
+                            if resolution_hours > 0:
+                                incident_resolution_times.append(resolution_hours)
+                        except:
+                            pass
 
         incident_severity_chart = [
             {'severity': severity, 'count': count}
             for severity, count in incident_severity_counts.items()
         ]
+        
+        incident_resolution_chart = [
+            {'status': status, 'count': count}
+            for status, count in incident_resolution_status.items() if count > 0
+        ]
+        
+        # Calculate MTTR (Mean Time To Resolution) in hours
+        mttr_hours = sum(incident_resolution_times) / len(incident_resolution_times) if incident_resolution_times else 0
+        mttr_days = flt(mttr_hours / 24, 2) if mttr_hours > 0 else 0
 
         return {
             'success': True,
@@ -482,7 +597,15 @@ def get_product_kpi_data(product_name: Optional[str] = None) -> Dict[str, Any]:
                     'task_types': task_type_chart,
                     'product_comparison': product_comparison_chart,
                     'risk_priority': risk_priority_chart,
-                    'incident_severity': incident_severity_chart
+                    'risk_score_distribution': risk_score_chart,
+                    'risk_mitigation_status': risk_mitigation_chart,
+                    'incident_severity': incident_severity_chart,
+                    'incident_resolution_status': incident_resolution_chart
+                },
+                'advanced_metrics': {
+                    'mttr_hours': mttr_hours,
+                    'mttr_days': mttr_days,
+                    'total_resolved_incidents': len(incident_resolution_times)
                 }
             }
         }

@@ -16,7 +16,9 @@ import {
   Empty,
   Spin,
   Popconfirm,
-  theme
+  theme,
+  Statistic,
+  Progress
 } from 'antd'
 import {
   PlusOutlined,
@@ -27,7 +29,11 @@ import {
   DeleteOutlined,
   UserOutlined,
   AppstoreOutlined,
-  RocketOutlined
+  RocketOutlined,
+  ProjectOutlined,
+  WarningOutlined,
+  AlertOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons'
 import useAuthStore from '../stores/authStore'
 import useNavigationStore from '../stores/navigationStore'
@@ -173,6 +179,7 @@ const SoftwareProduct = ({ navigateToRoute }) => {
     try {
       setViewingRecord(record)
       setIsViewDrawerVisible(true)
+      setLoadingMetrics(true)
 
       // Fetch full details
       const endpoint = `/api/method/frappe_devsecops_dashboard.api.software_product.get_product_detail?name=${encodeURIComponent(record.name)}`
@@ -183,9 +190,23 @@ const SoftwareProduct = ({ navigateToRoute }) => {
       } else {
         message.error('Failed to load product details')
       }
+
+      // Fetch product KPI metrics
+      try {
+        const kpiEndpoint = `/api/method/frappe_devsecops_dashboard.api.product_kpi.get_product_kpi_data?product_name=${encodeURIComponent(record.name)}`
+        const kpiResponse = await apiCall(kpiEndpoint)
+        if (kpiResponse.message && kpiResponse.message.success) {
+          setProductMetrics(kpiResponse.message.data)
+        }
+      } catch (kpiError) {
+        console.error('Error fetching product metrics:', kpiError)
+        // Don't show error for metrics, just log it
+      }
     } catch (error) {
       console.error('Error fetching Software Product details:', error)
       message.error('Failed to load product details')
+    } finally {
+      setLoadingMetrics(false)
     }
   }
 
@@ -506,6 +527,75 @@ const SoftwareProduct = ({ navigateToRoute }) => {
                 </Space>
               </Card>
             )}
+
+            {/* Product Metrics - Management Dashboard */}
+            {loadingMetrics ? (
+              <div style={{ textAlign: 'center', padding: '24px' }}>
+                <Spin size="large" tip="Loading metrics..." />
+              </div>
+            ) : productMetrics?.metrics ? (
+              <div style={{ marginBottom: '24px' }}>
+                <Title level={5}>Product Metrics</Title>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} sm={12} lg={6}>
+                    <Card size="small" style={{ background: 'linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%)' }}>
+                      <Statistic
+                        title="Active Projects"
+                        value={productMetrics.metrics.active_projects || 0}
+                        suffix={`/ ${productMetrics.metrics.total_projects || 0}`}
+                        valueStyle={{ fontSize: 20, fontWeight: 600 }}
+                        prefix={<ProjectOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={12} lg={6}>
+                    <Card size="small" style={{ background: 'linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%)' }}>
+                      <Statistic
+                        title="Critical Risks"
+                        value={productMetrics.metrics.critical_risks || 0}
+                        suffix={`/ ${productMetrics.metrics.active_risks || 0} active`}
+                        valueStyle={{ 
+                          fontSize: 20, 
+                          fontWeight: 600,
+                          color: (productMetrics.metrics.critical_risks || 0) > 5 ? '#ff4d4f' : (productMetrics.metrics.critical_risks || 0) > 2 ? '#fa8c16' : '#52c41a'
+                        }}
+                        prefix={<WarningOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={12} lg={6}>
+                    <Card size="small" style={{ background: 'linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%)' }}>
+                      <Statistic
+                        title="Open Incidents"
+                        value={productMetrics.metrics.open_incidents || 0}
+                        suffix={`/ ${productMetrics.metrics.total_incidents || 0}`}
+                        valueStyle={{ 
+                          fontSize: 20, 
+                          fontWeight: 600,
+                          color: (productMetrics.metrics.open_incidents || 0) > 10 ? '#ff4d4f' : (productMetrics.metrics.open_incidents || 0) > 5 ? '#fa8c16' : '#52c41a'
+                        }}
+                        prefix={<AlertOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={12} lg={6}>
+                    <Card size="small" style={{ background: 'linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%)' }}>
+                      <Statistic
+                        title="On-Time Delivery"
+                        value={productMetrics.metrics.on_time_delivery_rate || 0}
+                        suffix="%"
+                        valueStyle={{ 
+                          fontSize: 20, 
+                          fontWeight: 600,
+                          color: (productMetrics.metrics.on_time_delivery_rate || 0) >= 80 ? '#52c41a' : (productMetrics.metrics.on_time_delivery_rate || 0) >= 60 ? '#faad14' : '#ff4d4f'
+                        }}
+                        prefix={<CheckCircleOutlined />}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+              </div>
+            ) : null}
 
             {/* Product Information */}
             <div style={{ marginBottom: '24px' }}>

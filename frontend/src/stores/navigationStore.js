@@ -135,6 +135,21 @@ const useNavigationStore = create(
             window.location.hash = 'team-utilization'
             break
 
+          case 'product-kpi-dashboard':
+            set({
+              currentRoute: 'product-kpi-dashboard',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'product-kpi-dashboard'
+            break
+
           case 'software-product':
             set({
               currentRoute: 'software-product',
@@ -883,6 +898,8 @@ const useNavigationStore = create(
           get().navigateToRoute('projects')
         } else if (hash === 'team-utilization') {
           get().navigateToRoute('team-utilization')
+        } else if (hash === 'product-kpi-dashboard') {
+          get().navigateToRoute('product-kpi-dashboard')
         } else if (hash === 'project-apps') {
           get().navigateToRoute('project-apps')
         } else if (hash === 'change-requests') {
@@ -1371,6 +1388,12 @@ const useNavigationStore = create(
               items.push(
                 { title: 'Products', onClick: () => get().navigateToRoute('software-product') },
                 { title: 'Software Product' }
+              )
+              break
+            case 'product-kpi-dashboard':
+              items.push(
+                { title: 'Products', onClick: () => get().navigateToRoute('software-product') },
+                { title: 'Product KPI Dashboard' }
               )
               break
             case 'software-product-new':

@@ -133,15 +133,19 @@ def get_product_detail(name: str) -> Dict[str, Any]:
         # Convert to dict
         data = doc.as_dict()
 
-        # Enrich team members with user full names
+        # Enrich team members with full user details (full_name, email, user_image)
         if data.get('team_members'):
             for team_member in data['team_members']:
                 if team_member.get('member'):
                     try:
                         user_doc = frappe.get_doc('User', team_member['member'])
                         team_member['member_full_name'] = user_doc.full_name or team_member['member']
+                        team_member['member_email'] = user_doc.email or ''
+                        team_member['member_user_image'] = user_doc.user_image or ''
                     except Exception:
                         team_member['member_full_name'] = team_member['member']
+                        team_member['member_email'] = ''
+                        team_member['member_user_image'] = ''
 
         # Fetch project_template from linked RACI Template
         if data.get('default_raci_template'):

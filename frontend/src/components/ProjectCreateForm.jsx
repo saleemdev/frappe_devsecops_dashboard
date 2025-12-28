@@ -86,6 +86,17 @@ function ProjectCreateForm({ navigateToRoute }) {
     }
   }, [isAuthenticated, canWrite, navigateToRoute])
 
+  // Helper function to extract error message from various error formats
+  const getErrorMessage = (error, defaultMessage = 'An error occurred') => {
+    if (typeof error === 'string') return error
+    if (error?.response?.data?.message) return error.response.data.message
+    if (error?.response?.data?.error) return error.response.data.error
+    if (error?.data?.message) return error.data.message
+    if (error?.data?.error) return error.data.error
+    if (error?.message) return error.message
+    return defaultMessage
+  }
+
   // Load project types, templates, departments, and designations
   useEffect(() => {
     const loadOptions = async () => {
@@ -99,19 +110,26 @@ function ProjectCreateForm({ navigateToRoute }) {
         if (typesRes.ok) {
           const data = await typesRes.json()
           setProjectTypes((data.data || []).map(t => ({ label: t.name, value: t.name })))
+        } else if (!typesRes.ok) {
+          message.warning('Could not load project types')
         }
 
         if (templatesRes.ok) {
           const data = await templatesRes.json()
           setProjectTemplates((data.data || []).map(t => ({ label: t.name, value: t.name })))
+        } else if (!templatesRes.ok) {
+          message.warning('Could not load project templates')
         }
 
         if (deptsRes.ok) {
           const data = await deptsRes.json()
           setDepartments((data.data || []).map(d => ({ label: d.name, value: d.name })))
+        } else if (!deptsRes.ok) {
+          message.warning('Could not load departments')
         }
       } catch (error) {
         console.error('Error loading options:', error)
+        message.error('Failed to load project options. Please refresh the page.')
       }
     }
 
@@ -142,9 +160,15 @@ function ProjectCreateForm({ navigateToRoute }) {
             value: p.name
           })))
         }
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMsg = getErrorMessage(errorData, 'Failed to load software products')
+        message.error(errorMsg)
       }
     } catch (error) {
       console.error('[ProjectCreateForm] Error loading software products:', error)
+      const errorMsg = getErrorMessage(error, 'Failed to load software products')
+      message.error(errorMsg)
     } finally {
       setLoadingSoftwareProducts(false)
     }
@@ -171,9 +195,15 @@ function ProjectCreateForm({ navigateToRoute }) {
             value: t.name
           })))
         }
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMsg = getErrorMessage(errorData, 'Failed to load RACI templates')
+        message.error(errorMsg)
       }
     } catch (error) {
       console.error('[ProjectCreateForm] Error loading RACI templates:', error)
+      const errorMsg = getErrorMessage(error, 'Failed to load RACI templates')
+      message.error(errorMsg)
     } finally {
       setLoadingRaciTemplates(false)
     }
@@ -233,7 +263,9 @@ function ProjectCreateForm({ navigateToRoute }) {
           if (productData.team_members && Array.isArray(productData.team_members) && productData.team_members.length > 0) {
             const mappedMembers = productData.team_members.map(tm => ({
               user: tm.member,
-              user_name: tm.member_full_name || tm.member,
+              full_name: tm.member_full_name || tm.member,
+              email: tm.member_email || '',
+              image: tm.member_user_image || '',
               custom_business_function: tm.role || null,
               custom_is_change_approver: 0
             }))
@@ -261,7 +293,8 @@ function ProjectCreateForm({ navigateToRoute }) {
       }
     } catch (error) {
       console.error('[ProjectCreateForm] Error fetching product details:', error)
-      message.error('Failed to fetch product details')
+      const errorMsg = getErrorMessage(error, 'Failed to fetch product details')
+      message.error(errorMsg)
     } finally {
       setFetchingProductDetails(false)
     }
@@ -279,6 +312,7 @@ function ProjectCreateForm({ navigateToRoute }) {
     } catch (error) {
       console.error('[ProjectCreateForm] Error loading designations:', error)
       setDesignations([])
+      // Don't show error for designation loading as it's not critical
     } finally {
       setDesignationSearchLoading(false)
     }
@@ -316,6 +350,7 @@ function ProjectCreateForm({ navigateToRoute }) {
       } catch (error) {
         console.error('[ProjectCreateForm] Error searching users:', error)
         setUserSearchResults([])
+        // Don't show error toast for user search as it's non-blocking
       } finally {
         setSearchLoading(false)
         setIsDebouncing(false)
@@ -467,11 +502,16 @@ function ProjectCreateForm({ navigateToRoute }) {
           message.error('Project created but could not navigate to detail page')
         }
       } else {
-        message.error(response.message || 'Failed to create project')
+        // Extract error message from response
+        const errorMsg = response.message || response.data?.error || response.data?.message || 'Failed to create project'
+        console.error('Project creation failed:', response)
+        message.error(errorMsg)
       }
     } catch (error) {
       console.error('Error creating project:', error)
-      message.error(error.message || 'An error occurred while creating the project')
+      // Extract user-friendly error message
+      const errorMsg = getErrorMessage(error, 'An error occurred while creating the project')
+      message.error(errorMsg)
     } finally {
       setLoading(false)
     }

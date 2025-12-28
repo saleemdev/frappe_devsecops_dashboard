@@ -16,7 +16,8 @@ import {
   RobotOutlined,
   LockOutlined,
   RiseOutlined,
-  FileProtectOutlined
+  FileProtectOutlined,
+  BarChartOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
@@ -61,6 +62,7 @@ import WikiPageViewEnhanced from './components/WikiPageViewEnhanced'
 import WikiCreateForm from './components/WikiCreateForm'
 import WikiPageCreate from './components/WikiPageCreate'
 import WikiPageEdit from './components/WikiPageEdit'
+import ProductKPIDashboard from './components/ProductKPIDashboard'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -397,6 +399,8 @@ function AppContent({
             selectedProjectId={selectedProjectId}
           />
         )
+      case 'product-kpi-dashboard':
+        return <ProductKPIDashboard navigateToRoute={navigateToRoute} />
       case 'team-utilization':
         return <TeamUtilization />
       case 'software-product':
@@ -624,6 +628,11 @@ function AppContent({
         {
           key: 'software-product',
           label: 'Software Product'
+        },
+        {
+          key: 'product-kpi-dashboard',
+          icon: <BarChartOutlined />,
+          label: 'Product KPI Dashboard'
         },
         {
           key: 'raci-template',

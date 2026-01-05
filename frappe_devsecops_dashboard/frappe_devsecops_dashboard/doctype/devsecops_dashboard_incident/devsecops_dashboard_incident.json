@@ -26,6 +26,7 @@
   "reported_by",
   "reported_by_name",
   "reported_date",
+  "resolution_date",
   "section_break_description",
   "description",
   "column_break_systems",
@@ -54,6 +55,14 @@
   "column_break_technical",
   "incident_type",
   "service_affected",
+  "column_break_source_details",
+  "source",
+  "finding_id",
+  "region",
+  "resource",
+  "publicly_accessible",
+  "action_taken",
+  "threat_intel",
   "section_break_communication",
   "customer_communication",
   "internal_notes",
@@ -191,6 +200,12 @@
    "fieldtype": "Datetime",
    "label": "Reported Date",
    "reqd": 1
+  },
+  {
+   "fieldname": "resolution_date",
+   "fieldtype": "Datetime",
+   "label": "Resolution Date",
+   "description": "Date and time when the incident was resolved"
   },
   {
    "fieldname": "section_break_description",
@@ -332,6 +347,54 @@
    "fieldname": "service_affected",
    "fieldtype": "Data",
    "label": "Service Affected"
+  },
+  {
+   "fieldname": "column_break_source_details",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Data",
+   "label": "Source",
+   "description": "Source of the incident (e.g., AWS GuardDuty, Manual, Monitoring)",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "finding_id",
+   "fieldtype": "Data",
+   "label": "Finding ID",
+   "description": "External finding or alert ID"
+  },
+  {
+   "fieldname": "region",
+   "fieldtype": "Data",
+   "label": "Region",
+   "description": "Cloud region or location (e.g., us-east-1, me-central-1)"
+  },
+  {
+   "fieldname": "resource",
+   "fieldtype": "Data",
+   "label": "Resource",
+   "description": "Affected resource or service"
+  },
+  {
+   "fieldname": "publicly_accessible",
+   "fieldtype": "Check",
+   "label": "Publicly Accessible",
+   "description": "Security flag indicating if resource is publicly accessible",
+   "default": "0"
+  },
+  {
+   "fieldname": "action_taken",
+   "fieldtype": "Small Text",
+   "label": "Action Taken",
+   "description": "Actions performed to address the incident"
+  },
+  {
+   "fieldname": "threat_intel",
+   "fieldtype": "Small Text",
+   "label": "Threat Intelligence Notes",
+   "description": "Threat intelligence information and analysis"
   },
   {
    "fieldname": "section_break_communication",

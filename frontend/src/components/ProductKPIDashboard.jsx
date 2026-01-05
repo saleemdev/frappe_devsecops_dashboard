@@ -26,13 +26,15 @@ import {
   HomeOutlined, ClearOutlined, ReloadOutlined, ExportOutlined,
   DownloadOutlined, FileExcelOutlined, FilePdfOutlined,
   CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined,
-  SearchOutlined, FilterOutlined, UserOutlined
+  SearchOutlined, FilterOutlined, UserOutlined, FullscreenOutlined, FullscreenExitOutlined
 } from '@ant-design/icons'
 import { Pie, Bar, Column } from '@ant-design/plots'
 import apiService from '../services/api/index.js'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import { canAccessProductKPIDashboard } from '../utils/permissionUtils'
+import UnauthorizedPage from './UnauthorizedPage'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -54,6 +56,7 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [exporting, setExporting] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Fetch software products for filter
   useEffect(() => {
@@ -1476,6 +1479,11 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
     return `${productClass} ${statusClass}`.trim()
   }, [])
 
+  // Fullscreen toggle
+  const handleFullscreenToggle = () => {
+    setIsFullscreen(!isFullscreen)
+  }
+
   // Export menu items
   const exportMenuItems = [
     {
@@ -1492,54 +1500,113 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
     }
   ]
 
-  return (
-    <div style={{ padding: 24 }}>
-      {/* Header */}
-      <Breadcrumb style={{ marginBottom: 16 }}>
-        <Breadcrumb.Item>
-          <HomeOutlined />
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>Projects</Breadcrumb.Item>
-        <Breadcrumb.Item>Product KPI Dashboard</Breadcrumb.Item>
-      </Breadcrumb>
+  // Check if user has permission to access this dashboard
+  if (!canAccessProductKPIDashboard()) {
+    return <UnauthorizedPage />
+  }
 
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
-          <Title level={2} style={{ margin: 0 }}>
-            {selectedProduct 
-              ? `Product KPI Dashboard - ${softwareProducts.find(p => p.name === selectedProduct)?.product_name || selectedProduct}`
+  return (
+    <div style={{
+      position: isFullscreen ? 'fixed' : 'relative',
+      top: isFullscreen ? 0 : 'auto',
+      left: isFullscreen ? 0 : 'auto',
+      width: isFullscreen ? '100%' : 'auto',
+      height: isFullscreen ? '100vh' : 'auto',
+      zIndex: isFullscreen ? 9999 : 'auto',
+      padding: isFullscreen ? 16 : 24,
+      overflow: isFullscreen ? 'auto' : 'visible',
+      background: isFullscreen ? '#ffffff' : 'transparent'
+    }}>
+      {/* Fullscreen Header Bar - Only shown when fullscreen */}
+      {isFullscreen && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+          paddingBottom: 12,
+          borderBottom: '2px solid #f0f0f0',
+          background: '#fafafa',
+          marginLeft: -16,
+          marginRight: -16,
+          marginTop: -16,
+          paddingLeft: 16,
+          paddingRight: 16,
+          paddingTop: 12
+        }}>
+          <Title level={3} style={{ margin: 0 }}>
+            {selectedProduct
+              ? `${softwareProducts.find(p => p.name === selectedProduct)?.product_name || selectedProduct}`
               : 'Global Product KPI Dashboard'}
           </Title>
-          <Space>
-            <Tooltip title="Auto-refresh every 60 seconds">
+          <Button
+            type="text"
+            icon={<FullscreenExitOutlined />}
+            onClick={handleFullscreenToggle}
+            size="large"
+            style={{ fontSize: 18 }}
+            title="Exit fullscreen"
+          />
+        </div>
+      )}
+
+      {!isFullscreen && (
+        <>
+          {/* Header */}
+          <Breadcrumb style={{ marginBottom: 16 }}>
+            <Breadcrumb.Item>
+              <HomeOutlined />
+            </Breadcrumb.Item>
+            <Breadcrumb.Item>Projects</Breadcrumb.Item>
+            <Breadcrumb.Item>Product KPI Dashboard</Breadcrumb.Item>
+          </Breadcrumb>
+
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+              <Title level={2} style={{ margin: 0 }}>
+                {selectedProduct
+                  ? `Product KPI Dashboard - ${softwareProducts.find(p => p.name === selectedProduct)?.product_name || selectedProduct}`
+                  : 'Global Product KPI Dashboard'}
+              </Title>
               <Space>
-                <Text>Auto-refresh</Text>
-                <Switch checked={autoRefresh} onChange={setAutoRefresh} />
-              </Space>
-            </Tooltip>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={fetchKPIData}
-              loading={loading}
-            >
-              Refresh
-            </Button>
-            <Dropdown
-              menu={{ items: exportMenuItems }}
-              trigger={['click']}
-              disabled={!kpiData || exporting}
-            >
-              <Button
-                icon={<ExportOutlined />}
-                loading={exporting}
+                <Tooltip title="Auto-refresh every 60 seconds">
+                  <Space>
+                    <Text>Auto-refresh</Text>
+                    <Switch checked={autoRefresh} onChange={setAutoRefresh} />
+                  </Space>
+                </Tooltip>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={fetchKPIData}
+                  loading={loading}
+                >
+                  Refresh
+                </Button>
+                <Dropdown
+                  menu={{ items: exportMenuItems }}
+                  trigger={['click']}
+                  disabled={!kpiData || exporting}
+                >
+                  <Button
+                    icon={<ExportOutlined />}
+                    loading={exporting}
               >
                 Export <DownOutlined />
               </Button>
             </Dropdown>
-          </Space>
-        </div>
-        
-        {/* Product Manager Display - Prominent */}
+                <Tooltip title="Fullscreen view - Dashboard only">
+                  <Button
+                    icon={<FullscreenOutlined />}
+                    onClick={handleFullscreenToggle}
+                  >
+                    Fullscreen
+                  </Button>
+                </Tooltip>
+              </Space>
+            </div>
+          </div>
+
+          {/* Product Manager Display - Prominent */}
         {selectedProduct && (() => {
           const product = softwareProducts.find(p => p.name === selectedProduct)
           const productManager = product?.product_manager_full_name || product?.product_manager
@@ -1590,10 +1657,9 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
           }
           return null
         })()}
-      </div>
 
-      {/* Enhanced Filters */}
-      <Card
+        {/* Enhanced Filters */}
+        <Card
         title={
           <Space>
             <FilterOutlined />
@@ -1703,7 +1769,86 @@ const ProductKPIDashboard = ({ navigateToRoute }) => {
                   </Space>
                 </Col>
         </Row>
-      </Card>
+        </Card>
+        </>
+      )}
+
+      {/* Fullscreen Mode - Dashboard Only */}
+      {isFullscreen && (
+        <div style={{ marginTop: 0 }}>
+          {/* Stats in Fullscreen */}
+          {kpiData && (
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Col xs={24} sm={12} md={6}>
+                <Tooltip title={
+                  <div>
+                    <div style={{ marginBottom: 8 }}>Total number of projects across all products in the system.</div>
+                    <div style={{ fontSize: 12, opacity: 0.8 }}>Formula: COUNT(Projects)</div>
+                  </div>
+                }>
+                  <Card style={{ cursor: 'help' }}>
+                    <Statistic
+                      title="Total Projects"
+                      value={kpiData.total_projects || 0}
+                      prefix={<ProjectOutlined />}
+                    />
+                  </Card>
+                </Tooltip>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Tooltip title={
+                  <div>
+                    <div style={{ marginBottom: 8 }}>Number of incidents currently in open status. These require immediate attention or resolution.</div>
+                    <div style={{ fontSize: 12, opacity: 0.8 }}>Formula: COUNT(Incidents WHERE status = 'Open')</div>
+                  </div>
+                }>
+                  <Card style={{ cursor: 'help' }}>
+                    <Statistic
+                      title="Open Incidents"
+                      value={kpiData.open_incidents || 0}
+                      prefix={<AlertOutlined />}
+                      valueStyle={{ color: '#ff4d4f' }}
+                    />
+                  </Card>
+                </Tooltip>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Tooltip title={
+                  <div>
+                    <div style={{ marginBottom: 8 }}>Number of risks that are currently active and not yet resolved or closed.</div>
+                    <div style={{ fontSize: 12, opacity: 0.8 }}>Formula: COUNT(Risks WHERE status = 'Active')</div>
+                  </div>
+                }>
+                  <Card style={{ cursor: 'help' }}>
+                    <Statistic
+                      title="Active Risks"
+                      value={kpiData.active_risks || 0}
+                      prefix={<WarningOutlined />}
+                      valueStyle={{ color: '#faad14' }}
+                    />
+                  </Card>
+                </Tooltip>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Tooltip title={
+                  <div>
+                    <div style={{ marginBottom: 8 }}>Total number of team members assigned to all projects across products.</div>
+                    <div style={{ fontSize: 12, opacity: 0.8 }}>Formula: COUNT(DISTINCT Team Members)</div>
+                  </div>
+                }>
+                  <Card style={{ cursor: 'help' }}>
+                    <Statistic
+                      title="Team Members"
+                      value={kpiData.total_team_members || 0}
+                      prefix={<TeamOutlined />}
+                    />
+                  </Card>
+                </Tooltip>
+              </Col>
+            </Row>
+          )}
+        </div>
+      )}
 
       {/* Loading State */}
       {loading && (

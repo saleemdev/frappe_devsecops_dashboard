@@ -344,7 +344,9 @@ const useNavigationStore = create(
               selectedSwaggerId: null,
               showSwaggerDetail: false
             })
-            window.location.hash = `password-vault/edit/${get().selectedPasswordVaultEntryId}`
+            if (passwordVaultEntryId) {
+              window.location.hash = `password-vault/edit/${passwordVaultEntryId}`
+            }
             break
 
           case 'raci-template':
@@ -1556,6 +1558,7 @@ const useNavigationStore = create(
             showAppDetail: true,
             selectedIncidentId: true,
             showIncidentDetail: true,
+            selectedPasswordVaultEntryId: true,
             isMobile: true,
             mobileMenuVisible: true
           }

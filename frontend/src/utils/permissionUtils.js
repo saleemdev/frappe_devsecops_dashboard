@@ -25,6 +25,15 @@ export const isProjectManager = () => {
 }
 
 /**
+ * Check if current user has Internal Stakeholder role
+ * @returns {boolean}
+ */
+export const isInternalStakeholder = () => {
+  const roles = window.frappe?.boot?.user?.roles || []
+  return roles.includes('Internal Stakeholder')
+}
+
+/**
  * Check if current user can edit projects
  * Only Administrator or Project Manager can edit
  * @returns {boolean}
@@ -40,6 +49,15 @@ export const canEditProject = () => {
  */
 export const canEditTask = () => {
   return isAdministrator() || isProjectManager()
+}
+
+/**
+ * Check if current user can access Product KPI Dashboard
+ * Only Administrator or Internal Stakeholder can access
+ * @returns {boolean}
+ */
+export const canAccessProductKPIDashboard = () => {
+  return isAdministrator() || isInternalStakeholder()
 }
 
 /**
@@ -61,7 +79,8 @@ export const getCurrentUser = () => {
     fullName: window.frappe?.session?.user_fullname || window.frappe?.session?.user || '',
     roles: getCurrentUserRoles(),
     isAdmin: isAdministrator(),
-    isProjectManager: isProjectManager()
+    isProjectManager: isProjectManager(),
+    isInternalStakeholder: isInternalStakeholder()
   }
 }
 
@@ -76,6 +95,7 @@ export const getPermissionInfo = () => {
     canEdit: canEditProject() || canEditTask(),
     canEditProject: canEditProject(),
     canEditTask: canEditTask(),
+    canAccessProductKPIDashboard: canAccessProductKPIDashboard(),
     reason: !canEditProject() ? 'Only Administrator or Project Manager can edit' : null
   }
 }

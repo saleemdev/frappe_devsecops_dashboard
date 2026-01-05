@@ -68,6 +68,7 @@ import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
 import useAuthStore from './stores/authStore.js'
 import useNavigationStore from './stores/navigationStore.js'
+import { canAccessProductKPIDashboard } from './utils/permissionUtils'
 
 const { Header, Content } = Layout
 const { Title, Text } = Typography
@@ -629,11 +630,11 @@ function AppContent({
           key: 'software-product',
           label: 'Software Product'
         },
-        {
+        ...(canAccessProductKPIDashboard() ? [{
           key: 'product-kpi-dashboard',
           icon: <BarChartOutlined />,
           label: 'Product KPI Dashboard'
-        },
+        }] : []),
         {
           key: 'raci-template',
           label: 'RACI Setup',

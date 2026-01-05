@@ -45,7 +45,6 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import Swal from 'sweetalert2'
-import { createApiClient } from '../services/api/config'
 import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
@@ -64,46 +63,43 @@ const PasswordVault = ({ navigateToRoute }) => {
   const [shareForm] = Form.useForm()
   const [sharedUsers, setSharedUsers] = useState([])
   const [loadingSharedUsers, setLoadingSharedUsers] = useState(false)
-  const [apiClient, setApiClient] = useState(null)
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [userOptions, setUserOptions] = useState([])
   const [stats, setStats] = useState({ owned: 0, shared: 0, total: 0 })
 
-  // Initialize API client
+  // Load password entries when filters change
   useEffect(() => {
-    const initClient = async () => {
-      const client = await createApiClient()
-      setApiClient(client)
-    }
-    initClient()
-  }, [])
-
-  // Load password entries when client is ready or filters change
-  useEffect(() => {
-    if (apiClient) {
-      loadEntries()
-    }
-  }, [apiClient, searchQuery, categoryFilter])
+    loadEntries()
+  }, [searchQuery, categoryFilter])
 
   const loadEntries = async () => {
-    if (!apiClient) return
     try {
       setLoading(true)
-      const response = await apiClient.get('/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entries', {
-        params: {
-          search_query: searchQuery,
-          category: categoryFilter,
-          include_shared: true
+      const params = new URLSearchParams({
+        search_query: searchQuery,
+        category: categoryFilter,
+        include_shared: true
+      })
+      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entries?${params}`, {
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
         }
       })
 
-      if (response.data && response.data.success) {
-        setEntries(response.data.data || [])
+      if (!response.ok) throw new Error('Failed to fetch entries')
+
+      const result = await response.json()
+      const data = result.message || result.data || result
+
+      if (data && data.success) {
+        setEntries(data.data || [])
         setStats({
-          owned: response.data.owned_count || 0,
-          shared: response.data.shared_count || 0,
-          total: response.data.total || 0
+          owned: data.owned_count || 0,
+          shared: data.shared_count || 0,
+          total: data.total || 0
         })
       } else {
-        setEntries(response.data || [])
+        setEntries(data || [])
       }
     } catch (error) {
       console.error('[PasswordVault] Error loading entries:', error)
@@ -119,20 +115,25 @@ const PasswordVault = ({ navigateToRoute }) => {
 
   const handleEdit = (entry) => {
     if (entry?.name) {
-      navigateToRoute('password-vault-edit', null, null, entry.name)
+      navigateToRoute('password-vault-edit', null, null, null, entry.name)
     } else {
       message.error('Invalid password entry')
     }
   }
 
   const handleCopyPassword = async (entry) => {
-    if (!apiClient) return
     try {
-      const response = await apiClient.get('/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entry', {
-        params: { name: entry.name }
+      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entry?name=${entry.name}`, {
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
       })
 
-      const data = response.data.data || response.data
+      if (!response.ok) throw new Error('Failed to fetch entry')
+
+      const result = await response.json()
+      const data = result.message || result.data || result
+
       if (data && data.password) {
         await navigator.clipboard.writeText(data.password)
         message.success('Password copied to clipboard')
@@ -144,13 +145,18 @@ const PasswordVault = ({ navigateToRoute }) => {
   }
 
   const handleCopyCredentials = async (entry) => {
-    if (!apiClient) return
     try {
-      const response = await apiClient.get('/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entry', {
-        params: { name: entry.name }
+      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entry?name=${entry.name}`, {
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
       })
 
-      const data = response.data.data || response.data
+      if (!response.ok) throw new Error('Failed to fetch entry')
+
+      const result = await response.json()
+      const data = result.message || result.data || result
+
       if (data) {
         const credentialsText = `Username: ${data.username || 'N/A'}\nPassword: ${data.password || 'N/A'}${data.url ? `\nURL: ${data.url}` : ''}`
         await navigator.clipboard.writeText(credentialsText)
@@ -163,13 +169,22 @@ const PasswordVault = ({ navigateToRoute }) => {
   }
 
   const handleDeletePassword = async (entry) => {
-    if (!apiClient) return
     try {
-      const response = await apiClient.post('/api/method/frappe_devsecops_dashboard.api.password_vault.delete_vault_entry', {
-        name: entry.name
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.password_vault.delete_vault_entry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        body: JSON.stringify({ name: entry.name })
       })
 
-      if (response.data && (response.data.success || response.data.message)) {
+      if (!response.ok) throw new Error('Failed to delete entry')
+
+      const result = await response.json()
+      const data = result.message || result.data || result
+
+      if (data && (data.success || data.message)) {
         message.success('Password deleted successfully')
         loadEntries()
       }
@@ -190,15 +205,22 @@ const PasswordVault = ({ navigateToRoute }) => {
   }
 
   const loadUsersForSharing = async (search = '') => {
-    if (!apiClient) return
     try {
       setLoadingUsers(true)
-      const response = await apiClient.get('/api/method/frappe_devsecops_dashboard.api.password_vault.get_users_for_sharing', {
-        params: { search_query: search }
+      const params = new URLSearchParams({ search_query: search })
+      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.password_vault.get_users_for_sharing?${params}`, {
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
       })
 
-      if (response.data && response.data.success) {
-        setUserOptions(response.data.data || [])
+      if (!response.ok) throw new Error('Failed to fetch users')
+
+      const result = await response.json()
+      const data = result.message || result.data || result
+
+      if (data && data.success) {
+        setUserOptions(data.data || [])
       }
     } catch (error) {
       console.error('[PasswordVault] Error loading users:', error)
@@ -208,15 +230,21 @@ const PasswordVault = ({ navigateToRoute }) => {
   }
 
   const loadSharedUsers = async (entryName) => {
-    if (!apiClient) return
     try {
       setLoadingSharedUsers(true)
-      const response = await apiClient.get('/api/method/frappe_devsecops_dashboard.api.password_vault.get_shared_users', {
-        params: { name: entryName }
+      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.password_vault.get_shared_users?name=${entryName}`, {
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
       })
 
-      if (response.data && response.data.success) {
-        setSharedUsers(response.data.data || [])
+      if (!response.ok) throw new Error('Failed to fetch shared users')
+
+      const result = await response.json()
+      const data = result.message || result.data || result
+
+      if (data && data.success) {
+        setSharedUsers(data.data || [])
       }
     } catch (error) {
       console.error('[PasswordVault] Error loading shared users:', error)
@@ -226,21 +254,33 @@ const PasswordVault = ({ navigateToRoute }) => {
   }
 
   const handleShareSubmit = async (values) => {
-    if (!apiClient || !selectedEntry) return
+    if (!selectedEntry) return
     try {
-      const response = await apiClient.post('/api/method/frappe_devsecops_dashboard.api.password_vault.share_password_entry', {
-        name: selectedEntry.name,
-        assign_to_users: values.users || [],
-        description: values.description || ''
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.password_vault.share_password_entry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        body: JSON.stringify({
+          name: selectedEntry.name,
+          assign_to_users: values.users || [],
+          description: values.description || ''
+        })
       })
 
-      if (response.data && response.data.success) {
-        message.success(response.data.message || 'Password shared successfully')
+      if (!response.ok) throw new Error('Failed to share password')
+
+      const result = await response.json()
+      const data = result.message || result.data || result
+
+      if (data && data.success) {
+        message.success(data.message || 'Password shared successfully')
         await loadSharedUsers(selectedEntry.name)
         shareForm.resetFields()
         loadEntries()
       } else {
-        message.error(response.data.error || 'Failed to share password')
+        message.error(data.error || 'Failed to share password')
       }
     } catch (error) {
       console.error('[PasswordVault] Error sharing password:', error)
@@ -249,21 +289,71 @@ const PasswordVault = ({ navigateToRoute }) => {
   }
 
   const handleUnshare = async (userEmail) => {
-    if (!apiClient || !selectedEntry) return
+    if (!selectedEntry) return
     try {
-      const response = await apiClient.post('/api/method/frappe_devsecops_dashboard.api.password_vault.unshare_password_entry', {
-        name: selectedEntry.name,
-        user_email: userEmail
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.password_vault.unshare_password_entry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        body: JSON.stringify({
+          name: selectedEntry.name,
+          user_email: userEmail
+        })
       })
 
-      if (response.data && response.data.success) {
-        message.success(response.data.message || 'Password unshared successfully')
+      if (!response.ok) throw new Error('Failed to unshare password')
+
+      const result = await response.json()
+      const data = result.message || result.data || result
+
+      if (data && data.success) {
+        message.success(data.message || 'Password unshared successfully')
         await loadSharedUsers(selectedEntry.name)
         loadEntries()
       }
     } catch (error) {
       console.error('[PasswordVault] Error unsharing password:', error)
       message.error('Failed to unshare password')
+    }
+  }
+
+  const handleUserSearch = async (searchValue) => {
+    if (!searchValue) {
+      setUserOptions([])
+      return
+    }
+
+    try {
+      setLoadingUsers(true)
+      const params = new URLSearchParams({ search_query: searchValue })
+      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.password_vault.get_users_for_sharing?${params}`, {
+        headers: {
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        }
+      })
+
+      if (!response.ok) throw new Error('Failed to search users')
+
+      const result = await response.json()
+      const data = result.message || result.data || result
+
+      if (data && data.success && data.data) {
+        const users = data.data
+        const options = users.map(user => ({
+          label: `${user.full_name || user.email} (${user.email})`,
+          value: user.email
+        }))
+        setUserOptions(options)
+      } else {
+        setUserOptions([])
+      }
+    } catch (error) {
+      console.error('[PasswordVault] Error searching users:', error)
+      setUserOptions([])
+    } finally {
+      setLoadingUsers(false)
     }
   }
 

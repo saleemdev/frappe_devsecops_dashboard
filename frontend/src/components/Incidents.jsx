@@ -15,7 +15,8 @@ import {
   DatePicker,
   Tooltip,
   Input,
-  Select
+  Select,
+  Segmented
 } from 'antd'
 import {
   PlusOutlined,
@@ -26,9 +27,12 @@ import {
   SearchOutlined,
   FilterOutlined,
   ReloadOutlined,
-  FilePdfOutlined
+  FilePdfOutlined,
+  TableOutlined,
+  CalendarOutlined
 } from '@ant-design/icons'
 import IncidentDetail from './IncidentDetail'
+import IncidentsCalendar from './IncidentsCalendar'
 import useIncidentsStore from '../stores/incidentsStore'
 import useNavigationStore from '../stores/navigationStore'
 import useIncidentNavigation from '../hooks/useIncidentNavigation'
@@ -44,7 +48,10 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
     loading,
     error,
     filters,
+    viewMode,
     setFilters,
+    setViewMode,
+    loadViewMode,
     fetchIncidents,
     closeIncident
   } = useIncidentsStore()
@@ -89,10 +96,11 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
     )
   }
 
-  // Load incidents on component mount
+  // Load incidents and view mode on component mount
   useEffect(() => {
+    loadViewMode()
     fetchIncidents()
-  }, [fetchIncidents])
+  }, [fetchIncidents, loadViewMode])
 
   // Handle filter changes - sync with store
   const handleStatusFilterChange = (value) => {
@@ -397,26 +405,57 @@ const Incidents = ({ navigateToRoute, showIncidentDetail, selectedIncidentId }) 
           </Col>
         </Row>
 
-        <Table
-          columns={columns}
-          dataSource={filteredIncidents}
-          rowKey="name"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} incidents`
-          }}
-          locale={{
-            emptyText: (
-              <Empty
-                description="No incidents found"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            )
-          }}
-        />
+        {/* View Mode Toggle */}
+        <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+          <Col>
+            <Segmented
+              value={viewMode}
+              onChange={setViewMode}
+              options={[
+                {
+                  label: 'Table View',
+                  value: 'table',
+                  icon: <TableOutlined />
+                },
+                {
+                  label: 'Calendar View',
+                  value: 'calendar',
+                  icon: <CalendarOutlined />
+                }
+              ]}
+            />
+          </Col>
+        </Row>
+
+        {/* Conditional View Rendering */}
+        {viewMode === 'table' ? (
+          <Table
+            columns={columns}
+            dataSource={filteredIncidents}
+            rowKey="name"
+            loading={loading}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} incidents`
+            }}
+            locale={{
+              emptyText: (
+                <Empty
+                  description="No incidents found"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              )
+            }}
+          />
+        ) : (
+          <IncidentsCalendar
+            incidents={filteredIncidents}
+            onIncidentClick={handleViewIncident}
+            loading={loading}
+          />
+        )}
       </Card>
 
     </div>

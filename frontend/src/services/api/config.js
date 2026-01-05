@@ -171,11 +171,10 @@ const createApiClient = async () => {
   client.interceptors.response.use(
     (response) => {
       // Frappe returns data in response.data.message for method calls
-      if (response.data && response.data.message !== undefined) {
-        return {
-          ...response,
-          data: response.data.message
-        }
+      // Only transform if message is present and looks like actual data (not error response)
+      if (response.data && response.data.message !== undefined && !response.data.exc_type) {
+        // Replace response.data.message content back into response.data
+        response.data = response.data.message
       }
       return response
     },

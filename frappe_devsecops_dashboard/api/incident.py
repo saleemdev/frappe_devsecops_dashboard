@@ -44,8 +44,9 @@ def get_incidents(
             field_list = [
                 'name', 'title', 'priority', 'status', 'category', 'severity',
                 'assigned_to', 'assigned_to_name', 'reported_by', 'reported_by_name',
-                'reported_date', 'description', 'affected_systems', 'impact_description',
-                'resolution_notes', 'root_cause', 'sla_status', 'sla_due_date', 'project', 'project_name'
+                'reported_date', 'resolution_date', 'description', 'affected_systems', 'impact_description',
+                'resolution_notes', 'root_cause', 'sla_status', 'sla_due_date', 'project', 'project_name',
+                'source', 'finding_id', 'region', 'resource', 'publicly_accessible', 'action_taken', 'threat_intel'
             ]
 
         # Always include 'name' for identification

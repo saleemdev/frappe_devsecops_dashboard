@@ -30,6 +30,9 @@ const useIncidentsStore = create(
       },
       stats: null,
 
+      // View mode state for toggling between table and calendar views
+      viewMode: 'table', // 'table' or 'calendar'
+
       // Form state management
       formMode: null, // 'create', 'edit', or null
       formData: null, // Current form data being edited
@@ -366,6 +369,37 @@ const useIncidentsStore = create(
       }),
 
       /**
+       * Set view mode (table or calendar)
+       */
+      setViewMode: (mode) => {
+        if (mode !== 'table' && mode !== 'calendar') {
+          console.warn('[incidentsStore] Invalid view mode:', mode)
+          return
+        }
+        set({ viewMode: mode })
+        // Persist to localStorage
+        try {
+          localStorage.setItem('incidents_view_mode', mode)
+        } catch (error) {
+          console.error('[incidentsStore] Failed to save view mode:', error)
+        }
+      },
+
+      /**
+       * Load view mode from localStorage
+       */
+      loadViewMode: () => {
+        try {
+          const savedMode = localStorage.getItem('incidents_view_mode')
+          if (savedMode === 'table' || savedMode === 'calendar') {
+            set({ viewMode: savedMode })
+          }
+        } catch (error) {
+          console.error('[incidentsStore] Failed to load view mode:', error)
+        }
+      },
+
+      /**
        * Reset store to initial state
        */
       reset: () => set({
@@ -387,6 +421,7 @@ const useIncidentsStore = create(
           total: 0
         },
         stats: null,
+        viewMode: 'table',
         formMode: null,
         formData: null,
         formErrors: {}

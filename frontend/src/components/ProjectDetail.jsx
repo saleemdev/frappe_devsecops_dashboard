@@ -509,8 +509,8 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         priority: values.priority || 'Medium',
         status: values.status || 'Open',
         task_type: values.task_type,
-        exp_start_date: values.exp_start_date ? values.exp_start_date.format('YYYY-MM-DD') : null,
-        exp_end_date: values.exp_end_date ? values.exp_end_date.format('YYYY-MM-DD') : null,
+        exp_start_date: values.exp_start_date || null,
+        exp_end_date: values.exp_end_date || null,
         assigned_to: values.assigned_to,
         is_milestone: values.is_milestone ? 1 : 0
       }
@@ -597,8 +597,8 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         status: values.status,
         priority: values.priority,
         description: values.description || '',
-        exp_start_date: values.exp_start_date ? values.exp_start_date.format('YYYY-MM-DD') : null,
-        exp_end_date: values.exp_end_date ? values.exp_end_date.format('YYYY-MM-DD') : null,
+        exp_start_date: values.exp_start_date || null,
+        exp_end_date: values.exp_end_date || null,
         progress: values.progress || 0,
         is_milestone: values.is_milestone ? 1 : 0
       }
@@ -606,7 +606,21 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       const response = await updateTask(taskToUpdate.name, taskData)
 
       if (response.success) {
-        message.success('Task updated successfully')
+        message.success({
+          content: (
+            <span>
+              <span style={{ marginRight: '8px' }}>✅</span>
+              <strong>Task updated successfully!</strong>
+              <span style={{ marginLeft: '8px', fontSize: '12px', color: '#52c41a' }}>
+                All changes saved
+              </span>
+            </span>
+          ),
+          duration: 3,
+          style: {
+            marginTop: '20vh',
+          }
+        })
         handleCloseNewTaskModal() // Close the enhanced dialog
         handleCloseEditTaskModal() // Close old modal if open
         loadProjectData()
@@ -1461,22 +1475,43 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                                     <div
                                       key={task.name || idx}
                                       style={{
-                                        padding: '8px 12px',
-                                        backgroundColor: '#fafafa',
-                                        borderRadius: '4px',
-                                        borderLeft: `3px solid ${task.status && (task.status.toLowerCase() === 'completed' || task.status.toLowerCase() === 'closed') ? '#52c41a' : '#d9d9d9'}`,
-                                        fontSize: '12px'
+                                        padding: '12px 14px',
+                                        backgroundColor: task.status && (task.status.toLowerCase() === 'completed' || task.status.toLowerCase() === 'closed') ? '#f6ffed' : '#fafafa',
+                                        borderRadius: '6px',
+                                        borderLeft: `4px solid ${task.status && (task.status.toLowerCase() === 'completed' || task.status.toLowerCase() === 'closed') ? '#52c41a' : task.priority === 'Urgent' ? '#ff4d4f' : task.priority === 'High' ? '#fa8c16' : '#1890ff'}`,
+                                        fontSize: '12px',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                        transition: 'all 0.3s ease',
+                                        cursor: 'pointer'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'
+                                        e.currentTarget.style.transform = 'translateY(-1px)'
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
+                                        e.currentTarget.style.transform = 'translateY(0)'
                                       }}
                                     >
                                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '8px' }}>
                                         <div style={{ flex: 1 }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <Text strong style={{ fontSize: '13px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                            <Text strong style={{ fontSize: '13px', color: '#262626' }}>
                                               {task.subject || task.name}
                                             </Text>
+                                            {task.is_milestone === 1 && (
+                                              <Tag color="purple" style={{ fontSize: '10px', fontWeight: '600', margin: 0 }}>
+                                                🎯 MILESTONE
+                                              </Tag>
+                                            )}
                                             {task.custom_priority !== undefined && task.custom_priority !== null && (
-                                              <Tag color="blue" style={{ fontSize: '10px', fontWeight: '600' }}>
+                                              <Tag color="blue" style={{ fontSize: '10px', fontWeight: '600', margin: 0 }}>
                                                 P{task.custom_priority}
+                                              </Tag>
+                                            )}
+                                            {task.modified && new Date(task.modified) > new Date(Date.now() - 24*60*60*1000) && (
+                                              <Tag color="cyan" style={{ fontSize: '10px', fontWeight: '600', margin: 0, animation: 'pulse 2s infinite' }}>
+                                                ✨ UPDATED
                                               </Tag>
                                             )}
                                           </div>

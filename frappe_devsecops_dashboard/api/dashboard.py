@@ -167,21 +167,17 @@ def enhance_project_with_task_data(project):
         frappe.log_error(f"Error fetching project manager for {project_name}: {str(e)}", "Project Manager Fetch Error")
         project['project_manager'] = None
 
-    # Get tasks for this project - only show tasks user is assigned to
+    # Get tasks for this project
     try:
-        # Get current user
+        # For project detail view, show ALL tasks to authenticated users
+        # Users can see tasks they're working on even if not explicitly assigned via ToDo
         current_user = frappe.session.user
 
-        # Check if user is Administrator or Project Manager
-        user_roles = frappe.get_roles(current_user)
-        is_admin_or_pm = (
-            current_user == "Administrator" or
-            "Administrator" in user_roles or
-            "Project Manager" in user_roles
-        )
+        # Check if user is authenticated (not Guest)
+        is_authenticated = current_user != "Guest"
 
-        # Determine task filters based on user role
-        if is_admin_or_pm:
+        # If authenticated, show ALL tasks; if Guest, no tasks
+        if is_authenticated:
             # Administrators and Project Managers see ALL tasks in the project
             tasks = frappe.get_list(
                 "Task",
@@ -209,61 +205,21 @@ def enhance_project_with_task_data(project):
                 limit_page_length=None
             )
         else:
-            # Regular users see only tasks assigned to them via ToDo
-            # Get task names where user is assigned via ToDo
-            # Note: Show all tasks regardless of ToDo status (including completed)
-            assigned_task_names = frappe.get_all(
-                'ToDo',
-                filters={
-                    'reference_type': 'Task',
-                    'allocated_to': current_user
-                },
-                fields=['reference_name'],
-                pluck='reference_name'
-            )
-
-            # If user has no assigned tasks, use empty list for filters
-            if not assigned_task_names:
-                tasks = []
-            else:
-                # Fetch only assigned tasks for this project
-                tasks = frappe.get_list(
-                    "Task",
-                    fields=[
-                        "name",
-                        "subject",
-                        "status",
-                        "type",
-                        "progress",
-                        "priority",
-                        "exp_start_date",
-                        "exp_end_date",
-                        "act_start_date",
-                        "act_end_date",
-                        "completed_on",
-                        "is_milestone",
-                        "owner",
-                        "description",
-                        "idx"
-                    ],
-                    filters={
-                        "project": project_name,
-                        "name": ['in', assigned_task_names]
-                    },
-                    order_by="type, idx",
-                    limit_page_length=None
-                )
+            # Guest users see no tasks
+            tasks = []
 
         # Enhance tasks with task type information and assignments using ORM
         enhanced_tasks = []
         for task in tasks:
             try:
-                # Get task type description if type exists
+                # Get task type description and priority if type exists
                 if task.get('type'):
                     task_type_doc = frappe.get_doc("Task Type", task.get('type'))
                     task['task_type_description'] = task_type_doc.get('description', '')
+                    task['task_type_priority'] = task_type_doc.get('custom_priority') or 999
                 else:
                     task['task_type_description'] = ''
+                    task['task_type_priority'] = 999
 
                 # Get task assignments from ToDo doctype
                 from frappe_devsecops_dashboard.api.task import get_task_assignments
@@ -280,12 +236,14 @@ def enhance_project_with_task_data(project):
             except frappe.DoesNotExistError:
                 # Task type doesn't exist, continue without description
                 task['task_type_description'] = ''
+                task['task_type_priority'] = 999
                 task['assigned_users'] = []
                 task['assigned_to'] = ''
                 enhanced_tasks.append(task)
             except frappe.PermissionError:
                 # User doesn't have access to this task type, skip description
                 task['task_type_description'] = ''
+                task['task_type_priority'] = 999
                 task['assigned_users'] = []
                 task['assigned_to'] = ''
                 enhanced_tasks.append(task)
@@ -619,7 +577,7 @@ def get_devsecops_lifecycle_phases():
         return []
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_project_details(project_name):
     """
     Get detailed information for a specific project
@@ -1531,16 +1489,16 @@ def get_project_milestones(project_name):
 @frappe.whitelist()
 def get_task_types():
     """
-    Get all available Task Types
+    Get all available Task Types with custom priority for ordering
 
     Returns:
-        dict: Success status and list of task types
+        dict: Success status and list of task types with priorities
     """
     try:
         task_types = frappe.get_list(
             "Task Type",
-            fields=["name", "description"],
-            order_by="name asc"
+            fields=["name", "description", "custom_priority"],
+            order_by="custom_priority asc, name asc"
         )
 
         return {

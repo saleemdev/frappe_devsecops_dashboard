@@ -126,6 +126,49 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [taskDialogMode, setTaskDialogMode] = useState('create') // 'create', 'edit', or 'view'
   const [selectedTask, setSelectedTask] = useState(null)
 
+  // Timeline Task Type Filter state
+  const TIMELINE_FILTER_STORAGE_KEY = 'devsecops_timeline_task_type_filter'
+  const [timelineTaskTypeFilter, setTimelineTaskTypeFilter] = useState([])
+
+  // Load filter from localStorage on mount
+  useEffect(() => {
+    const savedFilter = localStorage.getItem(TIMELINE_FILTER_STORAGE_KEY)
+    if (savedFilter) {
+      try {
+        setTimelineTaskTypeFilter(JSON.parse(savedFilter))
+      } catch {
+        // Invalid JSON, ignore
+      }
+    }
+  }, [])
+
+  // Save filter to localStorage whenever it changes
+  const handleTimelineTaskTypeFilterChange = (selectedTaskTypes) => {
+    setTimelineTaskTypeFilter(selectedTaskTypes)
+    localStorage.setItem(TIMELINE_FILTER_STORAGE_KEY, JSON.stringify(selectedTaskTypes))
+  }
+
+  // Get available task types from project data
+  const getAvailableTaskTypes = () => {
+    if (!projectData?.tasks) return []
+    const types = [...new Set(projectData.tasks.map(t => t.type).filter(Boolean))]
+    return types.sort()
+  }
+
+  // Filter tasks based on selected task types
+  const getFilteredProjectData = () => {
+    if (!projectData || !projectData.tasks) return projectData
+    const selectedTypes = timelineTaskTypeFilter
+    if (selectedTypes.length === 0) {
+      // No filter applied, show all
+      return projectData
+    }
+    return {
+      ...projectData,
+      tasks: projectData.tasks.filter(task => selectedTypes.includes(task.type))
+    }
+  }
+
   // Fetch task types when modal opens
   useEffect(() => {
     if (taskDialogOpen) {
@@ -1439,11 +1482,38 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 ),
                 children: (
                   <div>
-                    {projectData?.tasks && projectData.tasks.length > 0 ? (
-                      <Steps
-                        direction="vertical"
-                        current={-1}
-                        items={groupTasksByType(projectData.tasks).map((group) => {
+                    {/* Task Type Filter - Visible inside expanded section */}
+                    {projectData?.tasks && projectData.tasks.length > 0 && (
+                      <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '500', color: '#666', minWidth: '80px' }}>Task Types:</span>
+                        <Select
+                          mode="multiple"
+                          placeholder="All task types"
+                          style={{ minWidth: '250px' }}
+                          size="small"
+                          options={getAvailableTaskTypes().map(type => ({ label: type, value: type }))}
+                          value={timelineTaskTypeFilter}
+                          onChange={handleTimelineTaskTypeFilterChange}
+                          allowClear
+                          maxTagCount="responsive"
+                          status={timelineTaskTypeFilter.length > 0 ? 'success' : undefined}
+                        />
+                      </div>
+                    )}
+                    {(() => {
+                      const filteredData = getFilteredProjectData()
+                      const hasVisibleTasks = filteredData?.tasks && filteredData.tasks.length > 0
+                      const allTasksFiltered = projectData?.tasks?.length > 0 && filteredData?.tasks?.length === 0 && timelineTaskTypeFilter.length > 0
+
+                      return (
+                        <>
+                          {hasVisibleTasks ? (
+                            <Steps
+                              direction="vertical"
+                              current={-1}
+                              items={(() => {
+                                const groups = groupTasksByType(filteredData.tasks)
+                          const renderedItems = groups.map((group) => {
                           const statusInfo = getTaskTypeStatus(group.tasks)
                           const iconType = getTaskTypeStatusIconType(statusInfo.status, statusInfo.hasOverdue)
 
@@ -1457,13 +1527,22 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                             icon = <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
                           }
 
+                          // Get priority from first task in group
+                          const taskTypePriority = group.tasks?.[0]?.task_type_priority
+                          const displayPriority = taskTypePriority && taskTypePriority !== 999 ? taskTypePriority : null
+
                           return {
                             title: (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{ fontSize: '14px', fontWeight: '600', color: getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue) }}>
                                   {group.type}
                                 </span>
-                                <Tag color={getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue)} style={{ marginLeft: '8px' }}>
+                                {displayPriority && (
+                                  <span style={{ fontSize: '11px', fontWeight: '700', background: '#e6f7ff', color: '#0050b3', padding: '2px 8px', borderRadius: '4px' }}>
+                                    P{displayPriority}
+                                  </span>
+                                )}
+                                <Tag color={getTaskTypeStatusColor(statusInfo.status, statusInfo.hasOverdue)} style={{ marginLeft: 'auto' }}>
                                   {statusInfo.completed}/{statusInfo.total} completed
                                 </Tag>
                               </div>
@@ -1564,11 +1643,26 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                             status: statusInfo.status,
                             icon: icon
                           }
-                        })}
-                      />
-                    ) : (
-                      <Empty description="No tasks found" />
-                    )}
+                        })
+                                  console.log('[Timeline] Total tasks:', filteredData.tasks.length, 'Groups:', groups.length, 'Rendered items:', renderedItems.length, 'Details:', groups.map(g => ({ type: g.type, taskCount: g.tasks.length })))
+                                  return renderedItems
+                                })()}
+                              />
+                            ) : allTasksFiltered ? (
+                              <Empty
+                                description="No tasks match the selected filter"
+                                style={{ marginTop: '24px', marginBottom: '24px' }}
+                              >
+                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                  Try adjusting your Task Type filter
+                                </Text>
+                              </Empty>
+                            ) : (
+                              <Empty description="No tasks found" />
+                            )}
+                        </>
+                      )
+                    })()}
                   </div>
                 )
               },

@@ -87,6 +87,18 @@ function App() {
 
   const navigationState = useNavigationStore()
 
+  // Provide clear error message if store is completely unavailable
+  if (!navigationState) {
+    console.error('[App] Navigation store returned null/undefined')
+    return (
+      <Layout style={{ minHeight: '100vh' }}>
+        <Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div>Error: Navigation store not initialized</div>
+        </Content>
+      </Layout>
+    )
+  }
+
   // Destructure with defaults to prevent undefined errors
   const {
     currentRoute = 'dashboard',
@@ -117,20 +129,8 @@ function App() {
     getBreadcrumbs = () => [],
     setIsMobile = () => { },
     toggleMobileMenu = () => { }
-  } = navigationState || {}
+  } = navigationState
 
-
-
-  // Early return if navigation store is not initialized
-  if (!navigationState) {
-    return (
-      <Layout style={{ minHeight: '100vh' }}>
-        <Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div>Loading...</div>
-        </Content>
-      </Layout>
-    )
-  }
 
   // Route detection (hash-based). Run once on mount to avoid update loops.
   useEffect(() => {
@@ -323,6 +323,7 @@ function App() {
         selectedIncidentId={selectedIncidentId}
         showSwaggerDetail={showSwaggerDetail}
         selectedSwaggerId={selectedSwaggerId}
+        selectedRiskRegisterId={selectedRiskRegisterId}
         selectedChangeRequestId={selectedChangeRequestId}
         showChangeRequestForm={showChangeRequestForm}
         selectedSoftwareProductId={selectedSoftwareProductId}
@@ -356,6 +357,7 @@ function AppContent({
   selectedIncidentId,
   showSwaggerDetail,
   selectedSwaggerId,
+  selectedRiskRegisterId,
   isMobile,
   mobileMenuVisible,
   setIsMobile,
@@ -576,16 +578,18 @@ function AppContent({
       case 'risk-register-edit':
         return (
           <RiskRegisterForm
-            registerId={selectedRiskRegisterId}
+            registerId={selectedRiskRegisterId || null}
             navigateToRoute={navigateToRoute}
+            mode="edit"
           />
         )
 
       case 'risk-register-detail':
         return (
           <RiskRegisterForm
-            registerId={selectedRiskRegisterId}
+            registerId={selectedRiskRegisterId || null}
             navigateToRoute={navigateToRoute}
+            mode="view"
           />
         )
 

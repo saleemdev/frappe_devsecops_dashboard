@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Card, Form, Input, Select, Button, Space, Typography, theme, message, Row, Col, Table, DatePicker, Drawer, Upload, List, Avatar } from 'antd'
-import { SaveOutlined, CloseOutlined, PlusOutlined, DeleteOutlined, FileTextOutlined, MessageOutlined, PaperClipOutlined, UserOutlined } from '@ant-design/icons'
+import { Card, Form, Input, Select, Button, Space, Typography, theme, message, Row, Col, Table, DatePicker, Drawer, Upload, List, Avatar, Tag, Breadcrumb } from 'antd'
+import { SaveOutlined, CloseOutlined, PlusOutlined, DeleteOutlined, FileTextOutlined, MessageOutlined, PaperClipOutlined, UserOutlined, ArrowLeftOutlined, FileProtectOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -10,8 +11,12 @@ const { TextArea } = Input
  * Risk Register Form Component
  * Create/Edit risk registers with child table for risks
  * Includes document attachments and comment drawer
+ *
+ * @param {string} registerId - ID of the risk register to edit/view
+ * @param {function} navigateToRoute - Navigation callback
+ * @param {string} mode - 'create', 'edit', or 'view' (default: auto-detect based on registerId)
  */
-function RiskRegisterForm({ registerId, navigateToRoute }) {
+function RiskRegisterForm({ registerId, navigateToRoute, mode }) {
   const { token } = theme.useToken()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
@@ -21,6 +26,11 @@ function RiskRegisterForm({ registerId, navigateToRoute }) {
   const [attachments, setAttachments] = useState([])
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
+  const [registerData, setRegisterData] = useState(null)
+
+  // Determine form mode: 'create', 'edit', or 'view'
+  const formMode = mode || (registerId ? 'edit' : 'create')
+  const isReadOnly = formMode === 'view'
 
   useEffect(() => {
     fetchProjects()
@@ -59,6 +69,8 @@ function RiskRegisterForm({ registerId, navigateToRoute }) {
       if (response.ok) {
         const result = await response.json()
         const data = result.data
+
+        setRegisterData(data)
 
         form.setFieldsValue({
           project: data.project,
@@ -361,13 +373,68 @@ function RiskRegisterForm({ registerId, navigateToRoute }) {
     }
   ]
 
+  const handleBackClick = () => {
+    if (navigateToRoute) {
+      navigateToRoute('risk-registers')
+    }
+  }
+
   return (
     <div>
-      <Card style={{ marginBottom: 16 }}>
-        <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-          <FileTextOutlined style={{ marginRight: 16, color: token.colorPrimary }} />
-          {registerId ? 'Edit Risk Register' : 'Create Risk Register'}
-        </Title>
+      {/* Header Card with Breadcrumb */}
+      <Card style={{
+        marginBottom: 16,
+        ...getHeaderBannerStyle(token)
+      }}>
+        <Row justify="space-between" align="middle">
+          <Col xs={24} sm={16}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Button
+                icon={<ArrowLeftOutlined />}
+                onClick={handleBackClick}
+                type="default"
+                size="large"
+              >
+                Back to Risk Registers
+              </Button>
+              <Breadcrumb
+                items={[
+                  { title: 'Risk Management' },
+                  { title: <a onClick={handleBackClick}>Risk Registers</a> },
+                  { title: registerId || 'New Risk Register' }
+                ]}
+                style={{ fontSize: '12px' }}
+              />
+              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                <FileProtectOutlined style={{
+                  marginRight: 16,
+                  color: getHeaderIconColor(token),
+                  fontSize: '32px'
+                }} />
+                {registerId ? (registerData?.name || 'Risk Register') : 'Create New Risk Register'}
+              </Title>
+              {registerId && (
+                <Space wrap size="small">
+                  <Tag color="blue" icon={<FileProtectOutlined />} style={{ fontSize: '12px', padding: '4px 8px' }}>
+                    {registerId}
+                  </Tag>
+                  {registerData?.risk_register_status && (
+                    <Tag
+                      color={
+                        registerData.risk_register_status.toLowerCase() === 'active' ? 'green' :
+                        registerData.risk_register_status.toLowerCase() === 'under review' ? 'orange' :
+                        'default'
+                      }
+                      style={{ fontSize: '12px', padding: '4px 8px' }}
+                    >
+                      {registerData.risk_register_status}
+                    </Tag>
+                  )}
+                </Space>
+              )}
+            </Space>
+          </Col>
+        </Row>
       </Card>
 
       <Form
@@ -377,6 +444,7 @@ function RiskRegisterForm({ registerId, navigateToRoute }) {
         initialValues={{
           risk_register_status: 'Active'
         }}
+        disabled={isReadOnly}
       >
         <Card style={{ marginBottom: 16 }}>
           <Row gutter={16}>
@@ -441,14 +509,16 @@ function RiskRegisterForm({ registerId, navigateToRoute }) {
             </Space>
           }
           extra={
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={addRisk}
-              size="small"
-            >
-              Add Risk
-            </Button>
+            !isReadOnly && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={addRisk}
+                size="small"
+              >
+                Add Risk
+              </Button>
+            )
           }
           style={{ marginBottom: 16 }}
         >
@@ -516,7 +586,7 @@ function RiskRegisterForm({ registerId, navigateToRoute }) {
         {/* Action Buttons */}
         <Card>
           <Space style={{ float: 'right' }}>
-            {registerId && (
+            {registerId && !isReadOnly && (
               <>
                 <Button
                   icon={<PaperClipOutlined />}
@@ -532,20 +602,30 @@ function RiskRegisterForm({ registerId, navigateToRoute }) {
                 </Button>
               </>
             )}
+            {registerId && isReadOnly && (
+              <Button
+                icon={<MessageOutlined />}
+                onClick={() => setCommentsDrawerOpen(true)}
+              >
+                Comments
+              </Button>
+            )}
             <Button
               icon={<CloseOutlined />}
               onClick={handleCancel}
             >
-              Cancel
+              {isReadOnly ? 'Back' : 'Cancel'}
             </Button>
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              htmlType="submit"
-              loading={loading}
-            >
-              {registerId ? 'Update' : 'Create'}
-            </Button>
+            {!isReadOnly && (
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                htmlType="submit"
+                loading={loading}
+              >
+                {registerId ? 'Update' : 'Create'}
+              </Button>
+            )}
           </Space>
         </Card>
       </Form>

@@ -116,7 +116,8 @@ function RiskRegisters({ navigateToRoute }) {
   const handleViewRegister = (register) => {
     console.log('[RiskRegisters] View clicked for register:', register.name)
     if (navigateToRoute) {
-      navigateToRoute('risk-register-detail', register.name)
+      // Pass registerId as 3rd parameter (appId) to navigateToRoute
+      navigateToRoute('risk-register-detail', null, register.name)
     } else {
       console.error('[RiskRegisters] navigateToRoute is not available')
     }
@@ -125,7 +126,8 @@ function RiskRegisters({ navigateToRoute }) {
   const handleEditRegister = (registerId) => {
     console.log('[RiskRegisters] Edit clicked for registerId:', registerId)
     if (navigateToRoute) {
-      navigateToRoute('risk-register-edit', registerId)
+      // Pass registerId as 3rd parameter (appId) to navigateToRoute
+      navigateToRoute('risk-register-edit', null, registerId)
     } else {
       console.error('[RiskRegisters] navigateToRoute is not available')
     }

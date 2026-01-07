@@ -676,6 +676,7 @@ const useNavigationStore = create(
 
           case 'risk-register-edit':
             if (appId) { // appId parameter is used for registerId in this case
+              console.log('[Navigation] Setting risk-register-edit with appId:', appId)
               set({
                 currentRoute: 'risk-register-edit',
                 selectedProjectId: null,
@@ -683,11 +684,14 @@ const useNavigationStore = create(
                 selectedRiskRegisterId: appId
               })
               window.location.hash = `risk-register/${appId}/edit`
+            } else {
+              console.error('[Navigation] risk-register-edit called without appId parameter')
             }
             break
 
           case 'risk-register-detail':
             if (appId) { // appId parameter is used for registerId in this case
+              console.log('[Navigation] Setting risk-register-detail with appId:', appId)
               set({
                 currentRoute: 'risk-register-detail',
                 selectedProjectId: null,
@@ -695,6 +699,8 @@ const useNavigationStore = create(
                 selectedRiskRegisterId: appId
               })
               window.location.hash = `risk-register/${appId}`
+            } else {
+              console.error('[Navigation] risk-register-detail called without appId parameter')
             }
             break
 

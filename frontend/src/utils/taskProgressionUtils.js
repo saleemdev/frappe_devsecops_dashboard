@@ -51,18 +51,28 @@ export const groupTasksByType = (tasks) => {
     })
   })
 
-  // Convert to array and sort by earliest task in each group
+  // Convert to array and get task type priority from first task in group
   const result = Object.entries(grouped).map(([type, typeTasks]) => {
+    // Get the task type priority from the first task (all tasks in group have same type)
+    const typeTaskPriority = typeTasks[0]?.task_type_priority ?? 999
     const earliestDate = Math.min(...typeTasks.map(t => new Date(t.creation || t.exp_start_date || 0).getTime()))
     return {
       type,
       tasks: typeTasks,
+      typeTaskPriority, // Priority from Task Type's custom_priority field
       earliestDate: new Date(earliestDate)
     }
   })
 
-  // Sort groups by earliest task date
-  result.sort((a, b) => a.earliestDate - b.earliestDate)
+  // Sort groups by task type priority (ascending - lower numbers first), then by earliest task date
+  result.sort((a, b) => {
+    // First sort by task type priority (custom_priority)
+    if (a.typeTaskPriority !== b.typeTaskPriority) {
+      return a.typeTaskPriority - b.typeTaskPriority
+    }
+    // If same priority, sort by earliest task date as fallback
+    return a.earliestDate - b.earliestDate
+  })
 
   return result
 }

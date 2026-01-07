@@ -78,6 +78,8 @@ const SoftwareProduct = ({ navigateToRoute }) => {
   const [statusFilter, setStatusFilter] = useState('all')
   const [isViewDrawerVisible, setIsViewDrawerVisible] = useState(false)
   const [viewingRecord, setViewingRecord] = useState(null)
+  const [loadingMetrics, setLoadingMetrics] = useState(false)
+  const [productMetrics, setProductMetrics] = useState(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [total, setTotal] = useState(0)

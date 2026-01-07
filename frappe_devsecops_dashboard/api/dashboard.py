@@ -211,12 +211,12 @@ def enhance_project_with_task_data(project):
         else:
             # Regular users see only tasks assigned to them via ToDo
             # Get task names where user is assigned via ToDo
+            # Note: Show all tasks regardless of ToDo status (including completed)
             assigned_task_names = frappe.get_all(
                 'ToDo',
                 filters={
                     'reference_type': 'Task',
-                    'allocated_to': current_user,
-                    'status': ['in', ['Open', 'Pending']]
+                    'allocated_to': current_user
                 },
                 fields=['reference_name'],
                 pluck='reference_name'
@@ -2241,12 +2241,12 @@ def get_project_tasks(project_name):
         else:
             # Regular users see only tasks assigned to them via ToDo
             # Get task names where user is assigned via ToDo
+            # Note: Show all tasks regardless of ToDo status (including completed)
             assigned_task_names = frappe.get_all(
                 'ToDo',
                 filters={
                     'reference_type': 'Task',
-                    'allocated_to': current_user,
-                    'status': ['in', ['Open', 'Pending']]
+                    'allocated_to': current_user
                 },
                 fields=['reference_name'],
                 pluck='reference_name'
@@ -2959,12 +2959,12 @@ def get_dashboard_metrics():
 
         # Count tasks by status - only for tasks assigned to current user
         current_user = frappe.session.user
+        # Note: Include all ToDo items regardless of status to show completed tasks
         assigned_task_names = frappe.get_all(
             'ToDo',
             filters={
                 'reference_type': 'Task',
-                'allocated_to': current_user,
-                'status': ['in', ['Open', 'Pending']]
+                'allocated_to': current_user
             },
             fields=['reference_name'],
             pluck='reference_name'

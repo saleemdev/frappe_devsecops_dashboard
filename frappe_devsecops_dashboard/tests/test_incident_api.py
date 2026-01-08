@@ -28,7 +28,7 @@ class TestIncidentAPI(FrappeTestCase):
 
     def test_create_incident(self):
         """Test creating a new incident"""
-        from frappe_devsecops_dashboard.api.incident import create_incident
+        from frappe_devsecops_dashboard.api.incidents import create_incident
         
         incident_data = {
             'title': 'Test Database Connection Issue',
@@ -52,7 +52,7 @@ class TestIncidentAPI(FrappeTestCase):
 
     def test_get_incidents(self):
         """Test retrieving list of incidents"""
-        from frappe_devsecops_dashboard.api.incident import get_incidents, create_incident
+        from frappe_devsecops_dashboard.api.incidents import get_incidents, create_incident
         
         # Create test incident
         incident_data = {
@@ -83,7 +83,7 @@ class TestIncidentAPI(FrappeTestCase):
 
     def test_get_incident_detail(self):
         """Test retrieving a single incident"""
-        from frappe_devsecops_dashboard.api.incident import get_incident, create_incident
+        from frappe_devsecops_dashboard.api.incidents import get_incident, create_incident
         
         # Create test incident
         incident_data = {
@@ -111,7 +111,7 @@ class TestIncidentAPI(FrappeTestCase):
 
     def test_update_incident(self):
         """Test updating an incident"""
-        from frappe_devsecops_dashboard.api.incident import update_incident, create_incident
+        from frappe_devsecops_dashboard.api.incidents import update_incident, create_incident
         
         # Create test incident
         incident_data = {
@@ -143,7 +143,7 @@ class TestIncidentAPI(FrappeTestCase):
 
     def test_delete_incident(self):
         """Test deleting an incident"""
-        from frappe_devsecops_dashboard.api.incident import delete_incident, create_incident, get_incident
+        from frappe_devsecops_dashboard.api.incidents import delete_incident, create_incident, get_incident
         
         # Create test incident
         incident_data = {
@@ -168,7 +168,7 @@ class TestIncidentAPI(FrappeTestCase):
 
     def test_get_incidents_with_filters(self):
         """Test retrieving incidents with filters"""
-        from frappe_devsecops_dashboard.api.incident import get_incidents, create_incident
+        from frappe_devsecops_dashboard.api.incidents import get_incidents, create_incident
         
         # Create test incidents with different statuses
         incident1 = {
@@ -206,7 +206,7 @@ class TestIncidentAPI(FrappeTestCase):
 
     def test_incident_permission_check(self):
         """Test permission checks for incident operations"""
-        from frappe_devsecops_dashboard.api.incident import create_incident
+        from frappe_devsecops_dashboard.api.incidents import create_incident
         
         # This test verifies that permission checks are in place
         # In a real scenario, you would test with a user that has limited permissions

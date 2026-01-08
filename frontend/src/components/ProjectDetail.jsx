@@ -120,6 +120,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [editTaskFormLoading, setEditTaskFormLoading] = useState(false)
   const [editForm] = Form.useForm()
   const [syncingUsers, setSyncingUsers] = useState(false)
+  const [timelineLoading, setTimelineLoading] = useState(false)
 
   // Enhanced Task Dialog state
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
@@ -354,6 +355,26 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
     }
   }
 
+  // Refresh only the timeline/tasks section (not the entire page)
+  const refreshTimelineOnly = async () => {
+    setTimelineLoading(true)
+    try {
+      const projectResponse = await getProjectDetails(projectId)
+      if (projectResponse.success && projectResponse.project) {
+        // Update only the tasks in projectData, preserving other state
+        setProjectData(prevData => ({
+          ...prevData,
+          tasks: projectResponse.project.tasks || []
+        }))
+      }
+    } catch (error) {
+      console.error('[ProjectDetail] Error refreshing timeline:', error)
+      message.error('Failed to refresh timeline')
+    } finally {
+      setTimelineLoading(false)
+    }
+  }
+
   const loadProjectFiles = async () => {
     setAttachmentsLoading(true)
     try {
@@ -551,7 +572,9 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         description: values.description || '',
         priority: values.priority || 'Medium',
         status: values.status || 'Open',
+        // Backend create function expects 'task_type' and maps it to 'type'
         task_type: values.task_type,
+        progress: values.progress || 0,
         exp_start_date: values.exp_start_date || null,
         exp_end_date: values.exp_end_date || null,
         assigned_to: values.assigned_to,
@@ -571,8 +594,8 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           timer: 3000
         })
         handleCloseNewTaskModal()
-        // Reload project data to show the new task
-        loadProjectData()
+        // Refresh only the timeline section to show the new task
+        refreshTimelineOnly()
       } else {
         // Show error toast
         await Swal.fire({
@@ -639,6 +662,8 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         subject: values.subject,
         status: values.status,
         priority: values.priority,
+        // Backend expects 'type' field name
+        type: values.task_type,
         description: values.description || '',
         exp_start_date: values.exp_start_date || null,
         exp_end_date: values.exp_end_date || null,
@@ -666,7 +691,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         })
         handleCloseNewTaskModal() // Close the enhanced dialog
         handleCloseEditTaskModal() // Close old modal if open
-        loadProjectData()
+        refreshTimelineOnly() // Refresh only the timeline section
       } else {
         message.error(response.error || 'Failed to update task')
       }
@@ -1482,6 +1507,15 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 ),
                 children: (
                   <div>
+                    {/* Timeline loading indicator */}
+                    {timelineLoading && (
+                      <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                        <Spin size="small" />
+                        <Text type="secondary" style={{ marginLeft: '8px', fontSize: '12px' }}>
+                          Refreshing timeline...
+                        </Text>
+                      </div>
+                    )}
                     {/* Task Type Filter - Visible inside expanded section */}
                     {projectData?.tasks && projectData.tasks.length > 0 && (
                       <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>

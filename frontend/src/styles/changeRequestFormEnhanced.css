@@ -9,6 +9,24 @@
   margin: 0 auto;
 }
 
+/* Sticky header for single-page form */
+.cr-form-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e8ecf1;
+  margin-bottom: 16px;
+}
+
+/* Ensure sticky header doesn't get cut off */
+.cr-form-container {
+  position: relative;
+  z-index: 1;
+}
+
 /* Enhanced header */
 .cr-form-header {
   background: linear-gradient(135deg, #ffffff 0%, #f5f7fa 100%);
@@ -31,7 +49,8 @@
   background: #ffffff;
   padding: 20px 24px;
   border-radius: 8px;
-  border: 2px solid #e8ecf1;
+  border: 1px solid #e8ecf1;
+  border-left: none !important;
   transition: all 0.2s ease;
 }
 
@@ -378,22 +397,29 @@
 
 /* ========== MANDATORY FIELD STYLES ========== */
 
-/* Enhanced required field label styling */
-.ant-form-item-required {
+/* Enhanced required field label styling - Force asterisk display */
+label.ant-form-item-required {
   color: #cf1322 !important;
-  font-weight: 600 !important;
 }
 
-.ant-form-item-required::after {
+label.ant-form-item-required::before {
+  display: none !important;
+}
+
+label.ant-form-item-required::after {
   content: " *" !important;
   display: inline-block !important;
   color: #ff4d4f !important;
-  font-size: 14px !important;
-  font-weight: 700 !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
   margin-left: 4px;
+  position: relative;
+  top: -1px;
+  pointer-events: none;
 }
 
-.ant-form-item-required::before {
+/* Also target any hidden asterisk that Ant might be using */
+.ant-form-item-label > label > .ant-form-item-required-mark {
   display: none !important;
 }
 
@@ -472,9 +498,9 @@
   gap: 12px;
   padding: 12px 16px;
   margin-bottom: 20px;
-  background: linear-gradient(135deg, #fafbfc 0%, #f0f2f5 100%);
+  background: #fafbfc;
   border-radius: 8px;
-  border-left: 4px solid #1890ff;
+  border: 1px solid #e8ecf1;
 }
 
 .cr-section-header-icon {
@@ -497,7 +523,7 @@
 
 /* Section with required fields indicator */
 .cr-section-required {
-  border-left-color: #ff4d4f !important;
+  border-color: #ff4d4f !important;
 }
 
 .cr-section-required .cr-section-header-icon {
@@ -560,15 +586,206 @@
   font-weight: 600;
 }
 
+/* ========== SINGLE PAGE FORM WITH SIDEBAR ========== */
+
+/* Container for single-page layout */
+.cr-form-single-page {
+  display: flex;
+  gap: 24px;
+  position: relative;
+}
+
+/* Navigation sidebar */
+.cr-form-nav-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 24px;
+  align-self: flex-start;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e8ecf1;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.cr-nav-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c8c8c;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  padding: 0 8px;
+}
+
+.cr-nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cr-nav-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px;
+  padding: 8px 12px !important;
+  border-radius: 6px;
+  color: #595959 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  height: auto !important;
+  line-height: normal !important;
+  transition: all 0.2s ease;
+}
+
+/* Ensure inner span of Button is left aligned */
+.cr-nav-item span {
+  text-align: left !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
+.cr-nav-item:hover {
+  background: #f5f7fa !important;
+  color: #1890ff !important;
+}
+
+.cr-nav-item.active {
+  background: linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%) !important;
+  color: #1890ff !important;
+}
+
+.cr-nav-item .anticon {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.cr-nav-item.active .anticon {
+  opacity: 1;
+}
+
+/* Red dot indicator for mandatory sections in nav sidebar */
+.cr-nav-item-mandatory {
+  position: relative;
+  padding-right: 20px !important;
+}
+
+.cr-nav-item-mandatory::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  background: #ff4d4f;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cr-nav-item-mandatory.cr-nav-item.active::after {
+  background: #1890ff;
+}
+
+.cr-nav-required-summary {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 11px;
+  color: #8c8c8c;
+  display: flex;
+  align-items: flex-start;
+}
+
+/* Main form content */
+.cr-form-main {
+  flex: 1;
+  min-width: 0;
+  background: #ffffff;
+  padding: 28px 32px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e8ecf1;
+}
+
+/* Responsive: sidebar becomes horizontal nav on small screens */
+@media (max-width: 900px) {
+  .cr-form-single-page {
+    flex-direction: column;
+  }
+
+  .cr-form-nav-sidebar {
+    width: 100%;
+    position: relative;
+    top: 0;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 0;
+  }
+
+  .cr-nav-section-title {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 0 8px;
+  }
+
+  .cr-nav-items {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 4px;
+    padding: 4px 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .cr-nav-item {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Hide red dot indicators on mobile for cleaner look */
+  .cr-nav-item-mandatory::after {
+    display: none;
+  }
+
+  .cr-nav-item-mandatory {
+    padding-right: 12px !important;
+  }
+
+  .cr-nav-required-summary {
+    display: none;
+  }
+
+  .cr-form-main {
+    padding: 20px;
+  }
+}
+
 /* ========== PRINT STYLES ========== */
 @media print {
   .cr-action-bar,
-  .ant-tabs-nav,
+  .cr-form-nav-sidebar,
   .ant-btn {
     display: none !important;
   }
 
-  .ant-tabs-tabpane {
+  .cr-form-single-page {
+    display: block;
+  }
+
+  .cr-form-main {
     box-shadow: none !important;
     border: 1px solid #000 !important;
   }

@@ -7,7 +7,6 @@ import {
   Select,
   DatePicker,
   TimePicker,
-  Tabs,
   Checkbox,
   Button,
   Row,
@@ -15,7 +14,6 @@ import {
   Space,
   message,
   Divider,
-  Badge,
   Tag,
   Collapse,
   Modal,
@@ -35,7 +33,12 @@ import {
   ArrowLeftOutlined,
   CalendarOutlined,
   WarningOutlined,
-  ExclamationCircleFilled
+  ExclamationCircleFilled,
+  AlignLeftOutlined,
+  ScheduleOutlined,
+  TeamOutlined,
+  CheckCircleOutlined,
+  LinkOutlined
 } from '@ant-design/icons'
 import Swal from 'sweetalert2'
 import dayjs from 'dayjs'
@@ -54,7 +57,6 @@ dayjs.extend(relativeTime)
 
 const { Title, Text } = Typography
 const { Option } = Select
-const { TabPane } = Tabs
 
 // Helper function to parse Frappe's _server_messages field
 const parseFrappeServerMessages = (serverMessages) => {
@@ -87,14 +89,12 @@ const parseFrappeServerMessages = (serverMessages) => {
 export default function ChangeRequestForm({ mode = 'create', id = null }) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('1')
   const [projects, setProjects] = useState([])
   const [incidents, setIncidents] = useState([])
   const [softwareProducts, setSoftwareProducts] = useState([])
   const [softwareProductsLoading, setSoftwareProductsLoading] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [approvers, setApprovers] = useState([])
-  const [users, setUsers] = useState([])
   const [approvalModalVisible, setApprovalModalVisible] = useState(false)
   const [approvalAction, setApprovalAction] = useState('approve')
   const [selectedApproverIndex, setSelectedApproverIndex] = useState(null)
@@ -329,7 +329,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
     loadInitialProducts()
   }, [])
 
-  // Load users for approvers table
+  // Load users for approvers table (not currently used but kept for future)
   useEffect(() => {
     const load = async () => {
       try {
@@ -337,13 +337,11 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           credentials: 'include'
         })
         if (res.ok) {
-          const response = await res.json()
-          setUsers(response.message || [])
-        } else {
-          setUsers([])
+          await res.json()
+          // Users data not currently used in the form
         }
       } catch {
-        setUsers([])
+        // Silently fail - users not critical
       }
     }
     load()
@@ -486,12 +484,6 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [form])
-
-  // Handle approvers table change
-  const handleApproversChange = (newApprovers) => {
-    setApprovers(newApprovers)
-    form.setFieldValue('change_approvers', newApprovers)
-  }
 
   // Handle approve action
   const handleApproveClick = (index, approver) => {
@@ -1080,34 +1072,19 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
     workflow_state: { tab: '4', section: 'Approvers & Approval', label: 'Implementation Status' }
   }
 
-  // Tab names for display
-  const tabNames = {
-    '1': 'Basic Information',
-    '2': 'Change Details',
-    '3': 'Implementation',
-    '4': 'Approvers & Approval'
-  }
-
   const onFinishFailed = async (info) => {
     // Build detailed error list with section context
-    const errorsByTab = {}
     const errorList = []
 
     info?.errorFields?.forEach(f => {
       const fieldName = Array.isArray(f?.name) ? f.name[0] : f?.name
       const fieldInfo = fieldTabMap[fieldName] || { tab: '1', section: 'General', label: fieldName }
-      const tab = fieldInfo.tab
-
-      if (!errorsByTab[tab]) {
-        errorsByTab[tab] = []
-      }
-      errorsByTab[tab].push(fieldInfo.label)
 
       errorList.push({
         field: fieldName,
         label: fieldInfo.label,
         section: fieldInfo.section,
-        tab: tab
+        tab: fieldInfo.tab
       })
     })
 
@@ -1147,11 +1124,11 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
 
     errorHtml += '</div>'
 
-    // Switch to the tab with the first error
+    // Scroll to the first error field
     if (errorList.length > 0) {
-      const firstTab = errorList[0].tab
-      if (firstTab && firstTab !== activeTab) {
-        setActiveTab(firstTab)
+      const firstField = document.querySelector(`[name="${errorList[0].field}"]`)
+      if (firstField) {
+        firstField.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
     }
 
@@ -1185,8 +1162,9 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
 
   return (
     <div className="cr-form-container">
-      <Card loading={loading} className="cr-form-card" bordered={false}>
-        <div className="cr-form-header">
+      {/* Sticky Header */}
+        <Card loading={loading} className="cr-form-card cr-form-sticky-header" bordered={false}>
+          <div className="cr-form-header">
           <Space align="center" style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <Space>
               <Button
@@ -1375,33 +1353,47 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           </Space>
         </Card>
       )}
+      {/* End Sticky Header */}
 
+      {/* Single-Page Form with Navigation Sidebar */}
+      <div className="cr-form-single-page">
+        {/* Sticky Navigation Sidebar */}
+        <div className="cr-form-nav-sidebar">
+          <div className="cr-nav-section-title">Contents</div>
+          <div className="cr-nav-items">
+            <Button type="link" className="cr-nav-item active cr-nav-item-mandatory" onClick={() => document.getElementById('section-basic')?.scrollIntoView({ behavior: 'smooth' })}>
+              <AlignLeftOutlined /> Core Details
+            </Button>
+            <Button type="link" className="cr-nav-item cr-nav-item-mandatory" onClick={() => document.getElementById('section-system')?.scrollIntoView({ behavior: 'smooth' })}>
+              <LinkOutlined /> System & Originator
+            </Button>
+            <Button type="link" className="cr-nav-item cr-nav-item-mandatory" onClick={() => document.getElementById('section-classification')?.scrollIntoView({ behavior: 'smooth' })}>
+              <CheckCircleOutlined /> Classification
+            </Button>
+            <Button type="link" className="cr-nav-item cr-nav-item-mandatory" onClick={() => document.getElementById('section-documentation')?.scrollIntoView({ behavior: 'smooth' })}>
+              <FileTextOutlined /> Documentation
+            </Button>
+            <Button type="link" className="cr-nav-item cr-nav-item-mandatory" onClick={() => document.getElementById('section-timeline')?.scrollIntoView({ behavior: 'smooth' })}>
+              <ScheduleOutlined /> Timeline
+            </Button>
+            <Button type="link" className="cr-nav-item" onClick={() => document.getElementById('section-plans')?.scrollIntoView({ behavior: 'smooth' })}>
+              <CalendarOutlined /> Testing Plans
+            </Button>
+            <Button type="link" className="cr-nav-item" onClick={() => document.getElementById('section-approvers')?.scrollIntoView({ behavior: 'smooth' })}>
+              <TeamOutlined /> Approvers
+            </Button>
+          </div>
+          <div className="cr-nav-required-summary">
+            <ExclamationCircleFilled style={{ color: '#ff4d4f', marginRight: 6 }} />
+            <span>Required fields marked with <Text strong style={{ color: '#ff4d4f' }}>*</Text></span>
+          </div>
+        </div>
+
+        {/* Main Form Content */}
+        <div className="cr-form-main">
       <Form form={form} layout="vertical" onFinish={onSubmit} onFinishFailed={onFinishFailed} validateTrigger="onSubmit" disabled={isFormReadOnly}>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          tabBarExtraContent={
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {['1', '2', '3', '4'].map(tabKey => {
-                const reqCount = ['1', '2', '3', '4'].includes(tabKey) ? 0 : 0
-                return reqCount > 0 ? (
-                  <Badge key={tabKey} count={reqCount} size="small" />
-                ) : null
-              })}
-            </div>
-          }
-        >
-          <TabPane
-            tab={
-              <span>
-                Basic Information
-                <sup style={{ color: '#ff4d4f', fontWeight: 'bold', marginLeft: '4px' }}>*</sup>
-              </span>
-            }
-            key="1"
-          >
             {/* Section: Core Details */}
-            <div className="cr-section-header">
+            <div id="section-basic" className="cr-section-header">
               <ExclamationCircleFilled className="cr-section-header-icon" />
               <Text className="cr-section-header-title">Core Details</Text>
               <Text className="cr-section-header-subtitle">Required fields marked with *</Text>
@@ -1456,7 +1448,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
             </Row>
 
             {/* Section: System & Originator */}
-            <div className="cr-section-header" style={{ marginTop: '24px' }}>
+            <div id="section-system" className="cr-section-header" style={{ marginTop: '32px' }}>
               <FileTextOutlined className="cr-section-header-icon" />
               <Text className="cr-section-header-title">System & Originator</Text>
               <Text className="cr-section-header-subtitle">Required fields marked with *</Text>
@@ -1571,19 +1563,8 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 </Col>
               </Row>
             )}
-          </TabPane>
-
-          <TabPane
-            tab={
-              <span>
-                Change Details
-                <sup style={{ color: '#ff4d4f', fontWeight: 'bold', marginLeft: '4px' }}>*</sup>
-              </span>
-            }
-            key="2"
-          >
-            {/* Section: Category */}
-            <div className="cr-section-header cr-section-required">
+          {/* Section: Classification */}
+            <div id="section-classification" className="cr-section-header cr-section-required" style={{ marginTop: '32px' }}>
               <ExclamationCircleFilled className="cr-section-header-icon" />
               <Text className="cr-section-header-title">Change Classification</Text>
               <Text className="cr-section-header-subtitle">Required fields marked with *</Text>
@@ -1612,7 +1593,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
             </Row>
 
             {/* Section: Documentation */}
-            <div className="cr-section-header cr-section-required" style={{ marginTop: '24px' }}>
+            <div id="section-documentation" className="cr-section-header cr-section-required" style={{ marginTop: '32px' }}>
               <FileTextOutlined className="cr-section-header-icon" />
               <Text className="cr-section-header-title">Documentation</Text>
               <Text className="cr-section-header-subtitle">Required fields marked with *</Text>
@@ -1640,21 +1621,12 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
               ]}
               defaultActiveKey={['1']}
             />
-          </TabPane>
 
-          <TabPane
-            tab={
-              <span>
-                Implementation
-              </span>
-            }
-            key="3"
-          >
             {/* Section: Timeline */}
-            <div className="cr-section-header">
+            <div id="section-timeline" className="cr-section-header cr-section-required" style={{ marginTop: '32px' }}>
               <CalendarOutlined className="cr-section-header-icon" />
               <Text className="cr-section-header-title">Change Timeline</Text>
-              <Text className="cr-section-header-subtitle">Optional but recommended</Text>
+              <Text className="cr-section-header-subtitle">Required fields marked with *</Text>
             </div>
             <div className="cr-prominent-field">
               <div className="cr-prominent-field-title">
@@ -1663,12 +1635,12 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
               </div>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item name="implementation_date" label="Implementation/Deployment Date">
+                  <Form.Item name="implementation_date" label="Implementation/Deployment Date" rules={[{ required: true, message: 'Please select implementation/deployment date' }]}>
                     <DatePicker style={{ width: '100%' }} size="large" />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item name="implementation_time" label="Implementation/Deployment Time">
+                  <Form.Item name="implementation_time" label="Implementation/Deployment Time" rules={[{ required: true, message: 'Please select implementation/deployment time' }]}>
                     <TimePicker style={{ width: '100%' }} format="HH:mm" size="large" />
                   </Form.Item>
                 </Col>
@@ -1676,7 +1648,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
             </div>
 
             {/* Section: Plans */}
-            <div className="cr-section-header" style={{ marginTop: '24px' }}>
+            <div id="section-plans" className="cr-section-header" style={{ marginTop: '32px' }}>
               <FileTextOutlined className="cr-section-header-icon" />
               <Text className="cr-section-header-title">Testing & Rollback Plans</Text>
               <Text className="cr-section-header-subtitle">Optional but recommended</Text>
@@ -1704,18 +1676,9 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
               ]}
               defaultActiveKey={['1']}
             />
-          </TabPane>
 
-          <TabPane
-            tab={
-              <span>
-                Approvers & Approval
-              </span>
-            }
-            key="4"
-          >
             {/* Section: Status */}
-            <div className="cr-section-header">
+            <div id="section-status" className="cr-section-header" style={{ marginTop: '32px' }}>
               <ExclamationCircleFilled className="cr-section-header-icon" />
               <Text className="cr-section-header-title">Change Request Status</Text>
               <Text className="cr-section-header-subtitle">Auto-managed by workflow</Text>
@@ -1776,7 +1739,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
             <Divider />
 
             {/* Section: Approvers */}
-            <div className="cr-section-header" style={{ marginTop: '24px' }}>
+            <div id="section-approvers" className="cr-section-header" style={{ marginTop: '32px' }}>
               <FileTextOutlined className="cr-section-header-icon" />
               <Text className="cr-section-header-title">Change Approvers</Text>
               <Text className="cr-section-header-subtitle">Define who needs to approve</Text>
@@ -1809,8 +1772,6 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 </div>
               </>
             )}
-          </TabPane>
-        </Tabs>
 
         <Form.Item style={{ marginTop: 16 }}>
           <Space>
@@ -1825,6 +1786,8 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           </Space>
         </Form.Item>
       </Form>
+        </div>
+      </div>
 
       {/* Activity Log Section - Only in edit mode */}
       {mode === 'edit' && (

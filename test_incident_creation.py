@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 import frappe
-from frappe_devsecops_dashboard.api.incident import create_incident, get_incident
+from frappe_devsecops_dashboard.api.incidents import create_incident, get_incident
 
 def test_incident_creation():
     """Test creating an incident"""

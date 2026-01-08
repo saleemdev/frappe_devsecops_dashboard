@@ -1550,6 +1550,7 @@ def create_project_task(project_name, task_data):
             "priority": task_data.get("priority", "Medium"),
             "status": task_data.get("status", "Open"),
             "type": task_data.get("task_type"),
+            "progress": task_data.get("progress", 0),
             "exp_start_date": task_data.get("exp_start_date"),
             "exp_end_date": task_data.get("exp_end_date"),
             "is_milestone": task_data.get("is_milestone", 0)

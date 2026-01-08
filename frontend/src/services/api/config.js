@@ -41,11 +41,11 @@ const API_CONFIG = {
 
     // Incidents
     incidents: {
-      list: '/api/method/frappe_devsecops_dashboard.api.incident.get_incidents',
-      detail: '/api/method/frappe_devsecops_dashboard.api.incident.get_incident',
-      create: '/api/method/frappe_devsecops_dashboard.api.incident.create_incident',
-      update: '/api/method/frappe_devsecops_dashboard.api.incident.update_incident',
-      delete: '/api/method/frappe_devsecops_dashboard.api.incident.delete_incident'
+      list: '/api/method/frappe_devsecops_dashboard.api.incidents.get_incidents',
+      detail: '/api/method/frappe_devsecops_dashboard.api.incidents.get_incident',
+      create: '/api/method/frappe_devsecops_dashboard.api.incidents.create_incident',
+      update: '/api/method/frappe_devsecops_dashboard.api.incidents.update_incident',
+      delete: '/api/method/frappe_devsecops_dashboard.api.incidents.delete_incident'
     },
 
     // Change Requests

@@ -76,9 +76,11 @@ const EnhancedTaskDialog = ({
     if (open && mode !== 'create' && taskData) {
       form.setFieldsValue({
         subject: taskData.subject,
-        task_type: taskData.task_type,
+        // Handle both 'type' (from API) and 'task_type' (expected by form)
+        task_type: taskData.task_type || taskData.type,
         priority: taskData.priority || 'Medium',
         status: taskData.status || 'Open',
+        progress: taskData.progress || 0,
         assigned_to: taskData.assigned_to,
         exp_start_date: taskData.exp_start_date ? dayjs(taskData.exp_start_date) : null,
         exp_end_date: taskData.exp_end_date ? dayjs(taskData.exp_end_date) : null,
@@ -548,7 +550,7 @@ const EnhancedTaskDialog = ({
                       label={<Text strong style={{ fontSize: '13px' }}>Status</Text>}
                       name="status"
                       initialValue="Open"
-                      style={{ marginBottom: 0 }}
+                      style={{ marginBottom: '16px' }}
                     >
                       <Select
                         placeholder="Select status"
@@ -561,6 +563,24 @@ const EnhancedTaskDialog = ({
                           { label: 'Template', value: 'Template' },
                           { label: 'Completed', value: 'Completed' },
                           { label: 'Cancelled', value: 'Cancelled' }
+                        ]}
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      label={<Text strong style={{ fontSize: '13px' }}>Progress</Text>}
+                      name="progress"
+                      style={{ marginBottom: 0 }}
+                    >
+                      <Select
+                        placeholder="Select progress"
+                        size="large"
+                        options={[
+                          { label: '0%', value: 0 },
+                          { label: '25%', value: 25 },
+                          { label: '50%', value: 50 },
+                          { label: '75%', value: 75 },
+                          { label: '100%', value: 100 }
                         ]}
                       />
                     </Form.Item>

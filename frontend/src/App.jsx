@@ -17,7 +17,8 @@ import {
   LockOutlined,
   RiseOutlined,
   FileProtectOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  TeamOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
@@ -63,6 +64,8 @@ import WikiCreateForm from './components/WikiCreateForm'
 import WikiPageCreate from './components/WikiPageCreate'
 import WikiPageEdit from './components/WikiPageEdit'
 import ProductKPIDashboard from './components/ProductKPIDashboard'
+import ChangeManagementTeams from './components/ChangeManagementTeams'
+import ChangeManagementTeamForm from './components/ChangeManagementTeamForm'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -111,6 +114,7 @@ function App() {
     selectedSwaggerId = null,
     showSwaggerDetail = false,
     selectedRiskRegisterId = null,
+    selectedChangeManagementTeamId = null,
     selectedChangeRequestId = null,
     showChangeRequestForm = false,
     selectedSoftwareProductId = null,
@@ -324,6 +328,7 @@ function App() {
         showSwaggerDetail={showSwaggerDetail}
         selectedSwaggerId={selectedSwaggerId}
         selectedRiskRegisterId={selectedRiskRegisterId}
+        selectedChangeManagementTeamId={selectedChangeManagementTeamId}
         selectedChangeRequestId={selectedChangeRequestId}
         showChangeRequestForm={showChangeRequestForm}
         selectedSoftwareProductId={selectedSoftwareProductId}
@@ -358,6 +363,7 @@ function AppContent({
   showSwaggerDetail,
   selectedSwaggerId,
   selectedRiskRegisterId,
+  selectedChangeManagementTeamId,
   isMobile,
   mobileMenuVisible,
   setIsMobile,
@@ -593,6 +599,35 @@ function AppContent({
           />
         )
 
+      case 'change-management-teams':
+        return <ChangeManagementTeams navigateToRoute={navigateToRoute} />
+
+      case 'change-management-team-create':
+        return (
+          <ChangeManagementTeamForm
+            navigateToRoute={navigateToRoute}
+            mode="create"
+          />
+        )
+
+      case 'change-management-team-edit':
+        return (
+          <ChangeManagementTeamForm
+            teamId={selectedChangeManagementTeamId || null}
+            navigateToRoute={navigateToRoute}
+            mode="edit"
+          />
+        )
+
+      case 'change-management-team-detail':
+        return (
+          <ChangeManagementTeamForm
+            teamId={selectedChangeManagementTeamId || null}
+            navigateToRoute={navigateToRoute}
+            mode="view"
+          />
+        )
+
       case 'dashboard':
       default:
         return (
@@ -680,6 +715,10 @@ function AppContent({
         {
           key: 'change-requests',
           label: 'Change Requests'
+        },
+        {
+          key: 'change-management-teams',
+          label: 'Change Management Teams'
         },
         {
           key: 'incidents',

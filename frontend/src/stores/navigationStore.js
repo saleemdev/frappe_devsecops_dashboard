@@ -50,6 +50,9 @@ const useNavigationStore = create(
       // Risk Register state
       selectedRiskRegisterId: null,
 
+      // Change Management Team state
+      selectedChangeManagementTeamId: null,
+
       // Wiki state
       selectedWikiSpaceSlug: null,
       selectedWikiPageSlug: null,
@@ -704,6 +707,56 @@ const useNavigationStore = create(
             }
             break
 
+          case 'change-management-teams':
+            set({
+              currentRoute: 'change-management-teams',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedChangeManagementTeamId: null
+            })
+            window.location.hash = 'change-management-teams'
+            break
+
+          case 'change-management-team-create':
+            set({
+              currentRoute: 'change-management-team-create',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedChangeManagementTeamId: null
+            })
+            window.location.hash = 'change-management-team/create'
+            break
+
+          case 'change-management-team-edit':
+            if (appId) { // appId parameter is used for teamId in this case
+              console.log('[Navigation] Setting change-management-team-edit with appId:', appId)
+              set({
+                currentRoute: 'change-management-team-edit',
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedChangeManagementTeamId: appId
+              })
+              window.location.hash = `change-management-team/${appId}/edit`
+            } else {
+              console.error('[Navigation] change-management-team-edit called without appId parameter')
+            }
+            break
+
+          case 'change-management-team-detail':
+            if (appId) { // appId parameter is used for teamId in this case
+              console.log('[Navigation] Setting change-management-team-detail with appId:', appId)
+              set({
+                currentRoute: 'change-management-team-detail',
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedChangeManagementTeamId: appId
+              })
+              window.location.hash = `change-management-team/${appId}`
+            } else {
+              console.error('[Navigation] change-management-team-detail called without appId parameter')
+            }
+            break
+
           case 'app-detail':
             if (appId) {
               set({
@@ -1073,6 +1126,57 @@ const useNavigationStore = create(
             set({
               currentRoute: 'risk-register-detail',
               selectedRiskRegisterId: registerId,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          }
+        } else if (hash === 'change-management-teams') {
+          get().navigateToRoute('change-management-teams')
+        } else if (hash === 'change-management-team/create') {
+          set({
+            currentRoute: 'change-management-team-create',
+            selectedChangeManagementTeamId: null,
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+        } else if (hash.startsWith('change-management-team/')) {
+          const parts = hash.split('/')
+          const teamId = parts[1]
+          const action = parts[2] // 'edit' or undefined
+
+          if (teamId === 'create') {
+            // Already handled above
+          } else if (action === 'edit') {
+            // Handle change management team edit route
+            set({
+              currentRoute: 'change-management-team-edit',
+              selectedChangeManagementTeamId: teamId,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          } else {
+            // Handle change management team detail route
+            set({
+              currentRoute: 'change-management-team-detail',
+              selectedChangeManagementTeamId: teamId,
               selectedProjectId: null,
               showProjectDetail: false,
               selectedAppId: null,

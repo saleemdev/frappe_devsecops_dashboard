@@ -1,0 +1,111 @@
+{
+  "actions": [],
+  "autoname": "naming_series:",
+  "creation": "2024-01-07 10:00:00.000000",
+  "docstatus": 0,
+  "doctype": "Change Management Team",
+  "document_type": "Master",
+  "engine": "InnoDB",
+  "field_order": [
+    "naming_series",
+    "team_name",
+    "description",
+    "status",
+    "is_default",
+    "column_break_1",
+    "members"
+  ],
+  "fields": [
+    {
+      "fieldname": "naming_series",
+      "fieldtype": "Select",
+      "label": "Series",
+      "options": "CMT-.YYYY.-",
+      "read_only": 1,
+      "reqd": 1
+    },
+    {
+      "fieldname": "team_name",
+      "fieldtype": "Data",
+      "label": "Team Name",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "description",
+      "fieldtype": "Small Text",
+      "label": "Description"
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Active\nInactive",
+      "default": "Active"
+    },
+    {
+      "fieldname": "is_default",
+      "fieldtype": "Check",
+      "label": "Is Default Team",
+      "default": 0
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "members",
+      "fieldtype": "Table",
+      "label": "Team Members",
+      "options": "Change Management Team Member"
+    }
+  ],
+  "index_web_routes_on_delete": 0,
+  "issingle": 0,
+  "istable": 0,
+  "links": [],
+  "modified": "2024-01-07 10:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Frappe Devsecops Dashboard",
+  "name": "Change Management Team",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "submit": 0,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Projects Manager",
+      "share": 1,
+      "submit": 0,
+      "write": 1
+    },
+    {
+      "read": 1,
+      "role": "All"
+    }
+  ],
+  "quick_entry": 1,
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "sync_on_migrate": 1,
+  "track_changes": 1,
+  "track_seen": 0,
+  "track_views": 0
+}

@@ -1,6 +1,6 @@
 {
   "index.html": {
-    "file": "assets/index-NOFxqbnJ.js",
+    "file": "assets/index-4pGGsU-8.js",
     "name": "index",
     "src": "index.html",
     "isEntry": true,
@@ -13,7 +13,7 @@
       "node_modules/axios/index.js"
     ],
     "css": [
-      "assets/index-DJSE1ViD.css"
+      "assets/index-EYk7uJQ7.css"
     ]
   },
   "node_modules/axios/index.js": {
@@ -23,7 +23,7 @@
     "isDynamicEntry": true
   },
   "node_modules/canvg/lib/index.es.js": {
-    "file": "assets/index.es-4sZnMpyE.js",
+    "file": "assets/index.es-DKZhvIQq.js",
     "name": "index.es",
     "src": "node_modules/canvg/lib/index.es.js",
     "isDynamicEntry": true,

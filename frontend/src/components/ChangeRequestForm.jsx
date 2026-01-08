@@ -34,7 +34,8 @@ import {
   FileTextOutlined,
   ArrowLeftOutlined,
   CalendarOutlined,
-  WarningOutlined
+  WarningOutlined,
+  ExclamationCircleFilled
 } from '@ant-design/icons'
 import Swal from 'sweetalert2'
 import dayjs from 'dayjs'
@@ -1056,26 +1057,118 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
     }
   }
 
-  // Switch to the tab containing the first validation error and show a message
+  // Tab and section mapping for validation messages
   const fieldTabMap = {
-    title: '1', prepared_for: '1', submission_date: '1', project: '1', incident: '1', system_affected: '1', originator_name: '1', originator_organization: '1', originators_manager: '1',
-    change_category: '2', downtime_expected: '2', detailed_description: '2', release_notes: '2',
-    implementation_date: '3', implementation_time: '3', testing_plan: '3', rollback_plan: '3',
-    approval_status: '4', workflow_state: '4'
+    title: { tab: '1', section: 'Basic Information', label: 'Change Request Title' },
+    prepared_for: { tab: '1', section: 'Basic Information', label: 'Prepared For' },
+    submission_date: { tab: '1', section: 'Basic Information', label: 'Date Submitted' },
+    project: { tab: '1', section: 'Basic Information', label: 'Project (Link)' },
+    incident: { tab: '1', section: 'Basic Information', label: 'Related Incident' },
+    system_affected: { tab: '1', section: 'Basic Information', label: 'System/Application Affected' },
+    originator_name: { tab: '1', section: 'Basic Information', label: 'Originator Name' },
+    originator_organization: { tab: '1', section: 'Basic Information', label: 'Originator Organization' },
+    originators_manager: { tab: '1', section: 'Basic Information', label: "Originator's Manager" },
+    change_category: { tab: '2', section: 'Change Details', label: 'Change Request Category' },
+    downtime_expected: { tab: '2', section: 'Change Details', label: 'Downtime Expected' },
+    detailed_description: { tab: '2', section: 'Change Details', label: 'Detailed Description of Proposed Change' },
+    release_notes: { tab: '2', section: 'Change Details', label: 'Release Notes' },
+    implementation_date: { tab: '3', section: 'Implementation', label: 'Implementation/Deployment Date' },
+    implementation_time: { tab: '3', section: 'Implementation', label: 'Implementation/Deployment Time' },
+    testing_plan: { tab: '3', section: 'Implementation', label: 'Testing and Validation Plan' },
+    rollback_plan: { tab: '3', section: 'Implementation', label: 'Rollback/Backout Plan' },
+    approval_status: { tab: '4', section: 'Approvers & Approval', label: 'Change Request Acceptance' },
+    workflow_state: { tab: '4', section: 'Approvers & Approval', label: 'Implementation Status' }
   }
-  const onFinishFailed = (info) => {
-    // Show detailed error message
-    const errorFieldNames = info?.errorFields?.map(f => {
+
+  // Tab names for display
+  const tabNames = {
+    '1': 'Basic Information',
+    '2': 'Change Details',
+    '3': 'Implementation',
+    '4': 'Approvers & Approval'
+  }
+
+  const onFinishFailed = async (info) => {
+    // Build detailed error list with section context
+    const errorsByTab = {}
+    const errorList = []
+
+    info?.errorFields?.forEach(f => {
       const fieldName = Array.isArray(f?.name) ? f.name[0] : f?.name
-      return fieldName
-    }) || []
+      const fieldInfo = fieldTabMap[fieldName] || { tab: '1', section: 'General', label: fieldName }
+      const tab = fieldInfo.tab
 
-    message.error(`Please fill all required fields. Missing: ${errorFieldNames.join(', ')}`, 8)
+      if (!errorsByTab[tab]) {
+        errorsByTab[tab] = []
+      }
+      errorsByTab[tab].push(fieldInfo.label)
 
-    const first = info?.errorFields?.[0]
-    const firstName = Array.isArray(first?.name) ? first.name[0] : first?.name
-    const tab = fieldTabMap[firstName]
-    if (tab && tab !== activeTab) setActiveTab(tab)
+      errorList.push({
+        field: fieldName,
+        label: fieldInfo.label,
+        section: fieldInfo.section,
+        tab: tab
+      })
+    })
+
+    // Group errors by section for better display
+    const errorsBySection = {}
+    errorList.forEach(err => {
+      if (!errorsBySection[err.section]) {
+        errorsBySection[err.section] = []
+      }
+      errorsBySection[err.section].push(err.label)
+    })
+
+    // Build HTML for the error dialog
+    let errorHtml = `
+      <div style="text-align: left; margin-bottom: 16px;">
+        <p style="color: #595959; margin-bottom: 12px;">Please fill in all required fields before submitting.</p>
+      </div>
+      <div style="max-height: 300px; overflow-y: auto; padding-right: 8px;">
+    `
+
+    Object.keys(errorsBySection).forEach(section => {
+      errorHtml += `
+        <div style="margin-bottom: 16px; padding: 12px; background: #fff2f0; border-radius: 6px; border-left: 3px solid #ff4d4f;">
+          <div style="font-weight: 600; color: #cf1322; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 16px;">${section}</span>
+          </div>
+          <ul style="margin: 0; padding-left: 20px; color: #595959;">
+      `
+      errorsBySection[section].forEach(label => {
+        errorHtml += `<li style="margin-bottom: 4px;">${label}</li>`
+      })
+      errorHtml += `
+          </ul>
+        </div>
+      `
+    })
+
+    errorHtml += '</div>'
+
+    // Switch to the tab with the first error
+    if (errorList.length > 0) {
+      const firstTab = errorList[0].tab
+      if (firstTab && firstTab !== activeTab) {
+        setActiveTab(firstTab)
+      }
+    }
+
+    // Show the validation dialog
+    await Swal.fire({
+      title: 'Missing Required Fields',
+      html: errorHtml,
+      icon: 'error',
+      confirmButtonText: 'OK, Let me fix them',
+      confirmButtonColor: '#1890ff',
+      customClass: {
+        content: 'swal-validation-content'
+      },
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      width: '520px'
+    })
   }
 
 
@@ -1284,11 +1377,38 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
       )}
 
       <Form form={form} layout="vertical" onFinish={onSubmit} onFinishFailed={onFinishFailed} validateTrigger="onSubmit" disabled={isFormReadOnly}>
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab="Basic Information" key="1">
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          tabBarExtraContent={
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {['1', '2', '3', '4'].map(tabKey => {
+                const reqCount = ['1', '2', '3', '4'].includes(tabKey) ? 0 : 0
+                return reqCount > 0 ? (
+                  <Badge key={tabKey} count={reqCount} size="small" />
+                ) : null
+              })}
+            </div>
+          }
+        >
+          <TabPane
+            tab={
+              <span>
+                Basic Information
+                <sup style={{ color: '#ff4d4f', fontWeight: 'bold', marginLeft: '4px' }}>*</sup>
+              </span>
+            }
+            key="1"
+          >
+            {/* Section: Core Details */}
+            <div className="cr-section-header">
+              <ExclamationCircleFilled className="cr-section-header-icon" />
+              <Text className="cr-section-header-title">Core Details</Text>
+              <Text className="cr-section-header-subtitle">Required fields marked with *</Text>
+            </div>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="title" label="Change Request Title" rules={[{ required: true }]}>
+                <Form.Item name="title" label="Change Request Title" rules={[{ required: true, message: 'Please enter a title for this change request' }]}>
                   <Input placeholder="Enter change request title" />
                 </Form.Item>
               </Col>
@@ -1300,12 +1420,12 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
             </Row>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="submission_date" label="Date Submitted" initialValue={dayjs()} rules={[{ required: true }]}>
+                <Form.Item name="submission_date" label="Date Submitted" initialValue={dayjs()} rules={[{ required: true, message: 'Please select a submission date' }]}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="project" label="Project (Link)" rules={[{ required: true }]}>
+                <Form.Item name="project" label="Project (Link)" rules={[{ required: true, message: 'Please select a project' }]}>
                   <Select placeholder="Select project" showSearch filterOption={(input, option) => (option?.children ?? '').toLowerCase().includes(input.toLowerCase())}>
                     {projects.map(p => (
                       <Option key={p.name} value={p.name}>{p.project_name || p.name}</Option>
@@ -1334,9 +1454,16 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 </Form.Item>
               </Col>
             </Row>
+
+            {/* Section: System & Originator */}
+            <div className="cr-section-header" style={{ marginTop: '24px' }}>
+              <FileTextOutlined className="cr-section-header-icon" />
+              <Text className="cr-section-header-title">System & Originator</Text>
+              <Text className="cr-section-header-subtitle">Required fields marked with *</Text>
+            </div>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="system_affected" label="System/Application Affected" rules={[{ required: true }]}>
+                <Form.Item name="system_affected" label="System/Application Affected" rules={[{ required: true, message: 'Please select the affected system' }]}>
                   <Select
                     placeholder="Search and select software product"
                     showSearch
@@ -1359,7 +1486,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item name="originator_name" label="Originator Name" rules={[{ required: true }]}>
+                <Form.Item name="originator_name" label="Originator Name" rules={[{ required: true, message: 'Please select an originator' }]}>
                   <Select
                     placeholder="Search and select originator"
                     showSearch
@@ -1439,17 +1566,31 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                     color: '#0050b3',
                     fontSize: '12px'
                   }}>
-                    ℹ️ Manager was auto-populated from the selected originator's reporting structure. You can change it if needed.
+                    Manager was auto-populated from the selected originator's reporting structure. You can change it if needed.
                   </div>
                 </Col>
               </Row>
             )}
           </TabPane>
 
-          <TabPane tab="Change Details" key="2">
+          <TabPane
+            tab={
+              <span>
+                Change Details
+                <sup style={{ color: '#ff4d4f', fontWeight: 'bold', marginLeft: '4px' }}>*</sup>
+              </span>
+            }
+            key="2"
+          >
+            {/* Section: Category */}
+            <div className="cr-section-header cr-section-required">
+              <ExclamationCircleFilled className="cr-section-header-icon" />
+              <Text className="cr-section-header-title">Change Classification</Text>
+              <Text className="cr-section-header-subtitle">Required fields marked with *</Text>
+            </div>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="change_category" label="Change Request Category" rules={[{ required: true }]}>
+                <Form.Item name="change_category" label="Change Request Category" rules={[{ required: true, message: 'Please select a change category' }]}>
                   <Select placeholder="Select category">
                     <Option value="Major Change">Major Change</Option>
                     <Option value="Minor Change">Minor Change</Option>
@@ -1469,13 +1610,20 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 </div>
               </Col>
             </Row>
+
+            {/* Section: Documentation */}
+            <div className="cr-section-header cr-section-required" style={{ marginTop: '24px' }}>
+              <FileTextOutlined className="cr-section-header-icon" />
+              <Text className="cr-section-header-title">Documentation</Text>
+              <Text className="cr-section-header-subtitle">Required fields marked with *</Text>
+            </div>
             <Collapse
               items={[
                 {
                   key: '1',
-                  label: 'Detailed Description of Proposed Change',
+                  label: <span>Detailed Description of Proposed Change <span style={{ color: '#ff4d4f' }}>*</span></span>,
                   children: (
-                    <Form.Item name="detailed_description" rules={[{ required: true }]} style={{ marginBottom: 0 }}>
+                    <Form.Item name="detailed_description" rules={[{ required: true, message: 'Please provide a detailed description' }]} style={{ marginBottom: 0 }}>
                       <RichTextEditor placeholder="Describe the proposed change in detail..." />
                     </Form.Item>
                   )
@@ -1494,7 +1642,20 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
             />
           </TabPane>
 
-          <TabPane tab="Implementation" key="3">
+          <TabPane
+            tab={
+              <span>
+                Implementation
+              </span>
+            }
+            key="3"
+          >
+            {/* Section: Timeline */}
+            <div className="cr-section-header">
+              <CalendarOutlined className="cr-section-header-icon" />
+              <Text className="cr-section-header-title">Change Timeline</Text>
+              <Text className="cr-section-header-subtitle">Optional but recommended</Text>
+            </div>
             <div className="cr-prominent-field">
               <div className="cr-prominent-field-title">
                 <CalendarOutlined />
@@ -1512,6 +1673,13 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                   </Form.Item>
                 </Col>
               </Row>
+            </div>
+
+            {/* Section: Plans */}
+            <div className="cr-section-header" style={{ marginTop: '24px' }}>
+              <FileTextOutlined className="cr-section-header-icon" />
+              <Text className="cr-section-header-title">Testing & Rollback Plans</Text>
+              <Text className="cr-section-header-subtitle">Optional but recommended</Text>
             </div>
             <Collapse
               items={[
@@ -1538,7 +1706,20 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
             />
           </TabPane>
 
-          <TabPane tab="Approvers & Approval" key="4">
+          <TabPane
+            tab={
+              <span>
+                Approvers & Approval
+              </span>
+            }
+            key="4"
+          >
+            {/* Section: Status */}
+            <div className="cr-section-header">
+              <ExclamationCircleFilled className="cr-section-header-icon" />
+              <Text className="cr-section-header-title">Change Request Status</Text>
+              <Text className="cr-section-header-subtitle">Auto-managed by workflow</Text>
+            </div>
             {/* Sync Button - Only in edit mode */}
             {mode === 'edit' && (
               <div style={{ marginBottom: '24px' }}>
@@ -1547,7 +1728,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                   onClick={handleSyncApprovers}
                   loading={syncingApprovers}
                 >
-                  Sync Approvers from Project
+                  Sync Approvers from Change Management Team
                 </Button>
               </div>
             )}
@@ -1594,7 +1775,12 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
 
             <Divider />
 
-            {/* Approvers Section */}
+            {/* Section: Approvers */}
+            <div className="cr-section-header" style={{ marginTop: '24px' }}>
+              <FileTextOutlined className="cr-section-header-icon" />
+              <Text className="cr-section-header-title">Change Approvers</Text>
+              <Text className="cr-section-header-subtitle">Define who needs to approve</Text>
+            </div>
             <div style={{ marginBottom: '24px' }}>
               <Title level={5} style={{ marginBottom: '12px' }}>Approvers</Title>
               <ApproversTable

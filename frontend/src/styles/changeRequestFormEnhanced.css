@@ -376,7 +376,191 @@
   border-color: #fa8c16;
 }
 
-/* Print styles */
+/* ========== MANDATORY FIELD STYLES ========== */
+
+/* Enhanced required field label styling */
+.ant-form-item-required {
+  color: #cf1322 !important;
+  font-weight: 600 !important;
+}
+
+.ant-form-item-required::after {
+  content: " *" !important;
+  display: inline-block !important;
+  color: #ff4d4f !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  margin-left: 4px;
+}
+
+.ant-form-item-required::before {
+  display: none !important;
+}
+
+/* Make required field labels more prominent */
+.cr-required-field .ant-form-item-label > label {
+  color: #cf1322 !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+}
+
+.cr-required-field .ant-form-item-label > label::after {
+  content: " *" !important;
+  color: #ff4d4f !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  margin-left: 4px;
+}
+
+/* Highlight required fields with a subtle border */
+.cr-required-field .ant-input,
+.cr-required-field .ant-select-selector,
+.cr-required-field .ant-picker {
+  border-color: #ffa39e !important;
+  background: #fffafa !important;
+}
+
+.cr-required-field .ant-input:hover,
+.cr-required-field .ant-select-selector:hover,
+.cr-required-field .ant-picker:hover {
+  border-color: #ff4d4f !important;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.1) !important;
+}
+
+/* ========== TAB INDICATORS ========== */
+
+/* Tab with error indicator */
+.cr-tab-error {
+  position: relative;
+}
+
+.cr-tab-error::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: #ff4d4f;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+
+/* Tab badge for missing fields count */
+.cr-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  background: #ff4d4f;
+  color: #fff;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+/* ========== SECTION GROUPING ========== */
+
+/* Visual section headers within tabs */
+.cr-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #fafbfc 0%, #f0f2f5 100%);
+  border-radius: 8px;
+  border-left: 4px solid #1890ff;
+}
+
+.cr-section-header-icon {
+  font-size: 18px;
+  color: #1890ff;
+}
+
+.cr-section-header-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0;
+}
+
+.cr-section-header-subtitle {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-left: auto;
+}
+
+/* Section with required fields indicator */
+.cr-section-required {
+  border-left-color: #ff4d4f !important;
+}
+
+.cr-section-required .cr-section-header-icon {
+  color: #ff4d4f;
+}
+
+.cr-section-required .cr-section-header-title {
+  color: #cf1322;
+}
+
+/* ========== VALIDATION DIALOG ========== */
+
+/* Swal validation content styling */
+.swal-validation-content {
+  text-align: left !important;
+}
+
+/* Make the validation dialog content scrollable */
+.swal2-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Validation summary box at top of form */
+.cr-validation-summary {
+  display: none;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #fff2f0 0%, #fff1f0 100%);
+  border: 1px solid #ffccc7;
+  border-left: 4px solid #ff4d4f;
+  border-radius: 8px;
+}
+
+.cr-validation-summary-visible {
+  display: block;
+}
+
+.cr-validation-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #cf1322;
+  margin-bottom: 8px;
+}
+
+.cr-validation-summary-text {
+  font-size: 13px;
+  color: #595959;
+}
+
+.cr-validation-summary-count {
+  background: #ff4d4f;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ========== PRINT STYLES ========== */
 @media print {
   .cr-action-bar,
   .ant-tabs-nav,

@@ -353,7 +353,7 @@ def get_projects() -> Dict[str, Any]:
 @frappe.whitelist()
 def sync_approvers_from_project(change_request_name: str) -> Dict[str, Any]:
     """
-    Manually sync approvers from the linked Project's team members
+    Manually sync approvers from the default Change Management Team
     Can be called from the Edit Change Request form to refresh/sync approvers
 
     Args:
@@ -370,26 +370,44 @@ def sync_approvers_from_project(change_request_name: str) -> Dict[str, Any]:
         if not doc.has_permission('write'):
             frappe.throw(_('You do not have permission to update this Change Request'), frappe.PermissionError)
 
-        if not doc.project:
-            frappe.throw(_('Change Request must have a linked Project to sync approvers'), frappe.ValidationError)
+        # Get the default Change Management Team
+        default_team = frappe.db.get_value(
+            'Change Management Team',
+            {'is_default': 1, 'status': 'Active'},
+            'name'
+        )
 
-        # Get the project document
-        project = frappe.get_doc('Project', doc.project)
+        if not default_team:
+            frappe.throw(
+                _('No active default Change Management Team found. Please configure a default team first.'),
+                frappe.ValidationError
+            )
+
+        # Get the Change Management Team document
+        team = frappe.get_doc('Change Management Team', default_team)
 
         # Get existing approver users to avoid duplicates
         existing_approver_users = {approver.user for approver in doc.change_approvers}
 
-        # Fetch project users who are marked as change approvers
-        project_users = project.get('users', [])
+        # Fetch team members
+        team_members = team.get('members', [])
+
+        # Map team roles to business functions
+        role_to_business_function = {
+            'Lead': 'Change Leadership',
+            'Reviewer': 'Quality Assurance',
+            'Member': 'General'
+        }
 
         approvers_added = 0
-        for project_user in project_users:
-            # Check if user is marked as change approver and not already in the list
-            if project_user.get('custom_is_change_approver') and project_user.user not in existing_approver_users:
-                # Add to change_approvers table
+        for member in team_members:
+            user = member.user
+            if user and user not in existing_approver_users:
+                # Add to change_approvers table with role-based business function
+                business_function = role_to_business_function.get(member.role, 'General')
                 doc.append('change_approvers', {
-                    'user': project_user.user,
-                    'business_function': project_user.get('custom_business_function', ''),
+                    'user': user,
+                    'business_function': business_function,
                     'approval_status': 'Pending'
                 })
                 approvers_added += 1
@@ -405,10 +423,11 @@ def sync_approvers_from_project(change_request_name: str) -> Dict[str, Any]:
 
         return {
             'success': True,
-            'message': _('Synced {0} approver(s) from Project team members').format(approvers_added),
+            'message': _('Synced {0} approver(s) from default Change Management Team').format(approvers_added),
             'data': {
                 'approvers_added': approvers_added,
-                'total_approvers': len(doc.change_approvers)
+                'total_approvers': len(doc.change_approvers),
+                'team_name': team.team_name
             }
         }
 

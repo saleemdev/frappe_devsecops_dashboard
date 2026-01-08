@@ -8,11 +8,10 @@ from frappe import _
 class ChangeRequest(Document):
 	def after_insert(self):
 		"""
-		Automatically sync approvers from the linked Project's team members
+		Automatically sync approvers from the default Change Management Team
 		when a new Change Request is created
 		"""
-		if self.project:
-			self._sync_approvers_from_project()
+		self._sync_approvers_from_project()
 
 		# Enqueue email notifications AFTER commit to avoid blocking the save
 		# Using frappe.enqueue_doc ensures it runs after the current transaction commits
@@ -76,27 +75,49 @@ class ChangeRequest(Document):
 
 	def _sync_approvers_from_project(self):
 		"""
-		Fetch users from the linked Project's "Project User" child table
-		and add them as Change Request Approvers if they are marked as change approvers
+		Fetch users from the default Change Management Team
+		and add them as Change Request Approvers
 		"""
 		try:
-			# Get the project document
-			project = frappe.get_doc('Project', self.project)
+			# Get the default Change Management Team
+			default_team = frappe.db.get_value(
+				'Change Management Team',
+				{'is_default': 1, 'status': 'Active'},
+				'name'
+			)
+
+			if not default_team:
+				frappe.logger().warning(
+					f"[CR] No active default Change Management Team found for {self.name}. "
+					"Skipping auto-sync of approvers. Please configure a default team."
+				)
+				return
+
+			# Get the Change Management Team document
+			team = frappe.get_doc('Change Management Team', default_team)
 
 			# Get existing approver users to avoid duplicates
 			existing_approver_users = {approver.user for approver in self.change_approvers}
 
-			# Fetch project users who are marked as change approvers
-			project_users = project.get('users', [])
+			# Fetch team members
+			team_members = team.get('members', [])
+
+			# Map team roles to business functions
+			role_to_business_function = {
+				'Lead': 'Change Leadership',
+				'Reviewer': 'Quality Assurance',
+				'Member': 'General'
+			}
 
 			approvers_added = 0
-			for project_user in project_users:
-				# Check if user is marked as change approver and not already in the list
-				if project_user.get('custom_is_change_approver') and project_user.user not in existing_approver_users:
-					# Add to change_approvers table
+			for member in team_members:
+				user = member.user
+				if user and user not in existing_approver_users:
+					# Add to change_approvers table with role-based business function
+					business_function = role_to_business_function.get(member.role, 'General')
 					self.append('change_approvers', {
-						'user': project_user.user,
-						'business_function': project_user.get('custom_business_function', ''),
+						'user': user,
+						'business_function': business_function,
 						'approval_status': 'Pending'
 					})
 					approvers_added += 1
@@ -107,7 +128,9 @@ class ChangeRequest(Document):
 				self._approvers_just_synced = True
 				self.save()
 				frappe.msgprint(
-					_('Added {0} approver(s) from Project team members').format(approvers_added),
+					_('Added {0} approver(s) from default Change Management Team: {1}').format(
+						approvers_added, team.team_name
+					),
 					title=_('Approvers Synced'),
 					indicator='green'
 				)

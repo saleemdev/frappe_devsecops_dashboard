@@ -407,7 +407,7 @@ class IncidentsService {
     const client = await this.initClient()
 
     return withRetry(async () => {
-      const response = await client.post('/api/method/frappe_devsecops_dashboard.api.incident.add_timeline_entry', {
+      const response = await client.post('/api/method/frappe_devsecops_dashboard.api.incidents.add_timeline_entry', {
         name: id,
         event_type: timelineEntry.event_type,
         event_timestamp: timelineEntry.event_timestamp,
@@ -496,7 +496,7 @@ class IncidentsService {
     const client = await this.initClient()
 
     return withRetry(async () => {
-      const response = await client.post('/api/method/frappe_devsecops_dashboard.api.incident.remove_timeline_entry', {
+      const response = await client.post('/api/method/frappe_devsecops_dashboard.api.incidents.remove_timeline_entry', {
         name: id,
         entry_index: entryIndex
       })

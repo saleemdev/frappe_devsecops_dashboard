@@ -15,6 +15,7 @@
   "status",
   "release_status",
   "version",
+  "zenhub_workspace_id",
   "api_section",
   "api_namespace",
   "dates_section",
@@ -148,12 +149,18 @@
    "fieldtype": "Link",
    "label": "Default RACI Template",
    "options": "RACI Template"
+  },
+  {
+   "description": "The workspace ID for Zenhub.",
+   "fieldname": "zenhub_workspace_id",
+   "fieldtype": "Data",
+   "label": "Zenhub Workspace ID"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-11-30 22:39:19.141139",
- "modified_by": "Administrator",
+ "modified": "2026-01-13 07:00:17.562901",
+ "modified_by": "dsmwaura@gmail.com",
  "module": "Frappe Devsecops Dashboard",
  "name": "Software Product",
  "naming_rule": "Expression",
@@ -193,6 +200,7 @@
    "role": "All"
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

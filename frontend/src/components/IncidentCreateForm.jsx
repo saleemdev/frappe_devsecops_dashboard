@@ -148,7 +148,7 @@ function IncidentCreateForm({ navigateToRoute }) {
 
     try {
       setAssignedToSearchLoading(true)
-      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.incident.search_users?query=${encodeURIComponent(searchValue)}`, {
+      const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.incidents.search_users?query=${encodeURIComponent(searchValue)}`, {
         method: 'GET',
         headers: {
           'X-Frappe-CSRF-Token': window.csrf_token || ''
@@ -254,7 +254,7 @@ function IncidentCreateForm({ navigateToRoute }) {
         incident_timeline: [incidentReportedTimeline]
       }
 
-      const endpoint = '/api/method/frappe_devsecops_dashboard.api.incident.create_incident'
+      const endpoint = '/api/method/frappe_devsecops_dashboard.api.incidents.create_incident'
       const formData = new URLSearchParams()
       formData.append('data', JSON.stringify(payload))
 

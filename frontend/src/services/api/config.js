@@ -50,10 +50,10 @@ const API_CONFIG = {
 
     // Change Requests
     changeRequests: {
-      list: '/api/method/frappe_devsecops_dashboard.api.change_requests.get_change_requests',
-      detail: '/api/method/frappe_devsecops_dashboard.api.change_requests.get_change_request_detail',
-      create: '/api/method/frappe_devsecops_dashboard.api.change_requests.create_change_request',
-      update: '/api/method/frappe_devsecops_dashboard.api.change_requests.update_change_request'
+      list: '/api/method/frappe_devsecops_dashboard.api.change_request.get_change_requests',
+      detail: '/api/method/frappe_devsecops_dashboard.api.change_request.get_change_request',
+      create: '/api/method/frappe_devsecops_dashboard.api.change_request.create_change_request',
+      update: '/api/method/frappe_devsecops_dashboard.api.change_request.update_change_request'
     },
 
     // Swagger Collections

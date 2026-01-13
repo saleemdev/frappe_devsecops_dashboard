@@ -224,38 +224,23 @@ def update_change_request(name: str, data: str) -> Dict[str, Any]:
     try:
         import json
 
-        print(f"\n=== UPDATE_CHANGE_REQUEST CALLED ===")
-        print(f"name parameter: {name}")
-        print(f"data parameter type: {type(data)}")
-        print(f"data parameter (first 200 chars): {str(data)[:200]}")
-
         # Parse data
         update_data = json.loads(data) if isinstance(data, str) else data
-        print(f"Parsed update_data keys: {list(update_data.keys())}")
-        print(f"Parsed update_data: {update_data}")
 
         # Get existing document
         doc = frappe.get_doc('Change Request', name)
-        print(f"Document loaded: {doc.name}")
 
         # Check write permission
         if not doc.has_permission('write'):
             frappe.throw(_('You do not have permission to update this Change Request'), frappe.PermissionError)
 
         # Update fields
-        print(f"Updating {len(update_data)} fields...")
         for key, value in update_data.items():
             if key not in ['name', 'doctype', 'creation', 'modified', 'owner', 'modified_by']:
-                old_value = doc.get(key)
                 doc.set(key, value)
-                print(f"  {key}: {old_value} -> {value}")
-            else:
-                print(f"  {key}: SKIPPED (system field)")
 
         # Save document
-        print(f"Saving document...")
         doc.save()
-        print(f"Document saved successfully")
 
         return {
             'success': True,
@@ -264,13 +249,10 @@ def update_change_request(name: str, data: str) -> Dict[str, Any]:
         }
 
     except frappe.DoesNotExistError:
-        print(f"ERROR: Change Request {name} not found")
         frappe.throw(_('Change Request {0} not found').format(name), frappe.DoesNotExistError)
     except frappe.PermissionError as pe:
-        print(f"ERROR: Permission denied for {name}: {str(pe)}")
         frappe.throw(_('You do not have permission to update this Change Request'), frappe.PermissionError)
     except Exception as e:
-        print(f"ERROR: Exception updating Change Request {name}: {str(e)}")
         frappe.log_error(f"Error updating Change Request {name}: {str(e)}", "Change Request API")
         return {
             'success': False,

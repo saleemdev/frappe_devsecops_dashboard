@@ -702,6 +702,11 @@ function AppContent({
           label: 'Projects'
         },
         {
+          key: 'zenhub-dashboard',
+          icon: <BarChartOutlined />,
+          label: 'ZenHub Dashboard'
+        },
+        {
           key: 'risk-registers',
           icon: <FileProtectOutlined />,
           label: 'Risk Registers'

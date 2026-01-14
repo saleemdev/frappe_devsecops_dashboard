@@ -635,6 +635,12 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
           <Col>
             <Space>
               <Button
+                icon={<BarChartOutlined />}
+                onClick={() => navigateToRoute('zenhub-dashboard')}
+              >
+                ZenHub Dashboard
+              </Button>
+              <Button
                 icon={<ReloadOutlined />}
                 onClick={fetchProjects}
                 loading={loading}

@@ -115,13 +115,14 @@ def extract_asset_hashes():
 
 def update_html_template(js_file, css_file):
     """
-    Update HTML template with fallback asset hashes
+    Update HTML template with asset hashes from Vite build
 
     Args:
         js_file (str): JavaScript filename with hash
         css_file (str): CSS filename with hash
     """
     try:
+        import re
         dest_html = "../frappe_devsecops_dashboard/www/devsecops-ui.html"
 
         if not os.path.exists(dest_html):
@@ -132,14 +133,19 @@ def update_html_template(js_file, css_file):
         with open(dest_html, 'r') as f:
             html_content = f.read()
 
-        # Update fallback hashes if we have new ones
-        if js_file:
-            # Replace FALLBACK_JS value
-            html_content = replace_fallback_hash(html_content, 'FALLBACK_JS', js_file)
-
+        # Update CSS link with new hash (single line pattern)
         if css_file:
-            # Replace FALLBACK_CSS value
-            html_content = replace_fallback_hash(html_content, 'FALLBACK_CSS', css_file)
+            old_css_pattern = r'<link rel="stylesheet" crossorigin href="/assets/frappe_devsecops_dashboard/frontend/assets/[^"]+\.css">'
+            new_css_link = f'<link rel="stylesheet" crossorigin href="/assets/frappe_devsecops_dashboard/frontend/assets/{css_file}">'
+            html_content = re.sub(old_css_pattern, new_css_link, html_content, count=1)
+            print(f"  Updated CSS: {css_file}")
+
+        # Update JS script with new hash (single line pattern)
+        if js_file:
+            old_js_pattern = r'<script type="module" crossorigin src="/assets/frappe_devsecops_dashboard/frontend/assets/[^"]+\.js"></script>'
+            new_js_script = f'<script type="module" crossorigin src="/assets/frappe_devsecops_dashboard/frontend/assets/{js_file}"></script>'
+            html_content = re.sub(old_js_pattern, new_js_script, html_content, count=1)
+            print(f"  Updated JS: {js_file}")
 
         # Ensure CSRF token script is present
         if "window.csrf_token" not in html_content:
@@ -154,26 +160,6 @@ def update_html_template(js_file, css_file):
 
     except Exception as e:
         print(f"Error updating HTML template: {e}")
-
-def replace_fallback_hash(html_content, var_name, new_value):
-    """
-    Replace fallback hash value in HTML
-
-    Args:
-        html_content (str): HTML content
-        var_name (str): Variable name (e.g., 'FALLBACK_JS')
-        new_value (str): New value for the hash
-
-    Returns:
-        str: Updated HTML content
-    """
-    import re
-
-    # Pattern to match: const FALLBACK_JS = 'index-xxxxx.js';
-    pattern = rf"const {var_name} = '[^']*';"
-    replacement = f"const {var_name} = '{new_value}';"
-
-    return re.sub(pattern, replacement, html_content)
 
 if __name__ == "__main__":
     success = build()

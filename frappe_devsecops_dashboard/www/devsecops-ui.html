@@ -34,77 +34,60 @@
     <link rel="manifest" href="/assets/frappe_devsecops_dashboard/frontend/manifest.json" />
 
     <title>DOD DevSecOps Dashboard</title>
-    <script>
-      // Dynamically load frontend assets based on Vite manifest
-      (function() {
-        // Fallback hashes in case API fails (for initial deployments)
-        // Note: These should NOT include 'assets/' prefix as BASE_PATH already includes it
-        const FALLBACK_JS = 'index-COtvTEXG.js';
-        const FALLBACK_CSS = 'index-C8UVJmSS.css';
-        const BASE_PATH = '/assets/frappe_devsecops_dashboard/frontend/assets/';
 
-        async function loadAssets() {
-          try {
-            // Try to fetch the manifest from the API endpoint
-            const response = await fetch('/api/method/frappe_devsecops_dashboard.api.dashboard.get_frontend_assets');
-            const data = await response.json();
+    <!-- CSS: Loaded with hash from build process (synchronous load for instant styling) -->
+    <link rel="stylesheet" crossorigin href="/assets/frappe_devsecops_dashboard/frontend/assets/index-C8UVJmSS.css">
 
-            let jsFile = FALLBACK_JS;
-            let cssFile = FALLBACK_CSS;
-
-            // Use API response if successful
-            if (data.message && data.message.success && data.message.js_file) {
-              jsFile = data.message.js_file;
-              if (data.message.css_file) {
-                cssFile = data.message.css_file;
-              }
-            }
-
-            // Load CSS
-            if (cssFile) {
-              const link = document.createElement('link');
-              link.rel = 'stylesheet';
-              link.crossOrigin = 'anonymous';
-              link.href = BASE_PATH + cssFile;
-              document.head.appendChild(link);
-            }
-
-            // Load JavaScript
-            if (jsFile) {
-              const script = document.createElement('script');
-              script.type = 'module';
-              script.crossOrigin = 'anonymous';
-              script.src = BASE_PATH + jsFile;
-              document.head.appendChild(script);
-            }
-          } catch (error) {
-            console.error('Failed to load frontend assets:', error);
-            // Fallback: load with hardcoded hashes
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.crossOrigin = 'anonymous';
-            link.href = BASE_PATH + FALLBACK_CSS;
-            document.head.appendChild(link);
-
-            const script = document.createElement('script');
-            script.type = 'module';
-            script.crossOrigin = 'anonymous';
-            script.src = BASE_PATH + FALLBACK_JS;
-            document.head.appendChild(script);
-          }
-        }
-
-        // Load assets when DOM is ready
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', loadAssets);
-        } else {
-          loadAssets();
-        }
-      })();
-    </script>
+    <!-- Fallback base CSS to prevent unstyled flash while page loads -->
+    <style>
+      :root {
+        --primary-color: #1890ff;
+        --bg-color: #fafafa;
+        --text-color: #000000;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+        background-color: var(--bg-color);
+      }
+      #root {
+        width: 100%;
+        min-height: 100vh;
+        background-color: var(--bg-color);
+      }
+      .loading-screen {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background-color: #fafafa;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="loading-screen">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- CSRF token for Frappe API calls -->
     <script>window.csrf_token='{{ frappe.session.csrf_token }}'</script>
+
+    <!-- JavaScript: Loaded with hash from build process (module script for ES6 support) -->
+    <script type="module" crossorigin src="/assets/frappe_devsecops_dashboard/frontend/assets/index-BSzpXCa5.js"></script>
   </body>
 </html>

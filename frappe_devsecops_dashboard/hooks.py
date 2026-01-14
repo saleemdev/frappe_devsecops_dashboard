@@ -208,7 +208,20 @@ scheduler_events = {
 
 whitelisted_methods = [
 	"frappe_devsecops_dashboard.api.dashboard.get_dashboard_data",
-	"frappe_devsecops_dashboard.api.dashboard.get_project_details"
+	"frappe_devsecops_dashboard.api.dashboard.get_project_details",
+	# ZenHub Integration API Methods
+	"frappe_devsecops_dashboard.api.zenhub.get_sprint_data",
+	"frappe_devsecops_dashboard.api.zenhub.get_workspace_issues",
+	"frappe_devsecops_dashboard.api.zenhub.get_stakeholder_sprint_report",
+	"frappe_devsecops_dashboard.api.zenhub.get_workspace_summary",
+	"frappe_devsecops_dashboard.api.zenhub.get_project_summary",
+	"frappe_devsecops_dashboard.api.zenhub.get_task_summary",
+	# ZenHub Workspace API Methods
+	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_summary",
+	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_by_project",
+	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_by_epic",
+	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_team_utilization",
+	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_summary_with_filters"
 ]
 
 # Build hooks for frontend assets
@@ -222,7 +235,9 @@ build_hooks = {
 # ---------------
 # Run frontend build after migrations to ensure assets are always up-to-date
 after_migrate = [
-	"frappe_devsecops_dashboard.build.run_frontend_build"
+	"frappe_devsecops_dashboard.fixtures.add_zenhub_workspace_field.add_zenhub_workspace_field",
+	"frappe_devsecops_dashboard.build.run_frontend_build",
+	"frappe_devsecops_dashboard.fixtures.add_zenhub_menu.add_zenhub_dashboard_menu"
 ]
 
 # Website Route Rules

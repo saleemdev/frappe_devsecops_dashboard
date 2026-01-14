@@ -43,6 +43,7 @@ import IncidentCreateForm from './components/IncidentCreateForm'
 import IncidentEditForm from './components/IncidentEditForm'
 import IncidentsDashboard from './components/IncidentsDashboard'
 import TeamUtilization from './components/TeamUtilization'
+import ZenhubDashboard from './components/ZenhubDashboard'
 import SoftwareProduct from './components/SoftwareProduct'
 import SoftwareProductForm from './components/SoftwareProductForm'
 import SoftwareProductDetail from './components/SoftwareProductDetail'
@@ -420,6 +421,8 @@ function AppContent({
         return <ProductKPIDashboard navigateToRoute={navigateToRoute} />
       case 'team-utilization':
         return <TeamUtilization />
+      case 'zenhub-dashboard':
+        return <ZenhubDashboard navigateToRoute={navigateToRoute} />
       case 'software-product':
         return <SoftwareProduct navigateToRoute={navigateToRoute} />
       case 'software-product-new':

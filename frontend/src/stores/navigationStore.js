@@ -139,6 +139,21 @@ const useNavigationStore = create(
             window.location.hash = 'team-utilization'
             break
 
+          case 'zenhub-dashboard':
+            set({
+              currentRoute: 'zenhub-dashboard',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'zenhub-dashboard'
+            break
+
           case 'product-kpi-dashboard':
             set({
               currentRoute: 'product-kpi-dashboard',

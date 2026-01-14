@@ -1692,7 +1692,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               <Text style={{
                 fontSize: '11px',
                 fontWeight: '600',
-                color: '#8c8c8c',
+                color: token.colorTextTertiary,
                 display: 'block',
                 marginBottom: '6px',
                 letterSpacing: '0.3px'
@@ -1700,7 +1700,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 ZenHub Project ID
               </Text>
               <Space size={6} style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: '13px', color: '#262626', fontFamily: 'monospace' }}>
+                <Text style={{ fontSize: '13px', color: token.colorText, fontFamily: 'monospace' }}>
                   {projectData?.custom_zenhub_project_id ? projectData.custom_zenhub_project_id.substring(0, 16) + '...' : '—'}
                 </Text>
                 {projectData?.custom_zenhub_project_id && (
@@ -1710,8 +1710,24 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                       size="small"
                       icon={<CopyOutlined style={{ fontSize: '12px' }} />}
                       onClick={async () => {
-                        await navigator.clipboard.writeText(projectData.custom_zenhub_project_id)
-                        message.success('ZenHub Project ID copied')
+                        try {
+                          if (navigator?.clipboard?.writeText) {
+                            await navigator.clipboard.writeText(projectData.custom_zenhub_project_id)
+                            message.success('ZenHub Project ID copied')
+                          } else {
+                            // Fallback for older browsers
+                            const textArea = document.createElement('textarea')
+                            textArea.value = projectData.custom_zenhub_project_id
+                            document.body.appendChild(textArea)
+                            textArea.select()
+                            document.execCommand('copy')
+                            document.body.removeChild(textArea)
+                            message.success('ZenHub Project ID copied')
+                          }
+                        } catch (error) {
+                          console.error('Copy failed:', error)
+                          message.error('Failed to copy')
+                        }
                       }}
                       style={{ padding: '2px 4px', height: 'auto', color: token.colorPrimary }}
                     />
@@ -1725,7 +1741,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               <Text style={{
                 fontSize: '11px',
                 fontWeight: '600',
-                color: '#8c8c8c',
+                color: token.colorTextTertiary,
                 display: 'block',
                 marginBottom: '6px',
                 letterSpacing: '0.3px'
@@ -1733,7 +1749,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                 ZenHub Workspace ID
               </Text>
               <Space size={6} style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: '13px', color: '#262626', fontFamily: 'monospace' }}>
+                <Text style={{ fontSize: '13px', color: token.colorText, fontFamily: 'monospace' }}>
                   {projectData?.custom_zenhub_workspace_id ? projectData.custom_zenhub_workspace_id.substring(0, 16) + '...' : '—'}
                 </Text>
                 {projectData?.custom_zenhub_workspace_id && (
@@ -1743,8 +1759,24 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                       size="small"
                       icon={<CopyOutlined style={{ fontSize: '12px' }} />}
                       onClick={async () => {
-                        await navigator.clipboard.writeText(projectData.custom_zenhub_workspace_id)
-                        message.success('ZenHub Workspace ID copied')
+                        try {
+                          if (navigator?.clipboard?.writeText) {
+                            await navigator.clipboard.writeText(projectData.custom_zenhub_workspace_id)
+                            message.success('ZenHub Workspace ID copied')
+                          } else {
+                            // Fallback for older browsers
+                            const textArea = document.createElement('textarea')
+                            textArea.value = projectData.custom_zenhub_workspace_id
+                            document.body.appendChild(textArea)
+                            textArea.select()
+                            document.execCommand('copy')
+                            document.body.removeChild(textArea)
+                            message.success('ZenHub Workspace ID copied')
+                          }
+                        } catch (error) {
+                          console.error('Copy failed:', error)
+                          message.error('Failed to copy')
+                        }
                       }}
                       style={{ padding: '2px 4px', height: 'auto', color: token.colorPrimary }}
                     />
@@ -1758,7 +1790,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         {/* ACTION BAR - Buttons */}
         <div style={{
           paddingTop: '16px',
-          borderTop: '1px dashed rgba(0,0,0,0.1)',
+          borderTop: `1px dashed ${token.colorBorder}`,
           display: 'flex',
           justifyContent: 'flex-end',
           gap: '12px',

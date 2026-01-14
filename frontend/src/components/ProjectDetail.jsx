@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
 import {
   Card,
   Row,
@@ -29,7 +32,9 @@ import {
   Collapse,
   Divider,
   Alert,
-  theme
+  theme,
+  Statistic,
+  Table
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -56,7 +61,10 @@ import {
   ClockCircleOutlined as TimelineIcon,
   FlagOutlined,
   ShoppingOutlined,
-  FileProtectOutlined
+  FileProtectOutlined,
+  DashboardOutlined,
+  WarningFilled,
+  InfoCircleFilled
 } from '@ant-design/icons'
 import useAuthStore from '../stores/authStore'
 import {
@@ -85,6 +93,7 @@ import {
   getTaskTypeStatusIconType
 } from '../utils/taskProgressionUtils'
 import SprintReportDialog from './SprintReportDialog'
+import TeamUtilization from './TeamUtilization'
 import EnhancedTaskDialog from './EnhancedTaskDialog'
 import ProjectRecentActivity from './ProjectRecentActivity'
 import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
@@ -108,6 +117,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [taskTypeOptions, setTaskTypeOptions] = useState([])
   const [userSearchResults, setUserSearchResults] = useState([])
   const [showSprintReport, setShowSprintReport] = useState(false)
+  const [showTeamUtilization, setShowTeamUtilization] = useState(false)
   const [notesExpanded, setNotesExpanded] = useState(false)  // For notes expand/collapse
   const [canEditProject, setCanEditProject] = useState(true)
   const [checkingProjectPermissions, setCheckingProjectPermissions] = useState(true)
@@ -126,6 +136,12 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
   const [taskDialogMode, setTaskDialogMode] = useState('create') // 'create', 'edit', or 'view'
   const [selectedTask, setSelectedTask] = useState(null)
+
+  // Project Summary Modal state
+  const [showProjectSummary, setShowProjectSummary] = useState(false)
+  const [projectSummaryData, setProjectSummaryData] = useState(null)
+  const [projectTeamUtilization, setProjectTeamUtilization] = useState(null)
+  const [loadingProjectSummary, setLoadingProjectSummary] = useState(false)
 
   // Timeline Task Type Filter state
   const TIMELINE_FILTER_STORAGE_KEY = 'devsecops_timeline_task_type_filter'
@@ -213,13 +229,13 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
     }
   }
 
-  // Copy ZenHub ID to clipboard
+  // Copy ZenHub Workspace ID to clipboard
   const handleCopyZenHubId = async () => {
-    const zenHubId = projectData?.zenhub_id || projectData?.zenHubId
+    const zenHubId = projectData?.custom_zenhub_workspace_id
     if (!zenHubId) {
       await Swal.fire({
         icon: 'warning',
-        title: 'No ZenHub ID available',
+        title: 'No ZenHub Workspace ID available',
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
@@ -247,7 +263,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
 
       await Swal.fire({
         icon: 'success',
-        title: 'ZenHub ID copied to clipboard',
+        title: 'ZenHub Workspace ID copied to clipboard',
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
@@ -390,6 +406,77 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
       setAttachments([])
     } finally {
       setAttachmentsLoading(false)
+    }
+  }
+
+  // Fetch project summary with workspace data and team utilization
+  const fetchProjectSummary = async () => {
+    const workspaceId = projectData?.custom_zenhub_workspace_id
+    const projectIdZenhub = projectData?.custom_zenhub_project_id
+
+    if (!workspaceId) {
+      message.warning('No Zenhub Workspace ID configured for this project')
+      return
+    }
+
+    setLoadingProjectSummary(true)
+    setShowProjectSummary(true)
+    setProjectSummaryData(null)
+    setProjectTeamUtilization(null)
+
+    try {
+      // Fetch workspace by project and team utilization in parallel
+      const [summaryResponse, utilizationResponse] = await Promise.all([
+        fetch(
+          `/api/method/frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_by_project?workspace_id=${encodeURIComponent(workspaceId)}&project_id=${encodeURIComponent(projectIdZenhub || '')}`,
+          {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Frappe-CSRF-Token': window.csrf_token || ''
+            }
+          }
+        ),
+        fetch(
+          `/api/method/frappe_devsecops_dashboard.api.zenhub_workspace_api.get_team_utilization?workspace_id=${encodeURIComponent(workspaceId)}`,
+          {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Frappe-CSRF-Token': window.csrf_token || ''
+            }
+          }
+        )
+      ])
+
+      // Process summary response
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json()
+        if (summaryData.success) {
+          setProjectSummaryData(summaryData)
+        } else {
+          throw new Error(summaryData.error || 'Failed to fetch workspace summary')
+        }
+      } else {
+        throw new Error(`HTTP error fetching workspace summary: ${summaryResponse.status}`)
+      }
+
+      // Process utilization response
+      if (utilizationResponse.ok) {
+        const utilizationData = await utilizationResponse.json()
+        if (utilizationData.success) {
+          setProjectTeamUtilization(utilizationData)
+        }
+      }
+
+      message.success('Project summary loaded successfully')
+    } catch (error) {
+      console.error('[ProjectDetail] Error fetching project summary:', error)
+      message.error(error.message || 'Failed to fetch project summary')
+    } finally {
+      setLoadingProjectSummary(false)
     }
   }
 
@@ -890,6 +977,30 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
               <Title level={2} style={{ margin: 0, marginBottom: '8px' }}>
                 {projectData?.name || projectData?.project_name || 'Project'}
               </Title>
+              {/* ZenHub Project ID - Prominently displayed */}
+              {projectData?.custom_zenhub_project_id ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Tag color="purple" style={{ fontSize: '12px', padding: '4px 12px', fontWeight: '500' }}>
+                    Zenhub: {projectData.custom_zenhub_project_id}
+                  </Tag>
+                  <Tooltip title="Copy Zenhub Project ID to clipboard">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CopyOutlined />}
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(projectData.custom_zenhub_project_id)
+                        message.success('ZenHub Project ID copied to clipboard')
+                      }}
+                      style={{ padding: '2px 6px', height: 'auto', color: '#722ed1' }}
+                    />
+                  </Tooltip>
+                </div>
+              ) : (
+                <Tag color="default" style={{ fontSize: '12px', padding: '4px 12px', marginBottom: '12px' }}>
+                  No Zenhub ID
+                </Tag>
+              )}
               <Tag color={getStatusColor(projectData?.project_status || projectData?.status)} style={{ fontSize: '12px', padding: '4px 12px' }}>
                 {projectData?.project_status || projectData?.status || 'Unknown'}
               </Tag>
@@ -907,6 +1018,9 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
                   Edit Project
                 </Button>
               </Tooltip>
+              <Button type="default" icon={<DashboardOutlined />} onClick={fetchProjectSummary}>
+                Project Summary
+              </Button>
               <Button type="default" icon={<PlusOutlined />} onClick={handleOpenNewTaskModal}>
                 New Task
               </Button>
@@ -1309,164 +1423,367 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         </div>
       </div>
 
-      {/* Project Information Card - Enhanced with Gradient */}
+      {/* Project Information Card - Enhanced with Visual Hierarchy & Gestalt Principles */}
       <Card
-        title={
-          <Text style={{ fontSize: '14px', fontWeight: '600', color: '#262626' }}>
-            Project Information
-          </Text>
-        }
         style={{
           marginBottom: '24px',
           borderRadius: '12px',
           border: 'none',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          background: 'linear-gradient(90deg, #e6f4ff 0%, #bae0ff 50%, #e6f7ff 100%)'
+          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+          background: 'linear-gradient(135deg, #f0f5ff 0%, #e6f2ff 100%)'
         }}
-        headStyle={{
-          borderBottom: '1px solid rgba(255,255,255,0.5)',
-          padding: '12px 20px',
-          minHeight: 'auto',
-          background: 'transparent'
-        }}
-        bodyStyle={{ padding: '20px' }}
+        bodyStyle={{ padding: '24px' }}
       >
-        {/* Row 1: Status, Priority, Timeline */}
-        <Row gutter={[32, 20]} style={{ marginBottom: '20px' }}>
-          <Col xs={24} sm={8} md={6}>
-            <div>
-              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '8px' }}>
-                Status
-              </Text>
-              <Tag color={getStatusColor(projectData?.project_status || projectData?.status)} style={{ fontSize: '13px', padding: '2px 10px' }}>
-                {projectData?.project_status || projectData?.status || 'Unknown'}
-              </Tag>
-            </div>
-          </Col>
-          <Col xs={24} sm={8} md={6}>
-            <div>
-              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '8px' }}>
-                Priority
-              </Text>
-              <Text style={{
-                fontSize: '14px',
-                color: projectData?.priority === 'High' ? '#cf1322' : projectData?.priority === 'Medium' ? '#d46b08' : '#262626',
-                fontWeight: projectData?.priority === 'High' ? '600' : '500'
-              }}>
-                {projectData?.priority || '—'}
-              </Text>
-            </div>
-          </Col>
-          <Col xs={24} sm={8} md={12}>
-            <div>
-              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '8px' }}>
-                Timeline
-              </Text>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div>
-                  <Text type="secondary" style={{ fontSize: '10px', color: '#bfbfbf', display: 'block' }}>Start</Text>
-                  <Text style={{ fontSize: '13px', color: '#262626' }}>
-                    {formatDateWithRelativeTime(projectData?.expected_start_date || projectData?.actual_start_date) || '—'}
-                  </Text>
-                </div>
-                <Text type="secondary" style={{ color: '#d9d9d9' }}>→</Text>
-                <div>
-                  <Text type="secondary" style={{ fontSize: '10px', color: '#bfbfbf', display: 'block' }}>End</Text>
-                  <Text style={{ fontSize: '13px', color: '#262626' }}>
-                    {formatDateWithRelativeTime(projectData?.expected_end_date || projectData?.actual_end_date) || '—'}
-                  </Text>
-                </div>
-              </div>
-            </div>
-          </Col>
-        </Row>
+        {/* Card Title */}
+        <div style={{ marginBottom: '20px' }}>
+          <Text style={{ fontSize: '16px', fontWeight: '700', color: token.colorText, display: 'block' }}>
+            Project Information
+          </Text>
+          <div style={{ width: '40px', height: '3px', background: token.colorPrimary, marginTop: '8px', borderRadius: '2px' }} />
+        </div>
 
-        {/* Divider */}
-        <div style={{ borderTop: '1px solid #f5f5f5', marginBottom: '20px' }} />
-
-        {/* Row 2: Client, Department, Software Product, RACI Template */}
-        <Row gutter={[32, 20]} style={{ marginBottom: '20px' }}>
-          <Col xs={24} sm={12} md={6}>
-            <div>
-              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
-                Client
-              </Text>
-              <Text style={{ fontSize: '14px', color: '#262626' }}>
-                {projectData?.client || '—'}
-              </Text>
-            </div>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <div>
-              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
-                Department
-              </Text>
-              <Text style={{ fontSize: '14px', color: '#262626' }}>
-                {projectData?.department || '—'}
-              </Text>
-            </div>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <div>
-              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
-                Software Product
-              </Text>
-              <Text style={{ fontSize: '14px', color: '#262626' }}>
-                {projectData?.custom_software_product || '—'}
-              </Text>
-            </div>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <div>
-              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
-                RACI Template
-              </Text>
-              <Text style={{ fontSize: '14px', color: '#262626' }}>
-                {projectData?.custom_default_raci_template || '—'}
-              </Text>
-            </div>
-          </Col>
-        </Row>
-
-        {/* Divider */}
-        <div style={{ borderTop: '1px solid #f5f5f5', marginBottom: '20px' }} />
-
-        {/* Row 3: ZenHub ID & Sprint Report */}
-        <Row gutter={[32, 20]}>
-          <Col xs={24} sm={12} md={6}>
-            <div>
-              <Text type="secondary" style={{ fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#8c8c8c', display: 'block', marginBottom: '6px' }}>
-                ZenHub ID
-              </Text>
-              <Space size={4}>
-                <Text style={{ fontSize: '14px', color: '#262626' }}>
-                  {projectData?.zenhub_id || projectData?.zenHubId || '—'}
+        {/* PRIMARY ZONE - Status, Priority, Timeline */}
+        <Card
+          bordered={false}
+          style={{
+            marginBottom: '24px',
+            borderRadius: '12px',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+            background: '#ffffff'
+          }}
+          bodyStyle={{ padding: '20px' }}
+        >
+          <Row gutter={[24, 16]}>
+            {/* Status */}
+            <Col xs={24} sm={12} md={8}>
+              <div>
+                <Text style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: token.colorTextSecondary,
+                  display: 'block',
+                  marginBottom: '10px',
+                  letterSpacing: '0.3px'
+                }}>
+                  Project Status
                 </Text>
-                {(projectData?.zenhub_id || projectData?.zenHubId) && (
+                <Tag
+                  icon={<CheckCircleOutlined />}
+                  color={getStatusColor(projectData?.project_status || projectData?.status)}
+                  style={{
+                    fontSize: '14px',
+                    padding: '6px 14px',
+                    fontWeight: '600',
+                    borderRadius: '6px'
+                  }}
+                >
+                  {projectData?.project_status || projectData?.status || 'Unknown'}
+                </Tag>
+              </div>
+            </Col>
+
+            {/* Priority */}
+            <Col xs={24} sm={12} md={8}>
+              <div>
+                <Text style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: token.colorTextSecondary,
+                  display: 'block',
+                  marginBottom: '10px',
+                  letterSpacing: '0.3px'
+                }}>
+                  Priority Level
+                </Text>
+                <Space size={6}>
+                  {projectData?.priority === 'High' && <WarningFilled style={{ color: token.colorError, fontSize: '18px' }} />}
+                  {projectData?.priority === 'Medium' && <InfoCircleFilled style={{ color: token.colorWarning, fontSize: '18px' }} />}
+                  {projectData?.priority === 'Low' && <CheckCircleFilled style={{ color: token.colorSuccess, fontSize: '18px' }} />}
+                  <Text style={{
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    color: projectData?.priority === 'High' ? token.colorError : projectData?.priority === 'Medium' ? token.colorWarning : projectData?.priority === 'Low' ? token.colorSuccess : token.colorText
+                  }}>
+                    {projectData?.priority || '—'}
+                  </Text>
+                </Space>
+              </div>
+            </Col>
+
+            {/* Timeline with Visual Progress Bar */}
+            <Col xs={24} sm={12} md={8}>
+              <div>
+                <Text style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: token.colorTextSecondary,
+                  display: 'block',
+                  marginBottom: '10px',
+                  letterSpacing: '0.3px'
+                }}>
+                  Project Timeline
+                </Text>
+                <div style={{
+                  position: 'relative',
+                  height: '36px',
+                  background: '#f5f5f5',
+                  borderRadius: '18px',
+                  overflow: 'hidden',
+                  border: '1px solid #e8e8e8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  paddingLeft: '8px',
+                  paddingRight: '8px'
+                }}>
+                  {/* Progress fill */}
+                  <div style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    height: '100%',
+                    width: `${(() => {
+                      if (!projectData?.expected_start_date || !projectData?.expected_end_date) return 0
+                      const start = new Date(projectData.expected_start_date).getTime()
+                      const end = new Date(projectData.expected_end_date).getTime()
+                      const now = new Date().getTime()
+                      const progress = Math.max(0, Math.min(100, ((now - start) / (end - start)) * 100))
+                      return Math.round(progress)
+                    })()}%`,
+                    background: `linear-gradient(90deg, ${token.colorPrimary} 0%, ${token.colorPrimaryBorder} 100%)`,
+                    transition: 'width 0.3s ease',
+                    borderRadius: '18px',
+                    opacity: 0.8
+                  }} />
+
+                  {/* Date labels */}
+                  <div style={{
+                    position: 'relative',
+                    zIndex: 2,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    color: token.colorText
+                  }}>
+                    <span>{projectData?.expected_start_date ? `${dayjs(projectData.expected_start_date).format('MMM DD, YYYY')} (${dayjs(projectData.expected_start_date).fromNow()})` : '—'}</span>
+                    <span>{projectData?.expected_end_date ? `${dayjs(projectData.expected_end_date).format('MMM DD, YYYY')} (${dayjs(projectData.expected_end_date).fromNow()})` : '—'}</span>
+                  </div>
+                </div>
+
+                {/* Human-readable date range */}
+                {projectData?.expected_start_date && projectData?.expected_end_date && (
+                  <Text type="secondary" style={{
+                    fontSize: '11px',
+                    marginTop: '6px',
+                    display: 'block',
+                    fontWeight: '500'
+                  }}>
+                    {(() => {
+                      const start = new Date(projectData.expected_start_date)
+                      const end = new Date(projectData.expected_end_date)
+                      const now = new Date()
+                      const daysFromStart = Math.floor((now - start) / (1000 * 60 * 60 * 24))
+                      const daysUntilEnd = Math.floor((end - now) / (1000 * 60 * 60 * 24))
+
+                      // Format human-readable relative dates
+                      if (daysFromStart < 0) {
+                        // Project hasn't started yet
+                        return `Starts in ${Math.abs(daysFromStart)} day${Math.abs(daysFromStart) !== 1 ? 's' : ''}`
+                      } else if (daysUntilEnd < 0) {
+                        // Project has ended
+                        return `Ended ${Math.abs(daysUntilEnd)} day${Math.abs(daysUntilEnd) !== 1 ? 's' : ''} ago`
+                      } else {
+                        // Project is ongoing
+                        return `${daysUntilEnd} day${daysUntilEnd !== 1 ? 's' : ''} remaining`
+                      }
+                    })()}
+                  </Text>
+                )}
+              </div>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* SECONDARY ZONE - Project Details */}
+        <div style={{
+          background: 'rgba(255,255,255,0.6)',
+          borderRadius: '10px',
+          border: '1px solid rgba(0,0,0,0.06)',
+          padding: '18px',
+          marginBottom: '20px'
+        }}>
+          <Row gutter={[20, 12]}>
+            <Col xs={24} sm={12} md={6}>
+              <div>
+                <Text style={{
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  color: token.colorTextTertiary,
+                  display: 'block',
+                  marginBottom: '6px',
+                  letterSpacing: '0.3px'
+                }}>
+                  Client
+                </Text>
+                <Text style={{ fontSize: '14px', color: token.colorText, fontWeight: '500' }}>
+                  {projectData?.client || '—'}
+                </Text>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <div>
+                <Text style={{
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  color: token.colorTextTertiary,
+                  display: 'block',
+                  marginBottom: '6px',
+                  letterSpacing: '0.3px'
+                }}>
+                  Department
+                </Text>
+                <Text style={{ fontSize: '14px', color: token.colorText, fontWeight: '500' }}>
+                  {projectData?.department || '—'}
+                </Text>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <div>
+                <Text style={{
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  color: token.colorTextTertiary,
+                  display: 'block',
+                  marginBottom: '6px',
+                  letterSpacing: '0.3px'
+                }}>
+                  Software Product
+                </Text>
+                <Text style={{ fontSize: '14px', color: token.colorText, fontWeight: '500' }}>
+                  {projectData?.custom_software_product || '—'}
+                </Text>
+              </div>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <div>
+                <Text style={{
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  color: token.colorTextTertiary,
+                  display: 'block',
+                  marginBottom: '6px',
+                  letterSpacing: '0.3px'
+                }}>
+                  RACI Template
+                </Text>
+                <Text style={{ fontSize: '14px', color: token.colorText, fontWeight: '500' }}>
+                  {projectData?.custom_default_raci_template || '—'}
+                </Text>
+              </div>
+            </Col>
+          </Row>
+        </div>
+
+        {/* METADATA ZONE - Technical IDs */}
+        <Row gutter={[20, 12]} style={{ marginBottom: '20px' }}>
+          <Col xs={24} sm={12} md={8}>
+            <div>
+              <Text style={{
+                fontSize: '11px',
+                fontWeight: '600',
+                color: '#8c8c8c',
+                display: 'block',
+                marginBottom: '6px',
+                letterSpacing: '0.3px'
+              }}>
+                ZenHub Project ID
+              </Text>
+              <Space size={6} style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: '13px', color: '#262626', fontFamily: 'monospace' }}>
+                  {projectData?.custom_zenhub_project_id ? projectData.custom_zenhub_project_id.substring(0, 16) + '...' : '—'}
+                </Text>
+                {projectData?.custom_zenhub_project_id && (
                   <Tooltip title="Copy to clipboard">
                     <Button
                       type="text"
                       size="small"
                       icon={<CopyOutlined style={{ fontSize: '12px' }} />}
-                      onClick={handleCopyZenHubId}
-                      style={{ padding: '2px 4px', height: 'auto', color: '#8c8c8c' }}
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(projectData.custom_zenhub_project_id)
+                        message.success('ZenHub Project ID copied')
+                      }}
+                      style={{ padding: '2px 4px', height: 'auto', color: token.colorPrimary }}
                     />
                   </Tooltip>
                 )}
               </Space>
             </div>
           </Col>
-          <Col xs={24} sm={12} md={6} style={{ display: 'flex', alignItems: 'flex-end' }}>
-            <Button
-              type="text"
-              icon={<BarChartOutlined />}
-              onClick={() => setShowSprintReport(true)}
-              style={{ color: token.colorPrimary, padding: '4px 0' }}
-            >
-              View Sprint Report
-            </Button>
+          <Col xs={24} sm={12} md={8}>
+            <div>
+              <Text style={{
+                fontSize: '11px',
+                fontWeight: '600',
+                color: '#8c8c8c',
+                display: 'block',
+                marginBottom: '6px',
+                letterSpacing: '0.3px'
+              }}>
+                ZenHub Workspace ID
+              </Text>
+              <Space size={6} style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: '13px', color: '#262626', fontFamily: 'monospace' }}>
+                  {projectData?.custom_zenhub_workspace_id ? projectData.custom_zenhub_workspace_id.substring(0, 16) + '...' : '—'}
+                </Text>
+                {projectData?.custom_zenhub_workspace_id && (
+                  <Tooltip title="Copy to clipboard">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CopyOutlined style={{ fontSize: '12px' }} />}
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(projectData.custom_zenhub_workspace_id)
+                        message.success('ZenHub Workspace ID copied')
+                      }}
+                      style={{ padding: '2px 4px', height: 'auto', color: token.colorPrimary }}
+                    />
+                  </Tooltip>
+                )}
+              </Space>
+            </div>
           </Col>
         </Row>
+
+        {/* ACTION BAR - Buttons */}
+        <div style={{
+          paddingTop: '16px',
+          borderTop: '1px dashed rgba(0,0,0,0.1)',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '12px',
+          flexWrap: 'wrap'
+        }}>
+          <Button
+            icon={<BarChartOutlined />}
+            onClick={() => setShowSprintReport(true)}
+            size="middle"
+            style={{ borderRadius: '6px' }}
+          >
+            Sprint Report
+          </Button>
+          {projectData?.custom_zenhub_workspace_id && (
+            <Button
+              icon={<TeamOutlined />}
+              onClick={() => setShowTeamUtilization(true)}
+              type="primary"
+              size="middle"
+              style={{ borderRadius: '6px' }}
+            >
+              Team Utilization
+            </Button>
+          )}
+        </div>
       </Card>
 
       {/* Main Content */}
@@ -1950,6 +2267,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
         mode={taskDialogMode}
         taskData={selectedTask}
         projectId={projectId}
+        zenhubWorkspaceId={projectData?.custom_zenhub_workspace_id}
         taskTypeOptions={taskTypeOptions}
         userSearchResults={userSearchResults}
         onUserSearch={handleUserSearch}
@@ -1969,6 +2287,196 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           projectName={projectData?.project_name || projectData?.name}
         />
       )}
+
+      {/* Team Utilization Modal */}
+      {showTeamUtilization && (
+        <Modal
+          title="Team Utilization"
+          open={showTeamUtilization}
+          onCancel={() => setShowTeamUtilization(false)}
+          width={1200}
+          footer={null}
+          destroyOnClose
+        >
+          <TeamUtilization
+            workspaceId={projectData?.custom_zenhub_workspace_id}
+            forceRefresh={true}
+          />
+        </Modal>
+      )}
+
+      {/* Project Summary Modal */}
+      <Modal
+        title={
+          <Space>
+            <DashboardOutlined style={{ color: token.colorPrimary }} />
+            <span>Project Summary</span>
+            {projectData?.project_name && (
+              <Tag color="blue">{projectData.project_name}</Tag>
+            )}
+          </Space>
+        }
+        open={showProjectSummary}
+        onCancel={() => setShowProjectSummary(false)}
+        width={1000}
+        footer={[
+          <Button
+            key="refresh"
+            icon={<SyncOutlined />}
+            onClick={fetchProjectSummary}
+            loading={loadingProjectSummary}
+          >
+            Refresh
+          </Button>,
+          <Button key="close" type="primary" onClick={() => setShowProjectSummary(false)}>
+            Close
+          </Button>
+        ]}
+        destroyOnClose
+      >
+        {loadingProjectSummary ? (
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <Spin size="large" tip="Loading project summary..." />
+          </div>
+        ) : (
+          <div>
+            {/* Summary Stats */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Col xs={24} sm={8}>
+                <Card size="small">
+                  <Statistic
+                    title="Total Issues"
+                    value={projectSummaryData?.workspace?.summary?.total_issues || 0}
+                    prefix={<FileTextOutlined />}
+                    valueStyle={{ color: token.colorPrimary }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card size="small">
+                  <Statistic
+                    title="Total Story Points"
+                    value={projectSummaryData?.workspace?.summary?.total_story_points || 0}
+                    valueStyle={{ color: '#52c41a' }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card size="small">
+                  <Statistic
+                    title="Completion Rate"
+                    value={projectSummaryData?.workspace?.summary?.completion_rate || 0}
+                    suffix="%"
+                    valueStyle={{ color: (projectSummaryData?.workspace?.summary?.completion_rate || 0) >= 70 ? '#52c41a' : '#faad14' }}
+                  />
+                </Card>
+              </Col>
+            </Row>
+
+            {/* Team Utilization Section */}
+            <Card
+              size="small"
+              title={
+                <Space>
+                  <TeamOutlined />
+                  <span>Team Utilization</span>
+                </Space>
+              }
+              style={{ marginBottom: 16 }}
+            >
+              {projectTeamUtilization?.team_members?.length > 0 ? (
+                <Table
+                  dataSource={projectTeamUtilization.team_members}
+                  rowKey="id"
+                  pagination={false}
+                  size="small"
+                  columns={[
+                    {
+                      title: 'Team Member',
+                      dataIndex: 'name',
+                      key: 'name',
+                      render: (name) => (
+                        <Space>
+                          <Avatar size="small" style={{ backgroundColor: token.colorPrimary }}>
+                            {name?.charAt(0)?.toUpperCase() || '?'}
+                          </Avatar>
+                          <Text>{name || 'Unknown'}</Text>
+                        </Space>
+                      )
+                    },
+                    {
+                      title: 'Tasks',
+                      dataIndex: 'task_count',
+                      key: 'task_count',
+                      render: (count) => <Tag color="blue">{count || 0}</Tag>
+                    },
+                    {
+                      title: 'Story Points',
+                      dataIndex: 'story_points',
+                      key: 'story_points',
+                      render: (points) => <Tag color="geekblue">{points || 0}</Tag>
+                    },
+                    {
+                      title: 'Completed Points',
+                      dataIndex: 'completed_points',
+                      key: 'completed_points',
+                      render: (points) => <Tag color="green">{points || 0}</Tag>
+                    },
+                    {
+                      title: 'Utilization',
+                      dataIndex: 'utilization_percentage',
+                      key: 'utilization_percentage',
+                      render: (pct) => (
+                        <Progress
+                          percent={Math.round(pct || 0)}
+                          size="small"
+                          strokeColor={pct >= 80 ? '#52c41a' : pct >= 60 ? '#faad14' : '#f5222d'}
+                        />
+                      )
+                    }
+                  ]}
+                />
+              ) : (
+                <Text type="secondary">No team utilization data available</Text>
+              )}
+            </Card>
+
+            {/* Projects/Epics from Workspace */}
+            {projectSummaryData?.workspace?.projects && (
+              <Card
+                size="small"
+                title={
+                  <Space>
+                    <BarChartOutlined />
+                    <span>Workspace Projects</span>
+                  </Space>
+                }
+              >
+                {projectSummaryData.workspace.projects.map((project, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      padding: '12px',
+                      marginBottom: index < projectSummaryData.workspace.projects.length - 1 ? 8 : 0,
+                      background: token.colorBgContainer,
+                      borderRadius: 6,
+                      border: `1px solid ${token.colorBorder}`
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <Text strong>{project.title || `Project ${index + 1}`}</Text>
+                      <Tag>{project.id}</Tag>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {project.epics?.length || 0} Epics | {project.sprints?.length || 0} Sprints | {project.tasks?.length || 0} Tasks
+                    </Text>
+                  </div>
+                ))}
+              </Card>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

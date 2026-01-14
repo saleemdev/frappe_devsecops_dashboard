@@ -1808,6 +1808,10 @@ def update_project(project_name, project_data):
         if "custom_software_product" in project_data:
             # Update Software Product - Frappe will auto-fetch custom_default_raci_template via fetch_from
             project.custom_software_product = project_data["custom_software_product"]
+        if "custom_default_raci_template" in project_data:
+            project.custom_default_raci_template = project_data["custom_default_raci_template"]
+        if "custom_zenhub_project_id" in project_data:
+            project.custom_zenhub_project_id = project_data["custom_zenhub_project_id"]
         if "custom_zenhub_workspace_id" in project_data:
             project.custom_zenhub_workspace_id = project_data["custom_zenhub_workspace_id"]
 

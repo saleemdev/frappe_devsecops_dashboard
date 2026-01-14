@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Card,
   Row,
@@ -12,7 +12,9 @@ import {
   Statistic,
   Tooltip,
   List,
-  Badge
+  Badge,
+  Alert,
+  Spin
 } from 'antd'
 import {
   UserOutlined,
@@ -20,132 +22,140 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  TrophyOutlined
+  TrophyOutlined,
+  ReloadOutlined
 } from '@ant-design/icons'
+import zenhubService from '../services/api/zenhub'
 
 const { Title, Text } = Typography
 
-const TeamUtilization = () => {
-  // Mock data for team utilization
-  const teamStats = {
-    totalMembers: 24,
-    activeMembers: 22,
-    utilizationRate: 87,
-    avgHoursPerWeek: 38.5
+const TeamUtilization = ({ workspaceId: propWorkspaceId, forceRefresh = false }) => {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [teamData, setTeamData] = useState(null)
+  const [projectAllocations, setProjectAllocations] = useState([])
+  const [workspaceId, setWorkspaceId] = useState(propWorkspaceId)
+
+  // Fetch team utilization data from Zenhub API
+  const fetchTeamData = async () => {
+    if (!workspaceId) {
+      setError('Workspace ID is required. Please configure Zenhub Settings.')
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Fetch both team utilization and workspace summary in parallel
+      const [teamDataResult, summaryResult] = await Promise.all([
+        zenhubService.getTeamUtilization(workspaceId, forceRefresh),
+        zenhubService.getWorkspaceSummary(workspaceId, forceRefresh)
+      ])
+
+      if (teamDataResult && teamDataResult.success) {
+        setTeamData(teamDataResult)
+      } else {
+        setError(teamDataResult?.error || 'Failed to fetch team utilization data')
+      }
+
+      // Process project allocations from workspace summary
+      if (summaryResult?.success && summaryResult.workspace?.projects) {
+        const allocations = summaryResult.workspace.projects.map(project => {
+          // Count unique team members across all tasks
+          const memberCount = new Set()
+          let taskCount = 0
+
+          project.epics?.forEach(epic => {
+            epic.sprints?.forEach(sprint => {
+              sprint.tasks?.forEach(task => {
+                taskCount++
+                task.assignees?.forEach(a => memberCount.add(a.id))
+              })
+            })
+          })
+
+          return {
+            project: project.title || 'Unknown',
+            members: memberCount.size,
+            taskCount,
+            utilization: 85, // Placeholder
+            status: 'On Track',
+            deadline: 'Ongoing'
+          }
+        })
+        setProjectAllocations(allocations)
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while fetching data')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const teamMembers = [
-    {
-      id: 'tm-001',
-      name: 'John Smith',
-      role: 'Senior Developer',
-      avatar: 'JS',
-      utilization: 95,
-      hoursThisWeek: 42,
-      currentProjects: ['ePrescription', 'Patient Portal'],
-      skills: ['React', 'Node.js', 'Python'],
-      status: 'active',
-      performance: 'excellent'
-    },
-    {
-      id: 'tm-002',
-      name: 'Sarah Johnson',
-      role: 'DevOps Engineer',
-      avatar: 'SJ',
-      utilization: 88,
-      hoursThisWeek: 40,
-      currentProjects: ['Infrastructure', 'CI/CD Pipeline'],
-      skills: ['Docker', 'Kubernetes', 'AWS'],
-      status: 'active',
-      performance: 'good'
-    },
-    {
-      id: 'tm-003',
-      name: 'Mike Chen',
-      role: 'Frontend Developer',
-      avatar: 'MC',
-      utilization: 92,
-      hoursThisWeek: 38,
-      currentProjects: ['Mobile Health App', 'Analytics Dashboard'],
-      skills: ['React', 'TypeScript', 'CSS'],
-      status: 'active',
-      performance: 'excellent'
-    },
-    {
-      id: 'tm-004',
-      name: 'Lisa Wang',
-      role: 'Backend Developer',
-      avatar: 'LW',
-      utilization: 78,
-      hoursThisWeek: 35,
-      currentProjects: ['Patient Management'],
-      skills: ['Python', 'PostgreSQL', 'Redis'],
-      status: 'active',
-      performance: 'good'
-    },
-    {
-      id: 'tm-005',
-      name: 'Alex Rodriguez',
-      role: 'Security Engineer',
-      avatar: 'AR',
-      utilization: 85,
-      hoursThisWeek: 40,
-      currentProjects: ['Security Audit', 'Compliance'],
-      skills: ['Security', 'Penetration Testing', 'OWASP'],
-      status: 'active',
-      performance: 'excellent'
-    },
-    {
-      id: 'tm-006',
-      name: 'David Kim',
-      role: 'QA Engineer',
-      avatar: 'DK',
-      utilization: 82,
-      hoursThisWeek: 37,
-      currentProjects: ['Testing Framework', 'Automation'],
-      skills: ['Selenium', 'Jest', 'Cypress'],
-      status: 'active',
-      performance: 'good'
-    }
-  ]
+  useEffect(() => {
+    fetchTeamData()
+  }, [workspaceId, forceRefresh])
 
-  const projectAllocations = [
-    {
-      project: 'ePrescription',
-      members: 8,
-      utilization: 92,
-      status: 'On Track',
-      deadline: '2024-06-30'
-    },
-    {
-      project: 'Patient Portal',
-      members: 6,
-      utilization: 88,
-      status: 'On Track',
-      deadline: '2024-08-15'
-    },
-    {
-      project: 'Mobile Health App',
-      members: 5,
-      utilization: 85,
-      status: 'At Risk',
-      deadline: '2024-07-20'
-    },
-    {
-      project: 'Analytics Dashboard',
-      members: 4,
-      utilization: 90,
-      status: 'On Track',
-      deadline: '2024-09-10'
-    },
-    {
-      project: 'Infrastructure',
-      members: 3,
-      utilization: 95,
-      status: 'Ahead',
-      deadline: 'Ongoing'
+  // Calculate stats from API data
+  const getTeamStats = () => {
+    if (!teamData?.team_members) {
+      return {
+        totalMembers: 0,
+        activeMembers: 0,
+        utilizationRate: 0,
+        avgHoursPerWeek: 0
+      }
     }
-  ]
+
+    const members = teamData.team_members
+    const totalMembers = members.length
+    const activeMembers = members.filter(m => m.task_count > 0).length
+    const avgUtilization = teamData.average_utilization || 0
+
+    return {
+      totalMembers,
+      activeMembers,
+      utilizationRate: Math.round(avgUtilization),
+      avgHoursPerWeek: 38.5 // Estimate - not available in Zenhub API
+    }
+  }
+
+  // Transform Zenhub data for table display
+  const getTeamMembers = () => {
+    if (!teamData?.team_members) return []
+
+    return teamData.team_members.map(member => ({
+      id: member.id,
+      name: member.name || 'Unknown',
+      role: 'Team Member',
+      avatar: getInitials(member.name),
+      utilization: member.utilization_percentage || 0,
+      taskCount: member.task_count || 0,
+      storyPoints: member.story_points || 0,
+      completedPoints: member.completed_points || 0,
+      currentProjects: ['Project'], // Placeholder - not in Zenhub data
+      skills: [], // Placeholder - not in Zenhub data
+      status: member.task_count > 0 ? 'active' : 'inactive',
+      performance: getPerformanceLevel(member.utilization_percentage)
+    }))
+  }
+
+  const getInitials = (name) => {
+    if (!name) return '??'
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+  }
+
+  const getPerformanceLevel = (utilization) => {
+    if (!utilization) return 'needs-improvement'
+    if (utilization >= 80) return 'excellent'
+    if (utilization >= 60) return 'good'
+    return 'needs-improvement'
+  }
+
+  const teamStats = getTeamStats()
+  const teamMembers = getTeamMembers()
 
   const getUtilizationColor = (utilization) => {
     if (utilization >= 90) return '#52c41a'
@@ -314,10 +324,45 @@ const TeamUtilization = () => {
     }
   ]
 
+  if (loading) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <Spin size="large" tip="Loading team utilization data..." />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <Alert
+          type="error"
+          message="Failed to Load Team Utilization"
+          description={error}
+          action={
+            <button onClick={fetchTeamData} style={{ border: 'none', background: 'none', color: '#ff4d4f', cursor: 'pointer' }}>
+              Retry
+            </button>
+          }
+        />
+      </div>
+    )
+  }
+
   return (
     <div style={{ padding: '24px' }}>
-      <Title level={2}>Team Utilization</Title>
-      
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <Title level={2}>Team Utilization</Title>
+        <Tooltip title="Refresh data">
+          <button
+            onClick={fetchTeamData}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '18px' }}
+          >
+            <ReloadOutlined spin={loading} />
+          </button>
+        </Tooltip>
+      </div>
+
       {/* Overview Statistics */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={6}>
@@ -362,7 +407,7 @@ const TeamUtilization = () => {
       </Row>
 
       {/* Team Members Table */}
-      <Card title="Team Members" style={{ marginBottom: 24 }}>
+      <Card title={`Team Members (${teamMembers.length})`} style={{ marginBottom: 24 }}>
         <Table
           columns={teamColumns}
           dataSource={teamMembers}

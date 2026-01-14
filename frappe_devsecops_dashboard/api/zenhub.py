@@ -1460,4 +1460,438 @@ def get_stakeholder_sprint_report(project_id: str, force_refresh: bool = False) 
         }
 
 
+@frappe.whitelist()
+def get_workspace_summary(workspace_id: str, project_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Get workspace summary for Product Summary view.
 
+    Fetches comprehensive workspace data including:
+    - Projects and their issues
+    - Sprint progress and metrics
+    - Team utilization
+    - Kanban pipeline status
+
+    Args:
+        workspace_id (str): The Zenhub workspace ID
+        project_id (str, optional): Filter by specific project ID
+
+    Returns:
+        dict: JSON response containing workspace summary or error information
+    """
+    try:
+        if not workspace_id:
+            return {
+                "success": False,
+                "error": "workspace_id parameter is required",
+                "error_type": "validation_error"
+            }
+
+        # Fetch workspace data using GraphQL
+        variables = {"workspaceId": workspace_id}
+        response_data = execute_graphql_query(get_workspace_issues_query(), variables)
+
+        workspace = response_data.get("workspace", {})
+        issues_container = workspace.get("issues", {})
+        all_issues = issues_container.get("nodes", [])
+
+        # Process issues and calculate metrics
+        metrics = calculate_sprint_metrics({
+            "id": workspace_id,
+            "name": workspace.get("name", "Workspace"),
+            "issues": {"nodes": all_issues}
+        })
+
+        # Group by project if repository info available
+        projects_data = {}
+        for issue in all_issues:
+            repo = issue.get("repository", {})
+            repo_name = repo.get("name", "Unknown")
+            if repo_name not in projects_data:
+                projects_data[repo_name] = {
+                    "name": repo_name,
+                    "issue_count": 0,
+                    "story_points": 0,
+                    "completed_points": 0
+                }
+            projects_data[repo_name]["issue_count"] += 1
+            estimate = issue.get("estimate") or {}
+            points = estimate.get("value", 0) if isinstance(estimate, dict) else 0
+            projects_data[repo_name]["story_points"] += points
+            if issue.get("state") in ["closed", "done", "completed"]:
+                projects_data[repo_name]["completed_points"] += points
+
+        # Calculate overall health
+        total_issues = len(all_issues)
+        completed_issues = sum(1 for i in all_issues if i.get("state") in ["closed", "done", "completed"])
+        progress_pct = (completed_issues / total_issues * 100) if total_issues > 0 else 0
+
+        health_status = "on_track"
+        if progress_pct < 30:
+            health_status = "off_track"
+        elif metrics.get("issues_by_status", {}).get("blocked", 0) / max(total_issues, 1) > 0.2:
+            health_status = "at_risk"
+
+        result = {
+            "success": True,
+            "workspace_id": workspace_id,
+            "workspace_name": workspace.get("name"),
+            "summary": {
+                "total_issues": total_issues,
+                "completed_issues": completed_issues,
+                "progress_percentage": round(progress_pct, 2),
+                "total_story_points": metrics.get("total_story_points", 0),
+                "completed_story_points": metrics.get("completed_story_points", 0),
+                "remaining_story_points": metrics.get("remaining_story_points", 0),
+                "health_status": health_status,
+                "team_members_count": len(metrics.get("team_members", []))
+            },
+            "projects": list(projects_data.values()),
+            "team_members": metrics.get("team_member_story_points", [])[:10],
+            "issues_by_status": metrics.get("issues_by_status", {}),
+            "pipelines": [],
+            "_fetched_at": frappe.utils.now()
+        }
+
+        return result
+
+    except frappe.AuthenticationError as e:
+        return {"success": False, "error": str(e), "error_type": "authentication_error"}
+    except frappe.ValidationError as e:
+        return {"success": False, "error": str(e), "error_type": "validation_error"}
+    except Exception as e:
+        frappe.log_error(
+            title="Zenhub Workspace Summary Error",
+            message=f"Unexpected error fetching workspace summary: {str(e)}"
+        )
+        return {
+            "success": False,
+            "error": f"An unexpected error occurred: {str(e)}",
+            "error_type": "api_error"
+        }
+
+
+@frappe.whitelist()
+def get_project_summary(project_id: str, zenhub_workspace_id: str = None) -> Dict[str, Any]:
+    """
+    Get project-specific summary with Zenhub data.
+
+    Fetches project data combined with Zenhub workspace metrics
+    filtered by the project's Zenhub workspace.
+
+    Args:
+        project_id (str): The Frappe Project doctype name/ID
+        zenhub_workspace_id (str, optional): Override workspace ID from project
+
+    Returns:
+        dict: JSON response containing project summary or error information
+    """
+    try:
+        if not project_id:
+            return {
+                "success": False,
+                "error": "project_id parameter is required",
+                "error_type": "validation_error"
+            }
+
+        # Fetch project with permission check
+        try:
+            project = frappe.get_doc("Project", project_id)
+            if not project.has_permission('read'):
+                return {
+                    "success": False,
+                    "error": f"You do not have permission to access project '{project_id}'",
+                    "error_type": "permission_error"
+                }
+        except frappe.DoesNotExistError:
+            return {
+                "success": False,
+                "error": f"Project '{project_id}' not found",
+                "error_type": "validation_error"
+            }
+
+        # Get workspace ID
+        workspace_id = zenhub_workspace_id or project.get("custom_zenhub_workspace_id")
+        if not workspace_id:
+            return {
+                "success": False,
+                "error": f"Zenhub workspace ID not configured for project '{project_id}'",
+                "error_type": "validation_error"
+            }
+
+        # Fetch project tasks
+        tasks = frappe.get_all(
+            "Task",
+            filters={"project": project_id},
+            fields=["name", "subject", "status", "priority", "exp_end_date", "progress", "type"]
+        )
+
+        # Fetch workspace issues
+        variables = {"workspaceId": workspace_id}
+        response_data = execute_graphql_query(get_workspace_issues_query(), variables)
+        workspace = response_data.get("workspace", {})
+        all_issues = workspace.get("issues", {}).get("nodes", [])
+
+        # Calculate project metrics
+        total_tasks = len(tasks)
+        completed_tasks = sum(1 for t in tasks if t.status in ["Completed", "Closed"])
+        in_progress_tasks = sum(1 for t in tasks if t.status in ["Working", "In Progress"])
+
+        # Calculate Zenhub metrics
+        zenhub_total = len(all_issues)
+        zenhub_completed = sum(1 for i in all_issues if i.get("state") in ["closed", "done", "completed"])
+        total_story_points = sum(
+            (i.get("estimate") or {}).get("value", 0)
+            for i in all_issues
+            if isinstance(i.get("estimate"), dict)
+        )
+        completed_story_points = sum(
+            (i.get("estimate") or {}).get("value", 0)
+            for i in all_issues
+            if i.get("state") in ["closed", "done", "completed"] and isinstance(i.get("estimate"), dict)
+        )
+
+        # Group tasks by status
+        tasks_by_status = {}
+        for task in tasks:
+            status = task.status or "Open"
+            if status not in tasks_by_status:
+                tasks_by_status[status] = 0
+            tasks_by_status[status] += 1
+
+        # Group Zenhub issues by status
+        issues_by_status = {"done": 0, "in_progress": 0, "to_do": 0, "in_review": 0, "blocked": 0}
+        for issue in all_issues:
+            state = (issue.get("state") or "").lower()
+            if state in ["closed", "done", "completed"]:
+                issues_by_status["done"] += 1
+            elif state in ["in_progress", "in progress", "working"]:
+                issues_by_status["in_progress"] += 1
+            elif state in ["review", "in_review"]:
+                issues_by_status["in_review"] += 1
+            elif state == "blocked":
+                issues_by_status["blocked"] += 1
+            else:
+                issues_by_status["to_do"] += 1
+
+        # Calculate health status
+        completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+        health_status = "healthy"
+        if completion_rate < 30 and total_tasks > 0:
+            health_status = "at_risk"
+        elif issues_by_status["blocked"] / max(zenhub_total, 1) > 0.2:
+            health_status = "blocked"
+
+        result = {
+            "success": True,
+            "project_id": project_id,
+            "project_name": project.project_name,
+            "workspace_id": workspace_id,
+            "workspace_name": workspace.get("name"),
+            "tasks_summary": {
+                "total": total_tasks,
+                "completed": completed_tasks,
+                "in_progress": in_progress_tasks,
+                "completion_rate": round(completion_rate, 2),
+                "by_status": tasks_by_status
+            },
+            "zenhub_summary": {
+                "total_issues": zenhub_total,
+                "completed_issues": zenhub_completed,
+                "total_story_points": total_story_points,
+                "completed_story_points": completed_story_points,
+                "remaining_story_points": total_story_points - completed_story_points,
+                "by_status": issues_by_status
+            },
+            "health_status": health_status,
+            "recent_tasks": sorted(tasks, key=lambda x: x.exp_end_date or "", reverse=True)[:5],
+            "_fetched_at": frappe.utils.now()
+        }
+
+        return result
+
+    except frappe.AuthenticationError as e:
+        return {"success": False, "error": str(e), "error_type": "authentication_error"}
+    except frappe.ValidationError as e:
+        return {"success": False, "error": str(e), "error_type": "validation_error"}
+    except Exception as e:
+        frappe.log_error(
+            title="Zenhub Project Summary Error",
+            message=f"Unexpected error fetching project summary for {project_id}: {str(e)}"
+        )
+        return {
+            "success": False,
+            "error": f"An unexpected error occurred: {str(e)}",
+            "error_type": "api_error"
+        }
+
+
+@frappe.whitelist()
+def get_task_summary(task_id: str) -> Dict[str, Any]:
+    """
+    Get task-specific summary with Zenhub issue details.
+
+    Fetches task data and related Zenhub issue information
+    for detailed task view.
+
+    Args:
+        task_id (str): The Frappe Task doctype name
+
+    Returns:
+        dict: JSON response containing task summary or error information
+    """
+    try:
+        if not task_id:
+            return {
+                "success": False,
+                "error": "task_id parameter is required",
+                "error_type": "validation_error"
+            }
+
+        # Fetch task with permission check
+        try:
+            task = frappe.get_doc("Task", task_id)
+            if not task.has_permission('read'):
+                return {
+                    "success": False,
+                    "error": f"You do not have permission to access task '{task_id}'",
+                    "error_type": "permission_error"
+                }
+        except frappe.DoesNotExistError:
+            return {
+                "success": False,
+                "error": f"Task '{task_id}' not found",
+                "error_type": "validation_error"
+            }
+
+        # Get project and workspace info
+        project = None
+        workspace_id = None
+        if task.project:
+            try:
+                project = frappe.get_doc("Project", task.project)
+                workspace_id = project.get("custom_zenhub_workspace_id")
+            except Exception:
+                pass
+
+        # Base task data
+        task_data = {
+            "task_id": task.name,
+            "subject": task.subject,
+            "description": task.description,
+            "status": task.status,
+            "priority": task.priority,
+            "progress": task.progress or 0,
+            "type": task.type,
+            "project": task.project,
+            "project_name": project.project_name if project else None,
+            "expected_start_date": task.exp_start_date,
+            "expected_end_date": task.exp_end_date,
+            "completed_on": task.completed_on
+        }
+
+        # Fetch related activity/timeline
+        activity = frappe.get_all(
+            "Activity Log",
+            filters={
+                "reference_doctype": "Task",
+                "reference_name": task_id
+            },
+            fields=["creation", "content", "operation"],
+            order_by="creation desc",
+            limit=10
+        )
+
+        # If we have a workspace, try to find related Zenhub issues
+        zenhub_related = None
+        if workspace_id:
+            # Search for issues related to this task
+            variables = {"workspaceId": workspace_id}
+            try:
+                response_data = execute_graphql_query(get_workspace_issues_query(), variables)
+                workspace = response_data.get("workspace", {})
+                all_issues = workspace.get("issues", {}).get("nodes", [])
+
+                # Find issues that might be related
+                task_name_normalized = task_id.lower().replace("-", " ")
+                related_issues = []
+                for issue in all_issues[:50]:
+                    issue_title = (issue.get("title") or "").lower()
+                    if task_name_normalized in issue_title or issue_title in task_name_normalized:
+                        estimate = issue.get("estimate") or {}
+                        points = estimate.get("value", 0) if isinstance(estimate, dict) else 0
+                        related_issues.append({
+                            "id": issue.get("id"),
+                            "title": issue.get("title"),
+                            "number": issue.get("number"),
+                            "state": issue.get("state"),
+                            "story_points": points,
+                            "repository": issue.get("repository", {}).get("name"),
+                            "html_url": issue.get("htmlUrl")
+                        })
+
+                if related_issues:
+                    zenhub_related = {
+                        "workspace_id": workspace_id,
+                        "workspace_name": workspace.get("name"),
+                        "related_issues": related_issues
+                    }
+            except Exception:
+                pass
+
+        # Calculate task metrics
+        days_until_due = None
+        if task.exp_end_date:
+            from datetime import date
+            due_date = task.exp_end_date if isinstance(task.exp_end_date, date) else date.fromisoformat(str(task.exp_end_date))
+            today = date.today()
+            days_until_due = (due_date - today).days
+
+        # Determine task health
+        task_health = "on_track"
+        if task.status in ["Completed", "Closed"]:
+            task_health = "completed"
+        elif days_until_due is not None and days_until_due < 0:
+            task_health = "overdue"
+        elif task.status in ["Open", "Pending"] and task.progress == 0:
+            task_health = "not_started"
+        elif task.status in ["Working", "In Progress"] and task.progress < 50 and days_until_due is not None and days_until_due < 3:
+            task_health = "at_risk"
+
+        result = {
+            "success": True,
+            "task": task_data,
+            "activity": [
+                {
+                    "date": a.creation,
+                    "content": a.content,
+                    "operation": a.operation
+                }
+                for a in activity
+            ],
+            "zenhub": zenhub_related,
+            "metrics": {
+                "progress": task.progress or 0,
+                "days_until_due": days_until_due,
+                "health": task_health,
+                "is_overdue": days_until_due is not None and days_until_due < 0,
+                "is_completed": task.status in ["Completed", "Closed"]
+            },
+            "_fetched_at": frappe.utils.now()
+        }
+
+        return result
+
+    except frappe.AuthenticationError as e:
+        return {"success": False, "error": str(e), "error_type": "authentication_error"}
+    except frappe.ValidationError as e:
+        return {"success": False, "error": str(e), "error_type": "validation_error"}
+    except Exception as e:
+        frappe.log_error(
+            title="Zenhub Task Summary Error",
+            message=f"Unexpected error fetching task summary for {task_id}: {str(e)}"
+        )
+        return {
+            "success": False,
+            "error": f"An unexpected error occurred: {str(e)}",
+            "error_type": "api_error"
+        }

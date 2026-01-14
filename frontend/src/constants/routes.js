@@ -11,6 +11,11 @@ export const ROUTES = {
   PROJECT_DETAIL: 'project-detail',
   PROJECT_EDIT: 'project-edit',
 
+  // Zenhub Sprint Summaries
+  PRODUCT_SPRINT_SUMMARY: 'product-sprint-summary',
+  PROJECT_SPRINT_SUMMARY: 'project-sprint-summary',
+  TASK_SUMMARY: 'task-summary',
+
   // Incidents
   INCIDENTS: 'incidents',
   INCIDENT_CREATE: 'incident-create',
@@ -50,7 +55,10 @@ export const HASH_PATTERNS = {
   INCIDENT_EDIT: (id) => `incident/${id}/edit`,
   PROJECT_DETAIL: (id) => `project/${id}`,
   PROJECT_EDIT: (id) => `project/${id}/edit`,
-  PROJECT_CREATE: 'project/create'
+  PROJECT_CREATE: 'project/create',
+  PRODUCT_SPRINT_SUMMARY: (productId) => `sprint-summary/product/${productId}`,
+  PROJECT_SPRINT_SUMMARY: (projectId) => `sprint-summary/project/${projectId}`,
+  TASK_SUMMARY: (taskId) => `sprint-summary/task/${taskId}`
 }
 
 export default ROUTES

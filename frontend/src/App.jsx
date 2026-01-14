@@ -45,6 +45,7 @@ import IncidentsDashboard from './components/IncidentsDashboard'
 import TeamUtilization from './components/TeamUtilization'
 import SoftwareProduct from './components/SoftwareProduct'
 import SoftwareProductForm from './components/SoftwareProductForm'
+import SoftwareProductDetail from './components/SoftwareProductDetail'
 import RACITemplate from './components/RACITemplate'
 import RACITemplateForm from './components/RACITemplateForm'
 import SwaggerCollections from './components/SwaggerCollections'
@@ -119,6 +120,7 @@ function App() {
     showChangeRequestForm = false,
     selectedSoftwareProductId = null,
     showSoftwareProductForm = false,
+    showSoftwareProductDetail = false,
     selectedPasswordVaultEntryId = null,
     showPasswordVaultForm = false,
     selectedRACITemplateId = null,
@@ -333,6 +335,7 @@ function App() {
         showChangeRequestForm={showChangeRequestForm}
         selectedSoftwareProductId={selectedSoftwareProductId}
         showSoftwareProductForm={showSoftwareProductForm}
+        showSoftwareProductDetail={showSoftwareProductDetail}
         selectedRACITemplateId={selectedRACITemplateId}
         selectedWikiSpaceSlug={selectedWikiSpaceSlug}
         selectedWikiPageSlug={selectedWikiPageSlug}
@@ -372,6 +375,7 @@ function AppContent({
   showChangeRequestForm,
   selectedSoftwareProductId,
   showSoftwareProductForm,
+  showSoftwareProductDetail,
   selectedRACITemplateId,
   selectedWikiSpaceSlug,
   selectedWikiPageSlug,
@@ -396,6 +400,10 @@ function AppContent({
 
     if (showSwaggerDetail === true && selectedSwaggerId) {
       return <SwaggerCollectionDetail swaggerId={selectedSwaggerId} />
+    }
+
+    if (showSoftwareProductDetail === true && selectedSoftwareProductId) {
+      return <SoftwareProductDetail productId={selectedSoftwareProductId} navigateToRoute={navigateToRoute} />
     }
 
     // Handle main routes

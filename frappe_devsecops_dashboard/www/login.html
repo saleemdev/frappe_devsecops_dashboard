@@ -1,0 +1,1016 @@
+{% extends "templates/web.html" %}
+
+{% block head_include %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_content %}
+<style>
+  /* DevSecOps Dashboard - Futuristic Minimalist Login Design System */
+  :root {
+    --primary-color: #1677ff;
+    --primary-light: #40a9ff;
+    --primary-dark: #0958d9;
+    --accent-color: #1890ff;
+    --bg-body: #f5f5f5;
+    --bg-surface: #ffffff;
+    --text-main: #000000d9;
+    --text-muted: #00000073;
+    --text-light: #00000045;
+    --border-light: #d9d9d9;
+    --error-color: #ff4d4f;
+    --success-color: #52c41a;
+    --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --shadow-hover: 0 4px 16px rgba(22, 119, 255, 0.15);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    font-family: var(--font-sans);
+    color: var(--text-main);
+    background-color: var(--bg-body);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Frappe Overrides */
+  #footer, .web-footer, header {
+    display: none !important;
+  }
+
+  #page-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Split Layout */
+  .login-wrapper {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  /* Left Hero Section */
+  .hero-side {
+    flex: 0 0 55%;
+    background: linear-gradient(135deg, #001529 0%, #002140 50%, #003a5c 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 4rem 5rem;
+    color: white;
+  }
+
+  /* Enhanced Grid Pattern */
+  .hero-side::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      linear-gradient(rgba(22, 119, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(22, 119, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    opacity: 0.3;
+    z-index: 1;
+  }
+
+  .hero-mesh {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .mesh-shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.5;
+    animation: float 20s infinite alternate ease-in-out;
+  }
+
+  .shape-1 {
+    width: 700px;
+    height: 700px;
+    background: #1677ff;
+    top: -20%;
+    left: -20%;
+    opacity: 0.6;
+  }
+
+  .shape-2 {
+    width: 600px;
+    height: 600px;
+    background: #1890ff;
+    bottom: -15%;
+    right: -15%;
+    animation-delay: -10s;
+    opacity: 0.5;
+  }
+
+  .shape-3 {
+    width: 400px;
+    height: 400px;
+    background: #40a9ff;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation-delay: -5s;
+    opacity: 0.3;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    33% { transform: translate(30px, 30px) scale(1.1) rotate(5deg); }
+    66% { transform: translate(-20px, 20px) scale(0.95) rotate(-3deg); }
+  }
+
+  /* Geometric Shapes */
+  .hero-geometric {
+    position: absolute;
+    z-index: 1;
+    opacity: 0.15;
+  }
+
+  .geo-1 {
+    width: 200px;
+    height: 200px;
+    border: 2px solid rgba(22, 119, 255, 0.5);
+    border-radius: 20px;
+    top: 20%;
+    right: 10%;
+    transform: rotate(45deg);
+    animation: rotate 30s linear infinite;
+  }
+
+  .geo-2 {
+    width: 150px;
+    height: 150px;
+    border: 2px solid rgba(24, 144, 255, 0.4);
+    border-radius: 50%;
+    bottom: 25%;
+    left: 15%;
+    animation: pulse 4s ease-in-out infinite;
+  }
+
+  @keyframes rotate {
+    to { transform: rotate(405deg); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.15; }
+    50% { transform: scale(1.2); opacity: 0.25; }
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 520px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 32px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .hero-badge:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  .hero-title {
+    font-size: clamp(2.5rem, 4vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 24px;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
+    animation: fadeInUp 0.8s ease;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .hero-text {
+    font-size: 1.125rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 400;
+  }
+
+  .hero-stats {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    gap: 48px;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stat-value {
+    font-weight: 700;
+    color: white;
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+  }
+
+  /* Right Form Section */
+  .form-side {
+    flex: 1;
+    background: linear-gradient(to bottom, #ffffff 0%, #fafafa 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    position: relative;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.05);
+  }
+
+  .form-side::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(to bottom, var(--primary-color), var(--accent-color));
+  }
+
+  .form-container {
+    width: 100%;
+    max-width: 440px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .mobile-logo {
+    display: none;
+    justify-content: center;
+    margin-bottom: 2rem;
+  }
+
+  .mobile-logo svg {
+    width: 48px;
+    height: 48px;
+    color: var(--primary-color);
+  }
+
+  .login-header {
+    margin-bottom: 2rem;
+  }
+
+  .login-header h1 {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--text-main) 0%, var(--text-muted) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .login-header p {
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 0;
+  }
+
+  /* Form Styles */
+  .form-section {
+    display: none;
+  }
+
+  .form-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+    position: relative;
+    animation: fadeIn 0.5s ease;
+  }
+
+  .form-group:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+
+  .form-group:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 0.875rem 1rem 0.875rem 3rem;
+    height: 56px;
+    background: white;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+    color: var(--text-main);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .form-control:hover {
+    border-color: rgba(22, 119, 255, 0.3);
+    box-shadow: 0 2px 6px rgba(22, 119, 255, 0.08);
+  }
+
+  .form-control:focus {
+    background: white;
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.12), 0 4px 12px rgba(22, 119, 255, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+    transition: color 0.2s;
+  }
+
+  .form-control:focus ~ .input-icon {
+    color: var(--primary-color);
+  }
+
+  .btn-submit {
+    width: 100%;
+    height: 56px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 1rem;
+    position: relative;
+    font-family: inherit;
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.3);
+    letter-spacing: 0.3px;
+  }
+
+  .btn-submit:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+    box-shadow: 0 6px 20px rgba(22, 119, 255, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .btn-submit:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(22, 119, 255, 0.3);
+  }
+
+  .btn-submit:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .btn-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+
+  .btn-submit.loading .btn-text {
+    visibility: hidden;
+  }
+
+  .btn-submit.loading .btn-spinner {
+    display: block;
+  }
+
+  @keyframes spin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  .status-message {
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    background: #fff2f0;
+    border: 1.5px solid #ffccc7;
+    color: var(--error-color);
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    animation: shake 0.4s ease;
+  }
+
+  .status-message.success {
+    background: #f6ffed;
+    border-color: #d9f7be;
+    color: var(--success-color);
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+
+  .links-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .link-muted {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+  }
+
+  .link-muted:hover {
+    color: var(--primary-color);
+  }
+
+  /* OTP Styles */
+  .otp-container {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .otp-icon {
+    margin: 0 auto 1rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #e6f4ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+  }
+
+  .otp-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-main);
+  }
+
+  .otp-prompt {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  .otp-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin: 1.5rem 0;
+  }
+
+  .otp-input {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-family: 'Inter', monospace;
+    transition: all 0.2s ease;
+  }
+
+  .otp-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.1);
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .hero-side {
+      flex: 0 0 45%;
+      padding: 3rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .login-wrapper {
+      flex-direction: column;
+    }
+
+    .hero-side {
+      display: none;
+    }
+
+    .form-side {
+      padding: 1.5rem;
+      min-height: 100vh;
+    }
+
+    .mobile-logo {
+      display: flex;
+    }
+
+    .login-header h1 {
+      text-align: center;
+      font-size: 1.75rem;
+    }
+
+    .login-header p {
+      text-align: center;
+    }
+  }
+</style>
+
+<div class="login-wrapper">
+  <!-- Left Hero Section -->
+  <div class="hero-side">
+    <div class="hero-mesh">
+      <div class="mesh-shape shape-1"></div>
+      <div class="mesh-shape shape-2"></div>
+      <div class="mesh-shape shape-3"></div>
+    </div>
+    <div class="hero-geometric geo-1"></div>
+    <div class="hero-geometric geo-2"></div>
+
+    <div class="hero-content">
+      <div class="hero-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        DevSecOps Dashboard
+      </div>
+      <h1 class="hero-title">Secure. Monitor. Deploy.</h1>
+      <p class="hero-text">
+        Comprehensive project management and security monitoring for DevSecOps initiatives. Track projects, manage incidents, and ensure compliance—all in one powerful platform.
+      </p>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat-item">
+        <span class="stat-value">99.9%</span>
+        <span>Uptime</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">24/7</span>
+        <span>Monitoring</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">Enterprise</span>
+        <span>Security</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Form Section -->
+  <div class="form-side">
+    <div class="form-container">
+      <div class="mobile-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      </div>
+
+      <div class="login-header">
+        <h1>Welcome back</h1>
+        <p>Sign in to access your DevSecOps Dashboard</p>
+      </div>
+
+      <!-- Status Message -->
+      <div id="statusMsg" class="status-message">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span id="msgText"></span>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="form-section active">
+        <div class="form-group">
+          <input type="text" id="usr" name="usr" class="form-control" placeholder=" " required autocomplete="username" />
+          <label for="usr" style="position: absolute; left: 3rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; transition: all 0.2s; font-size: 0.9375rem;">
+            {{ login_label or "Email or Username" }}
+          </label>
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+
+        <div class="form-group">
+          <input type="password" id="pwd" name="pwd" class="form-control" placeholder=" " required autocomplete="current-password" />
+          <label for="pwd" style="position: absolute; left: 3rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; transition: all 0.2s; font-size: 0.9375rem;">
+            Password
+          </label>
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+
+        <button type="submit" class="btn-submit" id="btnLogin">
+          <span class="btn-text">Sign In</span>
+          <div class="btn-spinner"></div>
+        </button>
+
+        <div class="links-row">
+          <a href="#forgot" class="link-muted">Forgot password?</a>
+          <a href="/" class="link-muted">Back to Home</a>
+        </div>
+      </form>
+
+      <!-- OTP Form -->
+      <form id="otpForm" class="form-section">
+        <div class="otp-container">
+          <div class="otp-icon" id="otpIcon"></div>
+          <h2 class="otp-title">Verification Required</h2>
+          <p class="otp-prompt" id="otpPrompt">Please enter the verification code sent to your device.</p>
+        </div>
+
+        <div class="otp-grid" id="otpGrid"></div>
+
+        <button type="submit" class="btn-submit" id="btnOtp">
+          <span class="btn-text">Verify Code</span>
+          <div class="btn-spinner"></div>
+        </button>
+
+        <div class="links-row">
+          <a href="#" id="otpBack" class="link-muted">Back to login</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // Configuration
+  const config = {
+    endpoint: '/api/method/login',
+    redirectTo: '{{ redirect_to or "/devsecops-ui" }}'
+  };
+
+  // State
+  let tmpId = null;
+  let otpMethod = null;
+
+  // Elements
+  const loginForm = document.getElementById('loginForm');
+  const otpForm = document.getElementById('otpForm');
+  const statusMsg = document.getElementById('statusMsg');
+  const msgText = document.getElementById('msgText');
+  const otpGrid = document.getElementById('otpGrid');
+  const otpIcon = document.getElementById('otpIcon');
+  const otpPrompt = document.getElementById('otpPrompt');
+
+  // Initialize OTP inputs
+  for (let i = 0; i < 6; i++) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'otp-input';
+    input.maxLength = 1;
+    input.pattern = '[0-9]';
+    input.inputMode = 'numeric';
+    input.autocomplete = 'off';
+    otpGrid.appendChild(input);
+  }
+
+  const otpInputs = otpGrid.querySelectorAll('.otp-input');
+
+  // OTP Auto-advance
+  otpInputs.forEach((input, index) => {
+    input.addEventListener('input', (e) => {
+      const value = e.target.value.replace(/[^0-9]/g, '');
+      e.target.value = value;
+      if (value && index < 5) {
+        otpInputs[index + 1].focus();
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !e.target.value && index > 0) {
+        otpInputs[index - 1].focus();
+      }
+    });
+
+    input.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const paste = (e.clipboardData || window.clipboardData).getData('text');
+      const digits = paste.replace(/[^0-9]/g, '').slice(0, 6);
+      digits.split('').forEach((digit, i) => {
+        if (otpInputs[i]) {
+          otpInputs[i].value = digit;
+        }
+      });
+      if (digits.length === 6) {
+        otpInputs[5].focus();
+      } else if (digits.length > 0) {
+        otpInputs[digits.length].focus();
+      }
+    });
+  });
+
+  // Login Form Handler
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideStatus();
+
+    const usr = document.getElementById('usr').value.trim();
+    const pwd = document.getElementById('pwd').value;
+
+    if (!usr || !pwd) {
+      showStatus('Please enter both email and password', 'error');
+      return;
+    }
+
+    setLoading('btnLogin', true);
+
+    try {
+      const response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        body: JSON.stringify({
+          cmd: 'login',
+          usr: usr,
+          pwd: pwd
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Check for 2FA/OTP requirement
+        if (data.verification && data.message !== 'Logged In') {
+          tmpId = data.tmp_id;
+          otpMethod = data.verification.method;
+          setupOTP(data.verification);
+          switchToOTP();
+        } else if (data.message === 'Logged In' || data.message === 'No App') {
+          // Successful login
+          const redirect = data.redirect_to || config.redirectTo;
+          window.location.href = redirect;
+        } else {
+          showStatus('Unexpected response from server', 'error');
+        }
+      } else {
+        // Handle errors
+        let errorMsg = 'Invalid credentials. Please try again.';
+        if (data._server_messages) {
+          try {
+            const messages = JSON.parse(data._server_messages);
+            if (messages.length > 0) {
+              const msg = typeof messages[0] === 'string' ? messages[0] : messages[0].message;
+              errorMsg = msg.replace(/<[^>]*>/g, '');
+            }
+          } catch (e) {
+            // Use default message
+          }
+        }
+        showStatus(errorMsg, 'error');
+      }
+    } catch (error) {
+      showStatus('Connection error. Please check your internet and try again.', 'error');
+    } finally {
+      setLoading('btnLogin', false);
+    }
+  });
+
+  // OTP Form Handler
+  otpForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideStatus();
+
+    let otpCode = '';
+    otpInputs.forEach(input => {
+      otpCode += input.value;
+    });
+
+    if (otpCode.length !== 6) {
+      showStatus('Please enter the complete 6-digit code', 'error');
+      return;
+    }
+
+    setLoading('btnOtp', true);
+
+    try {
+      const response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        body: JSON.stringify({
+          cmd: 'login',
+          otp: otpCode,
+          tmp_id: tmpId
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && (data.message === 'Logged In' || data.message === 'No App')) {
+        const redirect = data.redirect_to || config.redirectTo;
+        window.location.href = redirect;
+      } else {
+        showStatus('Invalid verification code. Please try again.', 'error');
+        // Clear OTP inputs
+        otpInputs.forEach(input => {
+          input.value = '';
+        });
+        otpInputs[0].focus();
+      }
+    } catch (error) {
+      showStatus('Verification failed. Please try again.', 'error');
+    } finally {
+      setLoading('btnOtp', false);
+    }
+  });
+
+  // Setup OTP UI based on verification method
+  function setupOTP(verification) {
+    const icons = {
+      'OTP App': `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      </svg>`,
+      'SMS': `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+      </svg>`,
+      'Email': `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+        <polyline points="22,6 12,13 2,6"></polyline>
+      </svg>`
+    };
+
+    otpIcon.innerHTML = icons[verification.method] || icons['OTP App'];
+    
+    if (verification.prompt) {
+      otpPrompt.textContent = verification.prompt;
+    } else {
+      otpPrompt.textContent = `Please enter the verification code from your ${verification.method.toLowerCase()}.`;
+    }
+  }
+
+  // Switch to OTP form
+  function switchToOTP() {
+    loginForm.classList.remove('active');
+    otpForm.classList.add('active');
+    otpInputs[0].focus();
+  }
+
+  // Back to login
+  document.getElementById('otpBack').addEventListener('click', (e) => {
+    e.preventDefault();
+    otpForm.classList.remove('active');
+    loginForm.classList.add('active');
+    hideStatus();
+    // Clear OTP
+    otpInputs.forEach(input => input.value = '');
+  });
+
+  // Utility Functions
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (loading) {
+      btn.classList.add('loading');
+      btn.disabled = true;
+    } else {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  function showStatus(message, type) {
+    msgText.textContent = message;
+    statusMsg.className = 'status-message ' + (type === 'success' ? 'success' : '');
+    statusMsg.style.display = 'flex';
+  }
+
+  function hideStatus() {
+    statusMsg.style.display = 'none';
+  }
+
+  // Handle hash routing for forgot password
+  window.addEventListener('hashchange', () => {
+    if (window.location.hash === '#forgot') {
+      window.location.href = '/update-password';
+    }
+  });
+
+  // Floating label effect
+  document.querySelectorAll('.form-control').forEach(input => {
+    const label = input.nextElementSibling;
+    if (label && label.tagName === 'LABEL') {
+      input.addEventListener('focus', () => {
+        label.style.top = '0.25rem';
+        label.style.left = '0.75rem';
+        label.style.fontSize = '0.75rem';
+        label.style.fontWeight = '600';
+        label.style.color = 'var(--primary-color)';
+        label.style.background = 'white';
+        label.style.padding = '0 0.25rem';
+      });
+
+      input.addEventListener('blur', () => {
+        if (!input.value) {
+          label.style.top = '50%';
+          label.style.left = '3rem';
+          label.style.fontSize = '0.9375rem';
+          label.style.fontWeight = '400';
+          label.style.color = 'var(--text-muted)';
+          label.style.background = 'transparent';
+          label.style.padding = '0';
+        }
+      });
+
+      // Check on load
+      if (input.value) {
+        input.dispatchEvent(new Event('focus'));
+        input.dispatchEvent(new Event('blur'));
+      }
+    }
+  });
+})();
+</script>
+{% endblock %}
+

@@ -10,15 +10,12 @@ import {
   Typography,
   Row,
   Col,
-  Drawer,
   message,
   Tooltip,
   Empty,
   Spin,
   Popconfirm,
-  theme,
-  Statistic,
-  Progress
+  theme
 } from 'antd'
 import {
   PlusOutlined,
@@ -76,10 +73,6 @@ const SoftwareProduct = ({ navigateToRoute }) => {
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [isViewDrawerVisible, setIsViewDrawerVisible] = useState(false)
-  const [viewingRecord, setViewingRecord] = useState(null)
-  const [loadingMetrics, setLoadingMetrics] = useState(false)
-  const [productMetrics, setProductMetrics] = useState(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [total, setTotal] = useState(0)
@@ -177,38 +170,11 @@ const SoftwareProduct = ({ navigateToRoute }) => {
     }
   }
 
-  const handleView = async (record) => {
-    try {
-      setViewingRecord(record)
-      setIsViewDrawerVisible(true)
-      setLoadingMetrics(true)
-
-      // Fetch full details
-      const endpoint = `/api/method/frappe_devsecops_dashboard.api.software_product.get_product_detail?name=${encodeURIComponent(record.name)}`
-      const response = await apiCall(endpoint)
-
-      if (response.message && response.message.success) {
-        setViewingRecord(response.message.data)
-      } else {
-        message.error('Failed to load product details')
-      }
-
-      // Fetch product KPI metrics
-      try {
-        const kpiEndpoint = `/api/method/frappe_devsecops_dashboard.api.product_kpi.get_product_kpi_data?product_name=${encodeURIComponent(record.name)}`
-        const kpiResponse = await apiCall(kpiEndpoint)
-        if (kpiResponse.message && kpiResponse.message.success) {
-          setProductMetrics(kpiResponse.message.data)
-        }
-      } catch (kpiError) {
-        console.error('Error fetching product metrics:', kpiError)
-        // Don't show error for metrics, just log it
-      }
-    } catch (error) {
-      console.error('Error fetching Software Product details:', error)
-      message.error('Failed to load product details')
-    } finally {
-      setLoadingMetrics(false)
+  const handleView = (record) => {
+    if (record?.name) {
+      navigateToRoute('software-product-detail', null, null, record.name)
+    } else {
+      message.error('Invalid Software Product record')
     }
   }
 
@@ -401,12 +367,20 @@ const SoftwareProduct = ({ navigateToRoute }) => {
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8}>
             <Input
-              placeholder="Search by name or project..."
-              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+              placeholder="Search by product name..."
+              prefix={<SearchOutlined style={{ color: token.colorPrimary }} />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
+              style={{
+                borderColor: searchText ? token.colorPrimary : undefined
+              }}
             />
+            {searchText && (
+              <Text type="secondary" style={{ fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                Searching: "{searchText}"
+              </Text>
+            )}
           </Col>
           <Col xs={24} sm={12} md={8}>
             <Select
@@ -465,236 +439,6 @@ const SoftwareProduct = ({ navigateToRoute }) => {
         )}
       </Card>
 
-      {/* View Details Drawer */}
-      <Drawer
-        title={
-          <Space>
-            <AppstoreOutlined />
-            {viewingRecord?.product_name}
-          </Space>
-        }
-        placement="right"
-        onClose={() => setIsViewDrawerVisible(false)}
-        open={isViewDrawerVisible}
-        width={600}
-        extra={
-          canEditProduct && viewingRecord && (
-            <Space>
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={() => {
-                  setIsViewDrawerVisible(false)
-                  handleEdit(viewingRecord)
-                }}
-              >
-                Edit
-              </Button>
-            </Space>
-          )
-        }
-      >
-        {viewingRecord && (
-          <div>
-            {/* Product Manager - Prominent Display */}
-            {viewingRecord.product_manager && (
-              <Card
-                style={{
-                  marginBottom: '24px',
-                  borderRadius: '12px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                  background: 'linear-gradient(135deg, #f0f4ff 0%, #e6f2ff 100%)',
-                  border: '1px solid #d6e4ff'
-                }}
-              >
-                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0050b3' }}>
-                      Product Manager
-                    </Text>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px', background: '#fff', borderRadius: '8px' }}>
-                    <div style={{ width: '48px', height: '48px', background: '#e6f2ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <UserOutlined style={{ fontSize: '24px', color: '#0050b3' }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 500, fontSize: '16px', color: '#000' }}>
-                        {viewingRecord.product_manager}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-                        Overall product strategy & delivery
-                      </div>
-                    </div>
-                  </div>
-                </Space>
-              </Card>
-            )}
-
-            {/* Product Metrics - Management Dashboard */}
-            {loadingMetrics ? (
-              <div style={{ textAlign: 'center', padding: '24px' }}>
-                <Spin size="large" tip="Loading metrics..." />
-              </div>
-            ) : productMetrics?.metrics ? (
-              <div style={{ marginBottom: '24px' }}>
-                <Title level={5}>Product Metrics</Title>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card size="small" style={{ background: 'linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%)' }}>
-                      <Statistic
-                        title="Active Projects"
-                        value={productMetrics.metrics.active_projects || 0}
-                        suffix={`/ ${productMetrics.metrics.total_projects || 0}`}
-                        valueStyle={{ fontSize: 20, fontWeight: 600 }}
-                        prefix={<ProjectOutlined />}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card size="small" style={{ background: 'linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%)' }}>
-                      <Statistic
-                        title="Critical Risks"
-                        value={productMetrics.metrics.critical_risks || 0}
-                        suffix={`/ ${productMetrics.metrics.active_risks || 0} active`}
-                        valueStyle={{ 
-                          fontSize: 20, 
-                          fontWeight: 600,
-                          color: (productMetrics.metrics.critical_risks || 0) > 5 ? '#ff4d4f' : (productMetrics.metrics.critical_risks || 0) > 2 ? '#fa8c16' : '#52c41a'
-                        }}
-                        prefix={<WarningOutlined />}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card size="small" style={{ background: 'linear-gradient(135deg, #fff1f0 0%, #ffccc7 100%)' }}>
-                      <Statistic
-                        title="Open Incidents"
-                        value={productMetrics.metrics.open_incidents || 0}
-                        suffix={`/ ${productMetrics.metrics.total_incidents || 0}`}
-                        valueStyle={{ 
-                          fontSize: 20, 
-                          fontWeight: 600,
-                          color: (productMetrics.metrics.open_incidents || 0) > 10 ? '#ff4d4f' : (productMetrics.metrics.open_incidents || 0) > 5 ? '#fa8c16' : '#52c41a'
-                        }}
-                        prefix={<AlertOutlined />}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card size="small" style={{ background: 'linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%)' }}>
-                      <Statistic
-                        title="On-Time Delivery"
-                        value={productMetrics.metrics.on_time_delivery_rate || 0}
-                        suffix="%"
-                        valueStyle={{ 
-                          fontSize: 20, 
-                          fontWeight: 600,
-                          color: (productMetrics.metrics.on_time_delivery_rate || 0) >= 80 ? '#52c41a' : (productMetrics.metrics.on_time_delivery_rate || 0) >= 60 ? '#faad14' : '#ff4d4f'
-                        }}
-                        prefix={<CheckCircleOutlined />}
-                      />
-                    </Card>
-                  </Col>
-                </Row>
-              </div>
-            ) : null}
-
-            {/* Product Information */}
-            <div style={{ marginBottom: '24px' }}>
-              <Title level={5}>Product Information</Title>
-              <Card size="small" bordered={false} style={{ background: '#fafafa' }}>
-                <Row gutter={[16, 16]}>
-                  <Col span={24}>
-                    <Text type="secondary">Product Name</Text>
-                    <br />
-                    <Text strong style={{ fontSize: '16px' }}>{viewingRecord.product_name}</Text>
-                  </Col>
-                  <Col span={24}>
-                    <Text type="secondary">Description</Text>
-                    <br />
-                    <Text>{viewingRecord.description || '-'}</Text>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Text type="secondary">Status</Text>
-                    <br />
-                    <Tag color={getStatusColor(viewingRecord.status)}>
-                      {viewingRecord.status}
-                    </Tag>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Text type="secondary">Release Status</Text>
-                    <br />
-                    <Tag color={getReleaseStatusColor(viewingRecord.release_status)}>
-                      {viewingRecord.release_status}
-                    </Tag>
-                  </Col>
-                </Row>
-              </Card>
-            </div>
-
-            {/* Version */}
-            <div style={{ marginBottom: '24px' }}>
-              <Title level={5}>Version</Title>
-              <Card size="small" bordered={false} style={{ background: '#fafafa' }}>
-                <Tag>{viewingRecord.version || '-'}</Tag>
-              </Card>
-            </div>
-
-            {/* Environment URLs */}
-            {(viewingRecord.production_url || viewingRecord.uat_url) && (
-              <div style={{ marginBottom: '24px' }}>
-                <Title level={5}>Environment URLs</Title>
-                <Card size="small" bordered={false} style={{ background: '#fafafa' }}>
-                  <Row gutter={[16, 16]}>
-                    {viewingRecord.production_url && (
-                      <Col span={24}>
-                        <Text type="secondary">Production URL</Text>
-                        <br />
-                        <a href={viewingRecord.production_url} target="_blank" rel="noopener noreferrer">
-                          {viewingRecord.production_url}
-                        </a>
-                      </Col>
-                    )}
-                    {viewingRecord.uat_url && (
-                      <Col span={24}>
-                        <Text type="secondary">UAT URL</Text>
-                        <br />
-                        <a href={viewingRecord.uat_url} target="_blank" rel="noopener noreferrer">
-                          {viewingRecord.uat_url}
-                        </a>
-                      </Col>
-                    )}
-                  </Row>
-                </Card>
-              </div>
-            )}
-
-            {/* Team Members */}
-            <div>
-              <Title level={5}>Team Members</Title>
-              {viewingRecord.team_members && viewingRecord.team_members.length > 0 ? (
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {viewingRecord.team_members.map((member, index) => (
-                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#fafafa', borderRadius: '6px' }}>
-                      <UserOutlined style={{ color: '#1890ff', fontSize: '18px' }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 500 }}>{member.member || '-'}</div>
-                        {member.role && (
-                          <div style={{ fontSize: '12px', color: '#999' }}>
-                            <Tag style={{ marginTop: '4px' }}>{member.role}</Tag>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </Space>
-              ) : (
-                <Empty description="No team members assigned" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-              )}
-            </div>
-          </div>
-        )}
-      </Drawer>
     </div>
   )
 }

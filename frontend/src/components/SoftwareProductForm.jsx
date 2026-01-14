@@ -17,7 +17,9 @@ import {
   Typography,
   Tag,
   Avatar,
-  theme
+  theme,
+  Statistic,
+  Popconfirm
 } from 'antd'
 import {
   PlusOutlined,
@@ -28,7 +30,11 @@ import {
   RocketOutlined,
   UserOutlined,
   TeamOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  DashboardOutlined,
+  SyncOutlined,
+  AppstoreOutlined,
+  BarChartOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { searchUsers, searchDesignations } from '../utils/projectAttachmentsApi'
@@ -50,6 +56,12 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
   const [searchLoading, setSearchLoading] = useState(false)
   const [designations, setDesignations] = useState([])
   const [designationSearchLoading, setDesignationSearchLoading] = useState(false)
+  const [isFormDirty, setIsFormDirty] = useState(false)
+
+  // Workspace Summary Modal State
+  const [showWorkspaceSummary, setShowWorkspaceSummary] = useState(false)
+  const [workspaceSummary, setWorkspaceSummary] = useState(null)
+  const [loadingWorkspaceSummary, setLoadingWorkspaceSummary] = useState(false)
 
   // Mock data for dropdowns (in a real app, these might come from API)
   const projectOptions = [
@@ -111,6 +123,11 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
       handleDesignationSearch('')
     }
   }, [showTeamModal])
+
+  // Track form changes to detect dirty state
+  const handleFormChange = () => {
+    setIsFormDirty(true)
+  }
 
   const loadProduct = async () => {
     setLoading(true)
@@ -247,6 +264,67 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
     }
   }
 
+  // Fetch workspace summary from Zenhub
+  const fetchWorkspaceSummary = async () => {
+    const workspaceId = product?.zenhub_workspace_id || form.getFieldValue('zenhub_workspace_id')
+    if (!workspaceId) {
+      message.warning('Please configure Zenhub Workspace ID first')
+      return
+    }
+
+    setLoadingWorkspaceSummary(true)
+    setShowWorkspaceSummary(true)
+    setWorkspaceSummary(null)
+
+    try {
+      const response = await fetch(
+        `/api/method/frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_summary?workspace_id=${encodeURIComponent(workspaceId)}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
+          }
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setWorkspaceSummary(data)
+          message.success('Workspace summary loaded successfully')
+        } else {
+          throw new Error(data.error || 'Failed to fetch workspace summary')
+        }
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+    } catch (error) {
+      console.error('Error fetching workspace summary:', error)
+      message.error(error.message || 'Failed to fetch workspace summary')
+    } finally {
+      setLoadingWorkspaceSummary(false)
+    }
+  }
+
+  const handleCancel = () => {
+    if (isFormDirty) {
+      Modal.confirm({
+        title: 'Unsaved Changes',
+        content: 'You have unsaved changes. Are you sure you want to leave?',
+        okText: 'Leave',
+        cancelText: 'Continue Editing',
+        okButtonProps: { danger: true },
+        onOk() {
+          navigateToRoute('software-product')
+        }
+      })
+    } else {
+      navigateToRoute('software-product')
+    }
+  }
+
   const handleSubmit = async (values) => {
     console.log('[SoftwareProductForm] Submitting form with values:', values)
 
@@ -299,6 +377,9 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
             ? 'Software Product created successfully!'
             : 'Software Product updated successfully!'
         )
+
+        // Reset dirty state since we successfully saved
+        setIsFormDirty(false)
 
         // Navigate back to list with a slight delay to show the message
         setTimeout(() => {
@@ -384,7 +465,7 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
               <Button
                 type="text"
                 icon={<ArrowLeftOutlined />}
-                onClick={() => navigateToRoute('software-product')}
+                onClick={handleCancel}
                 style={{ paddingLeft: 0 }}
               >
                 Back to List
@@ -399,6 +480,29 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
               </Title>
             </Space>
           </Col>
+          <Col>
+            <Space>
+              {mode === 'edit' && product?.zenhub_workspace_id && (
+                <>
+                  <Button
+                    icon={<DashboardOutlined />}
+                    onClick={fetchWorkspaceSummary}
+                    size="large"
+                  >
+                    Fetch Workspace Summary
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<BarChartOutlined />}
+                    onClick={() => navigateToRoute('product-sprint-summary', null, null, productId || product?.name)}
+                    size="large"
+                  >
+                    Sprint Summary
+                  </Button>
+                </>
+              )}
+            </Space>
+          </Col>
         </Row>
       </Card>
 
@@ -407,6 +511,7 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
+          onValuesChange={handleFormChange}
         >
           {/* Project Manager Header - Prominent Position */}
           <Card
@@ -511,6 +616,22 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
                   <Input placeholder="e.g., 2.0" />
                 </Form.Item>
 
+                <Form.Item
+                  label={
+                    <span style={{ fontWeight: 600 }}>
+                      <AppstoreOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />
+                      Zenhub Workspace ID
+                    </span>
+                  }
+                  name="zenhub_workspace_id"
+                  tooltip="The Zenhub workspace ID for tracking and integration. This enables workspace summary and sprint tracking features."
+                >
+                  <Input 
+                    placeholder="e.g., Z2lkOi8vcmFwdG9yL1dvcmtzcGFjZS8xNDUwNjY=" 
+                    size="large"
+                  />
+                </Form.Item>
+
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item
@@ -611,7 +732,7 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
           {/* Form Actions */}
           <Form.Item>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <Button onClick={() => navigateToRoute('software-product')} size="large">
+              <Button onClick={handleCancel} size="large" disabled={submitting}>
                 Cancel
               </Button>
               <Button
@@ -827,6 +948,152 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
             Team members will have access to this product based on their assigned role.
           </div>
         </Form>
+      </Modal>
+
+      {/* Workspace Summary Modal */}
+      <Modal
+        title={
+          <Space>
+            <DashboardOutlined style={{ color: token.colorPrimary }} />
+            <span>Workspace Summary</span>
+            {workspaceSummary?.workspace?.name && (
+              <Tag color="blue">{workspaceSummary.workspace.name}</Tag>
+            )}
+          </Space>
+        }
+        open={showWorkspaceSummary}
+        onCancel={() => setShowWorkspaceSummary(false)}
+        width={1000}
+        footer={[
+          <Button
+            key="refresh"
+            icon={<SyncOutlined />}
+            onClick={fetchWorkspaceSummary}
+            loading={loadingWorkspaceSummary}
+          >
+            Refresh
+          </Button>,
+          <Button key="close" type="primary" onClick={() => setShowWorkspaceSummary(false)}>
+            Close
+          </Button>
+        ]}
+        destroyOnClose
+      >
+        {loadingWorkspaceSummary ? (
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <Spin size="large" tip="Loading workspace summary..." />
+          </div>
+        ) : workspaceSummary?.workspace ? (
+          <div>
+            {/* Summary Stats */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Col xs={24} sm={8}>
+                <Card size="small">
+                  <Statistic
+                    title="Total Issues"
+                    value={workspaceSummary.workspace.summary?.total_issues || 0}
+                    prefix={<DashboardOutlined />}
+                    valueStyle={{ color: token.colorPrimary }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card size="small">
+                  <Statistic
+                    title="Total Story Points"
+                    value={workspaceSummary.workspace.summary?.total_story_points || 0}
+                    valueStyle={{ color: '#52c41a' }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card size="small">
+                  <Statistic
+                    title="Completion Rate"
+                    value={workspaceSummary.workspace.summary?.completion_rate || 0}
+                    suffix="%"
+                    valueStyle={{ color: workspaceSummary.workspace.summary?.completion_rate >= 70 ? '#52c41a' : '#faad14' }}
+                  />
+                </Card>
+              </Col>
+            </Row>
+
+            {/* Team Members */}
+            <Card
+              size="small"
+              title={
+                <Space>
+                  <TeamOutlined />
+                  <span>Team Members ({workspaceSummary.workspace.team_members?.length || 0})</span>
+                </Space>
+              }
+              style={{ marginBottom: 16 }}
+            >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {workspaceSummary.workspace.team_members?.map((member, index) => (
+                  <Tag key={index} color="blue" style={{ padding: '4px 8px' }}>
+                    <Space>
+                      <UserOutlined />
+                      {member.name || member.username || `Member ${index + 1}`}
+                    </Space>
+                  </Tag>
+                )) || <Text type="secondary">No team members found</Text>}
+              </div>
+            </Card>
+
+            {/* Projects */}
+            <Card
+              size="small"
+              title={
+                <Space>
+                  <RocketOutlined />
+                  <span>Projects ({workspaceSummary.workspace.projects?.length || 0})</span>
+                </Space>
+              }
+            >
+              {workspaceSummary.workspace.projects?.map((project, index) => (
+                <div
+                  key={index}
+                  style={{
+                    padding: '12px',
+                    marginBottom: index < workspaceSummary.workspace.projects.length - 1 ? 8 : 0,
+                    background: token.colorBgContainer,
+                    borderRadius: 6,
+                    border: `1px solid ${token.colorBorder}`
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text strong>{project.title || `Project ${index + 1}`}</Text>
+                    <Tag>{project.id}</Tag>
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {project.epics?.length || 0} Epics | {project.sprints?.length || 0} Sprints
+                  </Text>
+                </div>
+              )) || <Text type="secondary">No projects found</Text>}
+            </Card>
+
+            {/* Kanban Statuses */}
+            {workspaceSummary.workspace.kanban_statuses && (
+              <Card
+                size="small"
+                title="Kanban Statuses"
+                style={{ marginTop: 16 }}
+              >
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {Object.entries(workspaceSummary.workspace.kanban_statuses).map(([name, id]) => (
+                    <Tag key={id} color="purple">{name}</Tag>
+                  ))}
+                </div>
+              </Card>
+            )}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '40px', color: token.colorTextSecondary }}>
+            <DashboardOutlined style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }} />
+            <div>No workspace data available</div>
+          </div>
+        )}
       </Modal>
     </div>
   )

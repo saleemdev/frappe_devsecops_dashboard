@@ -35,6 +35,7 @@ const useNavigationStore = create(
       // Software Product form/detail state
       selectedSoftwareProductId: null,
       showSoftwareProductForm: false,
+      showSoftwareProductDetail: false,
 
       // Password Vault form/detail state
       selectedPasswordVaultEntryId: null,
@@ -164,7 +165,9 @@ const useNavigationStore = create(
               showIncidentDetail: false,
               selectedSwaggerId: null,
               showSwaggerDetail: false,
-              showSoftwareProductForm: false
+              showSoftwareProductForm: false,
+              showSoftwareProductDetail: false,
+              selectedSoftwareProductId: null
             })
             window.location.hash = 'software-product'
             break
@@ -174,6 +177,7 @@ const useNavigationStore = create(
               currentRoute: 'software-product-new',
               selectedSoftwareProductId: null,
               showSoftwareProductForm: true,
+              showSoftwareProductDetail: false,
               selectedProjectId: null,
               showProjectDetail: false,
               selectedAppId: null,
@@ -187,19 +191,43 @@ const useNavigationStore = create(
             break
 
           case 'software-product-edit':
-            set({
-              currentRoute: 'software-product-edit',
-              showSoftwareProductForm: true,
-              selectedProjectId: null,
-              showProjectDetail: false,
-              selectedAppId: null,
-              showAppDetail: false,
-              selectedIncidentId: null,
-              showIncidentDetail: false,
-              selectedSwaggerId: null,
-              showSwaggerDetail: false
-            })
-            window.location.hash = `software-product/edit/${get().selectedSoftwareProductId}`
+            if (softwareProductId) {
+              set({
+                currentRoute: 'software-product-edit',
+                selectedSoftwareProductId: softwareProductId,
+                showSoftwareProductForm: true,
+                showSoftwareProductDetail: false,
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
+              })
+              window.location.hash = `software-product/edit/${softwareProductId}`
+            }
+            break
+
+          case 'software-product-detail':
+            if (softwareProductId) {
+              set({
+                currentRoute: 'software-product',
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false,
+                selectedSoftwareProductId: softwareProductId,
+                showSoftwareProductDetail: true,
+                showSoftwareProductForm: false
+              })
+              window.location.hash = `software-product/${softwareProductId}`
+            }
             break
 
           case 'project-apps':
@@ -1060,21 +1088,47 @@ const useNavigationStore = create(
             selectedSwaggerId: null,
             showSwaggerDetail: false
           })
-        } else if (hash.startsWith('software-product/edit/')) {
-          const productId = hash.split('/')[2]
-          set({
-            currentRoute: 'software-product-edit',
-            selectedSoftwareProductId: productId,
-            showSoftwareProductForm: true,
-            selectedProjectId: null,
-            showProjectDetail: false,
-            selectedAppId: null,
-            showAppDetail: false,
-            selectedIncidentId: null,
-            showIncidentDetail: false,
-            selectedSwaggerId: null,
-            showSwaggerDetail: false
-          })
+        } else if (hash.startsWith('software-product/')) {
+          const parts = hash.split('/')
+          const action = parts[1] // 'new', 'edit', or productId
+          const productId = parts[2] // only present if action is 'edit'
+
+          if (action === 'new') {
+            // Already handled above - do nothing (or could handle here)
+            return
+          } else if (action === 'edit' && productId) {
+            // Handle software product edit route
+            set({
+              currentRoute: 'software-product-edit',
+              selectedSoftwareProductId: productId,
+              showSoftwareProductForm: true,
+              showSoftwareProductDetail: false,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+          } else {
+            // Handle software product detail route (action is productId)
+            set({
+              currentRoute: 'software-product',
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false,
+              selectedSoftwareProductId: action,
+              showSoftwareProductDetail: true,
+              showSoftwareProductForm: false
+            })
+          }
         } else if (hash === 'swagger-collections') {
           get().navigateToRoute('swagger-collections')
         } else if (hash === 'devops-config') {
@@ -1477,6 +1531,20 @@ const useNavigationStore = create(
             },
             {
               title: getSwaggerTitle(state.selectedSwaggerId)
+            }
+          )
+        } else if (state.showSoftwareProductDetail && state.selectedSoftwareProductId) {
+          items.push(
+            {
+              title: 'Products',
+              onClick: () => get().navigateToRoute('software-product')
+            },
+            {
+              title: 'Software Product',
+              onClick: () => get().navigateToRoute('software-product')
+            },
+            {
+              title: state.selectedSoftwareProductId
             }
           )
         } else if (state.showChangeRequestForm) {

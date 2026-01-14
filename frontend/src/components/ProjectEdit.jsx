@@ -257,6 +257,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
           expected_end_date: projectResponse.project.expected_end_date ? dayjs(projectResponse.project.expected_end_date) : null,
           custom_software_product: projectResponse.project.custom_software_product || null,
           custom_default_raci_template: projectResponse.project.custom_default_raci_template || null,
+          custom_zenhub_project_id: projectResponse.project.custom_zenhub_project_id || null,
           custom_zenhub_workspace_id: projectResponse.project.custom_zenhub_workspace_id || null
         })
         console.log('[ProjectEdit] Form populated successfully')
@@ -301,6 +302,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         notes: notesContent || '',
         custom_software_product: values.custom_software_product || null,
         custom_default_raci_template: values.custom_default_raci_template || null,
+        custom_zenhub_project_id: values.custom_zenhub_project_id || null,
         custom_zenhub_workspace_id: values.custom_zenhub_workspace_id || null
       }
 
@@ -991,6 +993,20 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                 <strong style={{ color: token.colorText }}>Auto-fetch RACI Template:</strong> When you link a Software Product, its RACI Matrix template will be automatically associated with this project. You can override it by selecting a different template above.
               </div>
 
+              {/* Zenhub Project ID */}
+              <Form.Item
+                label={
+                  <span style={{ fontWeight: 600 }}>
+                    <AppstoreOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />
+                    Zenhub Project ID
+                  </span>
+                }
+                name="custom_zenhub_project_id"
+                tooltip="The Zenhub project ID for this project. This enables project-level tracking and integration with Zenhub."
+              >
+                <Input size="large" placeholder="Enter Zenhub project ID (e.g., Z2lkOi8vcmFwdG9yL1Byb2plY3QvMTIzNDU2)" />
+              </Form.Item>
+
               {/* Zenhub Workspace ID */}
               <Form.Item
                 label={
@@ -1000,9 +1016,9 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                   </span>
                 }
                 name="custom_zenhub_workspace_id"
-                tooltip="Enter the Zenhub workspace ID for this project"
+                tooltip="The Zenhub workspace ID for this project. This enables workspace-level features like sprint tracking and workspace summaries."
               >
-                <Input size="large" placeholder="Enter Zenhub workspace ID" />
+                <Input size="large" placeholder="Enter Zenhub workspace ID (e.g., Z2lkOi8vcmFwdG9yL1dvcmtzcGFjZS8xNDUwNjY=)" />
               </Form.Item>
             </Card>
 

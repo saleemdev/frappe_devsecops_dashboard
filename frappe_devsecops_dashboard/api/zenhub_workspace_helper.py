@@ -305,11 +305,15 @@ class ZenhubWorkspaceHelper:
 
     def _fetch_workspace_data(self) -> Dict[str, Any]:
         """
-        Fetch workspace data from Zenhub using MCP tools.
+        Fetch workspace data from Zenhub using GraphQL API.
 
-        This method fetches the complete workspace hierarchy in a single call and caches it.
-        Subsequent operations (filter_by_project, filter_by_epic, get_team_utilization)
-        use this cached data for performance.
+        This method fetches the complete workspace hierarchy including:
+        - Sprints with their issues
+        - Issues grouped by repository (as projects)
+        - Team members and assignees
+        - Story points and estimates
+
+        Results are cached for subsequent operations (filter_by_project, filter_by_epic, get_team_utilization).
 
         Returns:
             dict: Workspace data with projects, epics, sprints, and tasks
@@ -320,44 +324,181 @@ class ZenhubWorkspaceHelper:
             - To force a refresh, create a new helper instance
         """
         try:
-            # Try to get workspace pipelines and repositories info
-            # This helps us understand the workspace structure
+            # Fetch workspace name and issues from Zenhub
+            from .zenhub import execute_graphql_query, get_workspace_issues_query, get_workspace_sprints_query
+
             workspace_data = {
                 "id": self.workspace_id,
                 "name": "Workspace",
                 "projects": [],
-                "pipelines": {},
                 "sprints": [],
+                "pipelines": {},
                 "team_members": []
             }
 
-            # Call the MCP Zenhub functions to fetch workspace data
+            # Fetch workspace issues (includes repositories as projects)
             try:
-                # Get pipelines and repositories for this workspace
-                pipelines_result = zenhub.execute_graphql_query(
-                    query="""
-                    query {
-                        workspace(id: "%s") {
-                            id
-                            name
-                            repositories {
-                                id
-                                name
-                            }
-                        }
-                    }
-                    """ % self.workspace_id,
-                    token=self.token
-                )
+                issues_query = get_workspace_issues_query()
+                issues_response = execute_graphql_query(issues_query, {"workspaceId": self.workspace_id})
 
-                if pipelines_result and pipelines_result.get("data", {}).get("workspace"):
-                    workspace_data["name"] = pipelines_result["data"]["workspace"].get("name", "Workspace")
+                if issues_response and issues_response.get("data"):
+                    workspace = issues_response["data"].get("workspace", {})
+                    workspace_data["name"] = workspace.get("name", "Workspace")
+
+                    # Build projects from repositories
+                    issues = workspace.get("issues", {}).get("nodes", [])
+                    projects_map = {}
+
+                    for issue in issues:
+                        repo = issue.get("repository") or {}
+                        repo_id = repo.get("id", "unknown")
+                        repo_name = repo.get("name", "Unknown Repository")
+
+                        if repo_id not in projects_map:
+                            projects_map[repo_id] = {
+                                "id": repo_id,
+                                "number": 0,
+                                "title": repo_name,
+                                "type": "repository",
+                                "epics": []
+                            }
+
+                    workspace_data["projects"] = list(projects_map.values())
 
             except Exception as e:
                 frappe.log_error(
-                    title="Zenhub GraphQL Query Error",
-                    message=f"Failed to fetch workspace basics: {str(e)}"
+                    title="Zenhub Workspace Issues Query Error",
+                    message=f"Failed to fetch workspace issues: {str(e)}"
                 )
+
+            # Fetch sprints with their issues
+            try:
+                sprints_query = get_workspace_sprints_query()
+                sprints_response = execute_graphql_query(sprints_query, {"workspaceId": self.workspace_id})
+
+                if sprints_response and sprints_response.get("data"):
+                    workspace = sprints_response["data"].get("workspace", {})
+                    raw_sprints = workspace.get("sprints", {}).get("nodes", [])
+
+                    # Transform sprints into our structure
+                    for sprint in raw_sprints:
+                        sprint_item = {
+                            "id": sprint.get("id"),
+                            "name": sprint.get("name"),
+                            "state": sprint.get("state"),
+                            "startAt": sprint.get("startDate"),
+                            "endAt": sprint.get("endDate"),
+                            "tasks": []
+                        }
+
+                        # Get issues for this sprint
+                        issues = sprint.get("issues", {}).get("nodes", [])
+                        for issue in issues:
+                            assignees_container = issue.get("assignees") or {}
+                            assignees_nodes = assignees_container.get("nodes", [])
+
+                            # Process assignees
+                            assignees = []
+                            for a in assignees_nodes:
+                                if isinstance(a, dict) and a.get("id"):
+                                    assignees.append({
+                                        "id": a.get("id"),
+                                        "name": a.get("name") or a.get("login") or "Unknown",
+                                        "username": a.get("login") or a.get("username") or ""
+                                    })
+
+                            # Get estimate
+                            estimate = issue.get("estimate") or {}
+                            story_points = estimate.get("value", 0) if isinstance(estimate, dict) else 0
+
+                            # Get epic info
+                            epic_data = issue.get("epic")
+                            epic_info = None
+                            if isinstance(epic_data, dict):
+                                epic_issue = epic_data.get("issue") if epic_data.get("issue") else epic_data
+                                if isinstance(epic_issue, dict):
+                                    epic_info = {
+                                        "id": epic_issue.get("id"),
+                                        "title": epic_issue.get("title") or "Unnamed Epic"
+                                    }
+
+                            task = {
+                                "id": issue.get("id"),
+                                "number": issue.get("number"),
+                                "title": issue.get("title"),
+                                "status": self._map_issue_state_to_status(issue.get("state")),
+                                "state": issue.get("state"),
+                                "kanban_status_id": None,
+                                "estimate": story_points,
+                                "assignees": assignees,
+                                "epic": epic_info,
+                                "pipeline": issue.get("pipeline"),
+                                "pipelineIssue": issue.get("pipelineIssue")
+                            }
+                            sprint_item["tasks"].append(task)
+
+                        workspace_data["sprints"].append(sprint_item)
+
+                        # Also add tasks to appropriate project (epic-based grouping)
+                        for task in sprint_item["tasks"]:
+                            if task.get("epic") and task["epic"].get("id"):
+                                epic_id = task["epic"]["id"]
+                                # Find or create epic in projects
+                                for project in workspace_data["projects"]:
+                                    epic_found = False
+                                    for epic in project.get("epics", []):
+                                        if epic.get("id") == epic_id:
+                                            epic_found = True
+                                            # Add sprint to epic
+                                            existing_sprint = None
+                                            for sp in epic.get("sprints", []):
+                                                if sp.get("id") == sprint_item["id"]:
+                                                    existing_sprint = sp
+                                                    break
+                                            if not existing_sprint:
+                                                epic["sprints"].append({
+                                                    "id": sprint_item["id"],
+                                                    "name": sprint_item["name"],
+                                                    "startAt": sprint_item.get("startAt"),
+                                                    "endAt": sprint_item.get("endAt"),
+                                                    "tasks": []
+                                                })
+                                            break
+                                    if not epic_found:
+                                        # Create new epic with sprint
+                                        project["epics"].append({
+                                            "id": epic_id,
+                                            "number": 0,
+                                            "title": task["epic"].get("title", "Unnamed Epic"),
+                                            "status": None,
+                                            "estimate": None,
+                                            "sprints": [{
+                                                "id": sprint_item["id"],
+                                                "name": sprint_item["name"],
+                                                "startAt": sprint_item.get("startAt"),
+                                                "endAt": sprint_item.get("endAt"),
+                                                "tasks": [task]
+                                            }]
+                                        })
+
+            except Exception as e:
+                frappe.log_error(
+                    title="Zenhub Workspace Sprints Query Error",
+                    message=f"Failed to fetch workspace sprints: {str(e)}"
+                )
+
+            # Add placeholder epics/tasks to projects that don't have them
+            for project in workspace_data["projects"]:
+                if not project.get("epics"):
+                    # Create a default "Backlog" epic for issues not assigned to any epic
+                    project["epics"].append({
+                        "id": f"backlog_{project['id']}",
+                        "number": 0,
+                        "title": "Backlog",
+                        "status": "open",
+                        "estimate": None,
+                        "sprints": workspace_data["sprints"][:1] if workspace_data["sprints"] else []
+                    })
 
             return workspace_data
 
@@ -371,10 +512,34 @@ class ZenhubWorkspaceHelper:
                 "id": self.workspace_id,
                 "name": "Workspace",
                 "projects": [],
-                "pipelines": {},
                 "sprints": [],
+                "pipelines": {},
                 "team_members": []
             }
+
+    def _map_issue_state_to_status(self, state: Optional[str]) -> str:
+        """
+        Map Zenhub issue state to kanban status.
+
+        Args:
+            state: The issue state from Zenhub
+
+        Returns:
+            str: Normalized status for kanban display
+        """
+        if not state:
+            return "To Do"
+
+        s = state.lower()
+        if s in ("closed", "done", "completed"):
+            return "Done"
+        if s in ("in_progress", "in progress", "working"):
+            return "In Progress"
+        if s in ("review", "in_review"):
+            return "In Review"
+        if s in ("blocked",):
+            return "Blocked"
+        return "To Do"
 
     def _structure_projects(self, workspace_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """

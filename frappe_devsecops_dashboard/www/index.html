@@ -1,0 +1,1065 @@
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+<style>
+  /* DevSecOps Dashboard - Futuristic Minimalist Landing Page */
+  :root {
+    --primary-color: #1677ff;
+    --primary-light: #40a9ff;
+    --primary-dark: #0958d9;
+    --accent-color: #1890ff;
+    --bg-body: #f5f5f5;
+    --bg-surface: #ffffff;
+    --text-main: #000000d9;
+    --text-muted: #00000073;
+    --text-light: #00000045;
+    --border-light: #d9d9d9;
+    --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --shadow-hover: 0 4px 16px rgba(22, 119, 255, 0.15);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    font-family: var(--font-sans);
+    color: var(--text-main);
+    background-color: var(--bg-body);
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  #page-content {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .section-padding {
+    padding: 100px 0;
+  }
+
+  /* Hero Section */
+  .hero-section {
+    position: relative;
+    padding: 120px 0 100px;
+    background: radial-gradient(circle at 50% 0%, rgba(22, 119, 255, 0.08) 0%, transparent 60%);
+    overflow: hidden;
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+  }
+
+  .hero-content {
+    max-width: 600px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-soft);
+    animation: fadeInDown 0.6s ease;
+    transition: all 0.3s ease;
+  }
+
+  .hero-badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.15);
+  }
+
+  @keyframes fadeInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .hero-title {
+    font-size: 64px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+    color: var(--text-main);
+    animation: fadeInUp 0.8s ease 0.2s both;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .brand-highlight {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: block;
+    font-size: 1.1em;
+  }
+
+  .hero-description {
+    font-size: 20px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin-bottom: 40px;
+    animation: fadeInUp 0.8s ease 0.4s both;
+  }
+
+  .cta-group {
+    display: flex;
+    gap: 16px;
+    animation: fadeInUp 0.8s ease 0.6s both;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 32px;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .btn-primary {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    background: var(--primary-dark);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .btn-secondary {
+    background: white;
+    color: var(--text-main);
+    border: 1px solid var(--border-light);
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-body);
+    border-color: var(--text-muted);
+  }
+
+  /* Features Section */
+  .features-section {
+    background: white;
+    border-top: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+
+  .section-title {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+    color: var(--text-main);
+  }
+
+  .section-subtitle {
+    font-size: 18px;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 32px;
+  }
+
+  .feature-card {
+    padding: 40px;
+    background: white;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  .feature-card:nth-child(1) { animation-delay: 0.1s; }
+  .feature-card:nth-child(2) { animation-delay: 0.2s; }
+  .feature-card:nth-child(3) { animation-delay: 0.3s; }
+  .feature-card:nth-child(4) { animation-delay: 0.4s; }
+  .feature-card:nth-child(5) { animation-delay: 0.5s; }
+  .feature-card:nth-child(6) { animation-delay: 0.6s; }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
+  }
+
+  .feature-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 12px 32px rgba(22, 119, 255, 0.15);
+    transform: translateY(-6px);
+  }
+
+  .feature-card:hover::before {
+    transform: scaleX(1);
+  }
+
+  .feature-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #e6f4ff 0%, #bae0ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+    margin-bottom: 24px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(22, 119, 255, 0.15);
+  }
+
+  .feature-card:hover .feature-icon {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 4px 16px rgba(22, 119, 255, 0.25);
+  }
+
+  .feature-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text-main);
+  }
+
+  .feature-description {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-muted);
+  }
+
+  /* Stats Section */
+  .stats-section {
+    background: linear-gradient(135deg, #001529 0%, #002140 100%);
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stats-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      linear-gradient(rgba(22, 119, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(22, 119, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    opacity: 0.2;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 48px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .stat-card {
+    text-align: center;
+  }
+
+  .stat-number {
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Use Cases Section */
+  .use-cases-section {
+    background: var(--bg-body);
+  }
+
+  .use-cases-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+
+  .use-case-card {
+    padding: 32px;
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    transition: all 0.3s ease;
+  }
+
+  .use-case-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 8px 24px rgba(22, 119, 255, 0.1);
+    transform: translateY(-4px);
+  }
+
+  .use-case-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    background: #e6f4ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+    margin-bottom: 20px;
+  }
+
+  .use-case-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-main);
+  }
+
+  .use-case-description {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-muted);
+  }
+
+  /* Testimonials Section */
+  .testimonials-section {
+    background: white;
+  }
+
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+  }
+
+  .testimonial-card {
+    padding: 32px;
+    background: var(--bg-body);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    position: relative;
+  }
+
+  .testimonial-card::before {
+    content: '"';
+    position: absolute;
+    top: 20px;
+    left: 24px;
+    font-size: 64px;
+    color: var(--primary-color);
+    opacity: 0.1;
+    font-family: Georgia, serif;
+    line-height: 1;
+  }
+
+  .testimonial-text {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-main);
+    margin-bottom: 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .testimonial-author {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .testimonial-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  .testimonial-info {
+    flex: 1;
+  }
+
+  .testimonial-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 2px;
+  }
+
+  .testimonial-role {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* Integrations Section */
+  .integrations-section {
+    background: var(--bg-body);
+  }
+
+  .integrations-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 48px;
+    padding: 40px 0;
+  }
+
+  .integration-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 120px;
+    height: 80px;
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    transition: all 0.3s ease;
+    opacity: 0.6;
+  }
+
+  .integration-item:hover {
+    opacity: 1;
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.1);
+    transform: translateY(-4px);
+  }
+
+  .integration-item svg {
+    width: 60px;
+    height: 60px;
+    color: var(--text-muted);
+  }
+
+  /* CTA Section */
+  .cta-section {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: rotate 20s linear infinite;
+  }
+
+  @keyframes rotate {
+    to { transform: rotate(360deg); }
+  }
+
+  .cta-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  .cta-title {
+    font-size: 42px;
+    font-weight: 800;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .cta-description {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 32px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .btn-white {
+    background: white;
+    color: var(--primary-color);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .btn-white:hover {
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Footer */
+  footer {
+    padding: 60px 0;
+    text-align: center;
+    border-top: 1px solid var(--border-light);
+    background: white;
+  }
+
+  .footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .footer-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
+  }
+
+  .footer-link:hover {
+    color: var(--primary-color);
+  }
+
+  .footer-text {
+    color: var(--text-light);
+    font-size: 13px;
+  }
+
+  /* Responsive */
+  @media (max-width: 992px) {
+    .hero-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+      text-align: center;
+    }
+
+    .hero-content {
+      margin: 0 auto;
+    }
+
+    .hero-title {
+      font-size: 48px;
+    }
+
+    .cta-group {
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .section-padding {
+      padding: 60px 0;
+    }
+
+    .hero-section {
+      padding: 80px 0 60px;
+    }
+
+    .hero-title {
+      font-size: 38px;
+    }
+
+    .hero-description {
+      font-size: 17px;
+    }
+
+    .cta-group {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .btn {
+      width: 100%;
+    }
+
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 32px;
+    }
+
+    .use-cases-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .testimonials-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .cta-title {
+      font-size: 32px;
+    }
+
+    .cta-description {
+      font-size: 16px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .stat-number {
+      font-size: 36px;
+    }
+  }
+</style>
+
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="container hero-grid">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        DevSecOps Dashboard
+      </div>
+      <h1 class="hero-title">
+        <span class="brand-highlight">Secure. Monitor. Deploy.</span>
+        Enterprise DevSecOps Platform
+      </h1>
+      <p class="hero-description">
+        Comprehensive project management and security monitoring for DevSecOps initiatives. 
+        Track projects, manage incidents, ensure compliance—all in one powerful platform.
+      </p>
+      <div class="cta-group">
+        {% if is_logged_in %}
+        <a href="/devsecops-ui" class="btn btn-primary">
+          Launch Dashboard
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </a>
+        {% else %}
+        <a href="/login" class="btn btn-primary">
+          Sign In
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </a>
+        {% endif %}
+        <a href="#features" class="btn btn-secondary">Explore Features</a>
+      </div>
+    </div>
+
+    <div class="hero-graphic" style="position: relative; height: 500px; display: flex; align-items: center; justify-content: center;">
+      <!-- Enhanced Background Glow -->
+      <div style="position: absolute; width: 500px; height: 500px; background: linear-gradient(135deg, rgba(22, 119, 255, 0.25), rgba(24, 144, 255, 0.2)); border-radius: 50%; filter: blur(80px); z-index: 0; animation: pulse-glow 4s ease-in-out infinite;"></div>
+      <div style="position: absolute; width: 350px; height: 350px; background: linear-gradient(135deg, rgba(64, 169, 255, 0.2), rgba(22, 119, 255, 0.15)); border-radius: 50%; filter: blur(60px); z-index: 0; animation: pulse-glow 4s ease-in-out infinite 2s; top: 20%; right: 10%;"></div>
+      
+      <!-- Main Graphic Container -->
+      <div style="position: relative; z-index: 1; width: 100%; height: 100%; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 2px solid var(--border-light); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(22, 119, 255, 0.12); overflow: hidden;">
+        <!-- Grid Pattern -->
+        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: linear-gradient(rgba(22, 119, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(22, 119, 255, 0.03) 1px, transparent 1px); background-size: 30px 30px; opacity: 0.5;"></div>
+        
+        <!-- Central Icon with Animation -->
+        <div style="position: relative; z-index: 2; animation: float-icon 6s ease-in-out infinite;">
+          <svg width="140" height="140" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--primary-color); opacity: 0.8;">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        </div>
+        
+        <!-- Floating Elements -->
+        <div style="position: absolute; top: 15%; left: 15%; width: 60px; height: 60px; border: 2px solid rgba(22, 119, 255, 0.2); border-radius: 12px; transform: rotate(45deg); animation: float-element 8s ease-in-out infinite;"></div>
+        <div style="position: absolute; bottom: 20%; right: 20%; width: 40px; height: 40px; border: 2px solid rgba(24, 144, 255, 0.2); border-radius: 50%; animation: float-element 6s ease-in-out infinite 2s;"></div>
+      </div>
+    </div>
+    
+    <style>
+      @keyframes pulse-glow {
+        0%, 100% { opacity: 0.6; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.1); }
+      }
+      @keyframes float-icon {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-15px) rotate(5deg); }
+      }
+      @keyframes float-element {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.3; }
+        50% { transform: translate(10px, -10px) rotate(180deg); opacity: 0.6; }
+      }
+    </style>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section id="features" class="section-padding features-section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Powerful Features</h2>
+      <p class="section-subtitle">Everything you need to manage DevSecOps initiatives in one unified platform.</p>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 20V10M12 20V4M6 20v-6" />
+          </svg>
+        </div>
+        <h3 class="feature-title">Project Metrics</h3>
+        <p class="feature-description">Real-time insights into project performance, delivery timelines, and team utilization metrics.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        </div>
+        <h3 class="feature-title">Security Monitoring</h3>
+        <p class="feature-description">Comprehensive security posture monitoring, incident tracking, and compliance management.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </div>
+        <h3 class="feature-title">Team Collaboration</h3>
+        <p class="feature-description">Streamlined change management, team utilization tracking, and collaborative workflows.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+        </div>
+        <h3 class="feature-title">Change Management</h3>
+        <p class="feature-description">End-to-end change request lifecycle management with approval workflows and tracking.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+        </div>
+        <h3 class="feature-title">Documentation</h3>
+        <p class="feature-description">Centralized wiki and documentation system for knowledge management and collaboration.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+        <h3 class="feature-title">Security Vault</h3>
+        <p class="feature-description">Secure password and credential management with role-based access control.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats Section -->
+<section class="section-padding stats-section">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number">99.9%</div>
+        <div class="stat-label">Uptime</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">24/7</div>
+        <div class="stat-label">Monitoring</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">100+</div>
+        <div class="stat-label">Projects</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">50+</div>
+        <div class="stat-label">Teams</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Use Cases Section -->
+<section id="use-cases" class="section-padding use-cases-section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Built for Every Team</h2>
+      <p class="section-subtitle">Designed to streamline workflows across development, security, and operations teams.</p>
+    </div>
+
+    <div class="use-cases-grid">
+      <div class="use-case-card">
+        <div class="use-case-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          </svg>
+        </div>
+        <h3 class="use-case-title">Development Teams</h3>
+        <p class="use-case-description">Track project progress, manage sprints, and monitor code quality metrics in real-time.</p>
+      </div>
+
+      <div class="use-case-card">
+        <div class="use-case-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        </div>
+        <h3 class="use-case-title">Security Teams</h3>
+        <p class="use-case-description">Monitor security incidents, track vulnerabilities, and ensure compliance across all projects.</p>
+      </div>
+
+      <div class="use-case-card">
+        <div class="use-case-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          </svg>
+        </div>
+        <h3 class="use-case-title">Operations Teams</h3>
+        <p class="use-case-description">Manage deployments, track infrastructure changes, and monitor system health metrics.</p>
+      </div>
+
+      <div class="use-case-card">
+        <div class="use-case-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </div>
+        <h3 class="use-case-title">Management</h3>
+        <p class="use-case-description">Get executive dashboards with KPIs, team utilization, and project health at a glance.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials Section -->
+<section class="section-padding testimonials-section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Trusted by Teams</h2>
+      <p class="section-subtitle">See what teams are saying about DevSecOps Dashboard.</p>
+    </div>
+
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <p class="testimonial-text">
+          The unified dashboard has transformed how we track projects and incidents. Everything we need is in one place, and the real-time metrics help us make data-driven decisions.
+        </p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">SM</div>
+          <div class="testimonial-info">
+            <div class="testimonial-name">Sarah Mitchell</div>
+            <div class="testimonial-role">DevOps Lead</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testimonial-card">
+        <p class="testimonial-text">
+          Security monitoring has never been easier. The incident tracking and compliance features give us complete visibility into our security posture across all projects.
+        </p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">JC</div>
+          <div class="testimonial-info">
+            <div class="testimonial-name">James Chen</div>
+            <div class="testimonial-role">Security Manager</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testimonial-card">
+        <p class="testimonial-text">
+          The change management workflow is seamless. We can track every change request from initiation to approval, with full audit trails for compliance.
+        </p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">AR</div>
+          <div class="testimonial-info">
+            <div class="testimonial-name">Alex Rodriguez</div>
+            <div class="testimonial-role">Engineering Manager</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Integrations Section -->
+<section class="section-padding integrations-section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Seamless Integrations</h2>
+      <p class="section-subtitle">Connect with your existing tools and workflows.</p>
+    </div>
+
+    <div class="integrations-list">
+      <div class="integration-item">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        </svg>
+      </div>
+      <div class="integration-item">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+        </svg>
+      </div>
+      <div class="integration-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="9" y1="3" x2="9" y2="21"/>
+          <line x1="3" y1="9" x2="21" y2="9"/>
+        </svg>
+      </div>
+      <div class="integration-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="integration-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Section -->
+<section class="section-padding cta-section">
+  <div class="container">
+    <div class="cta-content">
+      <h2 class="cta-title">Ready to Transform Your DevSecOps?</h2>
+      <p class="cta-description">
+        Join teams using DevSecOps Dashboard to streamline workflows, improve security, and deliver faster.
+      </p>
+      <div class="cta-group" style="justify-content: center;">
+        {% if is_logged_in %}
+        <a href="/devsecops-ui" class="btn btn-white">
+          Go to Dashboard
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </a>
+        {% else %}
+        <a href="/login" class="btn btn-white">
+          Get Started
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="#features" class="footer-link">Features</a>
+      <a href="/login" class="footer-link">Sign In</a>
+      <a href="/devsecops-ui" class="footer-link">Dashboard</a>
+    </div>
+    <p class="footer-text">&copy; 2024 DevSecOps Dashboard. Built on Frappe Framework.</p>
+  </div>
+</footer>
+{% endblock %}
+

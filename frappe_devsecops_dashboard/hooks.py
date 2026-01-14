@@ -36,7 +36,7 @@ app_license = "MIT"
 # ----------
 
 # application home page (will override Website Settings)
-# home_page = "login"
+home_page = "index"
 
 # website user home page (by Role)
 # role_home_page = {
@@ -223,4 +223,11 @@ build_hooks = {
 # Run frontend build after migrations to ensure assets are always up-to-date
 after_migrate = [
 	"frappe_devsecops_dashboard.build.run_frontend_build"
+]
+
+# Website Route Rules
+# -------------------
+# Override default login page with custom login UI
+website_route_rules = [
+	{"from_route": "/login", "to_route": "login"},
 ]

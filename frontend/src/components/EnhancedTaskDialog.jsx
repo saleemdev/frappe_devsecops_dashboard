@@ -17,7 +17,10 @@ import {
   Spin,
   message,
   Alert,
-  theme
+  theme,
+  Tooltip,
+  Table,
+  Progress
 } from 'antd'
 import {
   UserOutlined,
@@ -28,7 +31,10 @@ import {
   SendOutlined,
   ClockCircleOutlined,
   SaveOutlined,
-  LockOutlined
+  LockOutlined,
+  TeamOutlined,
+  InfoCircleOutlined,
+  FolderOutlined
 } from '@ant-design/icons'
 import ReactQuill from 'react-quill-new'
 import 'react-quill-new/dist/quill.snow.css'
@@ -36,6 +42,8 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
 dayjs.extend(relativeTime)
+
+import TeamUtilization from './TeamUtilization'
 
 const { Text, Title } = Typography
 const { TextArea } = Input
@@ -45,6 +53,7 @@ const EnhancedTaskDialog = ({
   mode = 'create', // 'create', 'edit', or 'view'
   taskData = null,
   projectId,
+  zenhubWorkspaceId, // Optional: pass zenhub workspace ID for team utilization
   taskTypeOptions = [],
   userSearchResults = [],
   onUserSearch,
@@ -65,11 +74,16 @@ const EnhancedTaskDialog = ({
   const [loadingComments, setLoadingComments] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
-  const [activeTab, setActiveTab] = useState('details') // 'details' or 'comments'
   const [commentLimit, setCommentLimit] = useState(10) // Initial limit for pagination
   const [hasMoreComments, setHasMoreComments] = useState(false)
   const [assignedUsers, setAssignedUsers] = useState([])
   const [loadingAssignments, setLoadingAssignments] = useState(false)
+  const [showTeamUtilization, setShowTeamUtilization] = useState(false)
+
+  // EPIC Tasks state
+  const [epicTasks, setEpicTasks] = useState([])
+  const [loadingEpicTasks, setLoadingEpicTasks] = useState(false)
+  const [activeTab, setActiveTab] = useState('details') // 'details', 'comments', or 'epic_tasks'
 
   // Load task data when editing/viewing
   useEffect(() => {
@@ -85,7 +99,8 @@ const EnhancedTaskDialog = ({
         exp_start_date: taskData.exp_start_date ? dayjs(taskData.exp_start_date) : null,
         exp_end_date: taskData.exp_end_date ? dayjs(taskData.exp_end_date) : null,
         is_milestone: taskData.is_milestone || false,
-        description: taskData.description || ''
+        description: taskData.description || '',
+        custom_zenhub_epic_id: taskData.custom_zenhub_epic_id || ''
       })
 
       // Load comments if viewing/editing
@@ -98,8 +113,19 @@ const EnhancedTaskDialog = ({
       setComments([])
       setCommentText('')
       setAssignedUsers([])
+      setEpicTasks([])
     }
   }, [open, mode, taskData, form])
+
+  // Load EPIC tasks when task has EPIC ID
+  useEffect(() => {
+    if (open && mode !== 'create' && taskData?.custom_zenhub_epic_id && zenhubWorkspaceId) {
+      loadEpicTasks(taskData.custom_zenhub_epic_id, zenhubWorkspaceId)
+    } else if (open && mode !== 'create' && taskData?.custom_zenhub_epic_id) {
+      // Try to load even without workspace ID (it might be in task data)
+      loadEpicTasks(taskData.custom_zenhub_epic_id, taskData.custom_zenhub_workspace_id || zenhubWorkspaceId)
+    }
+  }, [open, mode, taskData, zenhubWorkspaceId])
 
   // Load comments from backend API
   const loadComments = async (taskName, limit = commentLimit) => {
@@ -170,6 +196,42 @@ const EnhancedTaskDialog = ({
       console.error('[EnhancedTaskDialog] Error loading assignments:', error)
     } finally {
       setLoadingAssignments(false)
+    }
+  }
+
+  // Load EPIC tasks from Zenhub
+  const loadEpicTasks = async (epicId, workspaceId) => {
+    if (!epicId) {
+      setEpicTasks([])
+      return
+    }
+
+    setLoadingEpicTasks(true)
+    try {
+      const response = await fetch(
+        `/api/method/frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_by_epic?workspace_id=${encodeURIComponent(workspaceId)}&epic_id=${encodeURIComponent(epicId)}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
+          }
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          // Extract tasks from the epic data
+          const tasks = data.workspace?.epics?.[0]?.tasks || []
+          setEpicTasks(tasks)
+        }
+      }
+    } catch (error) {
+      console.error('[EnhancedTaskDialog] Error loading EPIC tasks:', error)
+    } finally {
+      setLoadingEpicTasks(false)
     }
   }
 
@@ -357,6 +419,7 @@ const EnhancedTaskDialog = ({
   const showPermissionWarning = !hasEditPermission && (mode === 'create' || mode === 'edit')
 
   return (
+    <>
     <Modal
       title={
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
@@ -417,20 +480,38 @@ const EnhancedTaskDialog = ({
             Task Details
           </Button>
           {mode !== 'create' && (
-            <Button
-              type={activeTab === 'comments' ? 'text' : 'text'}
-              style={{
-                color: activeTab === 'comments' ? token.colorPrimary : token.colorTextSecondary,
-                fontWeight: activeTab === 'comments' ? 600 : 400,
-                borderBottom: activeTab === 'comments' ? `2px solid ${token.colorPrimary}` : 'none',
-                borderRadius: 0,
-                paddingBottom: '12px'
-              }}
-              onClick={() => setActiveTab('comments')}
-              icon={<CommentOutlined />}
-            >
-              Comments {comments.length > 0 && `(${comments.length})`}
-            </Button>
+            <>
+              <Button
+                type={activeTab === 'comments' ? 'text' : 'text'}
+                style={{
+                  color: activeTab === 'comments' ? token.colorPrimary : token.colorTextSecondary,
+                  fontWeight: activeTab === 'comments' ? 600 : 400,
+                  borderBottom: activeTab === 'comments' ? `2px solid ${token.colorPrimary}` : 'none',
+                  borderRadius: 0,
+                  paddingBottom: '12px'
+                }}
+                onClick={() => setActiveTab('comments')}
+                icon={<CommentOutlined />}
+              >
+                Comments {comments.length > 0 && `(${comments.length})`}
+              </Button>
+              {taskData?.custom_zenhub_epic_id && (
+                <Button
+                  type={activeTab === 'epic_tasks' ? 'text' : 'text'}
+                  style={{
+                    color: activeTab === 'epic_tasks' ? token.colorPrimary : token.colorTextSecondary,
+                    fontWeight: activeTab === 'epic_tasks' ? 600 : 400,
+                    borderBottom: activeTab === 'epic_tasks' ? `2px solid ${token.colorPrimary}` : 'none',
+                    borderRadius: 0,
+                    paddingBottom: '12px'
+                  }}
+                  onClick={() => setActiveTab('epic_tasks')}
+                  icon={<FolderOutlined />}
+                >
+                  EPIC Tasks {epicTasks.length > 0 && `(${epicTasks.length})`}
+                </Button>
+              )}
+            </>
           )}
         </Space>
       </div>
@@ -768,7 +849,7 @@ const EnhancedTaskDialog = ({
                       name="is_milestone"
                       valuePropName="checked"
                       initialValue={false}
-                      style={{ marginBottom: 0 }}
+                      style={{ marginBottom: 16 }}
                     >
                       <Checkbox style={{ fontSize: '14px' }}>
                         <Space>
@@ -777,6 +858,32 @@ const EnhancedTaskDialog = ({
                         </Space>
                       </Checkbox>
                     </Form.Item>
+
+                    <Form.Item
+                      label="Zenhub Epic ID"
+                      name="custom_zenhub_epic_id"
+                      tooltip="Enter the Zenhub Epic ID associated with this task"
+                      style={{ marginBottom: 8 }}
+                    >
+                      <Input
+                        placeholder="e.g., epic-123"
+                        size="large"
+                      />
+                    </Form.Item>
+
+                    {/* Team Utilization Button */}
+                    {zenhubWorkspaceId && (
+                      <Form.Item style={{ marginBottom: 0 }}>
+                        <Button
+                          type="link"
+                          icon={<TeamOutlined />}
+                          onClick={() => setShowTeamUtilization(true)}
+                          style={{ paddingLeft: 0, paddingBottom: 0 }}
+                        >
+                          View Team Utilization
+                        </Button>
+                      </Form.Item>
+                    )}
                   </Card>
                 </Space>
               </Col>
@@ -960,7 +1067,159 @@ const EnhancedTaskDialog = ({
           </div>
         </div>
       )}
+
+      {/* EPIC Tasks Tab */}
+      {activeTab === 'epic_tasks' && mode !== 'create' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* EPIC Info Header */}
+          <div style={{
+            background: token.colorBgContainer,
+            padding: '16px',
+            borderRadius: '8px',
+            border: `1px solid ${token.colorBorderSecondary}`
+          }}>
+            <Space>
+              <FolderOutlined style={{ fontSize: '20px', color: token.colorPrimary }} />
+              <div>
+                <Text strong>EPIC: {taskData?.custom_zenhub_epic_id}</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  {epicTasks.length} tasks in this EPIC
+                </Text>
+              </div>
+            </Space>
+          </div>
+
+          {/* EPIC Tasks Table */}
+          <div style={{
+            background: token.colorBgContainer,
+            padding: '16px',
+            borderRadius: '8px',
+            border: `1px solid ${token.colorBorderSecondary}`,
+            maxHeight: '500px',
+            overflowY: 'auto'
+          }}>
+            {loadingEpicTasks ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <Spin size="large" tip="Loading EPIC tasks..." />
+              </div>
+            ) : epicTasks.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px',
+                color: token.colorTextSecondary,
+                background: token.colorBgLayout,
+                borderRadius: '6px'
+              }}>
+                <FolderOutlined style={{ fontSize: '48px', color: token.colorTextDisabled, marginBottom: '12px' }} />
+                <div style={{ fontSize: '14px', marginBottom: '4px', fontWeight: 500 }}>No tasks found</div>
+                <div style={{ fontSize: '12px', color: token.colorTextTertiary }}>
+                  No tasks found for this EPIC
+                </div>
+              </div>
+            ) : (
+              <Table
+                dataSource={epicTasks}
+                rowKey="id"
+                pagination={false}
+                size="small"
+                columns={[
+                  {
+                    title: 'Task',
+                    dataIndex: 'title',
+                    key: 'title',
+                    render: (title, record) => (
+                      <div>
+                        <Text ellipsis style={{ maxWidth: 300, display: 'inline-block' }}>
+                          {title || record.issue_id || 'Untitled'}
+                        </Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                          {record.issue_id}
+                        </Text>
+                      </div>
+                    )
+                  },
+                  {
+                    title: 'Status',
+                    dataIndex: 'status',
+                    key: 'status',
+                    width: 120,
+                    render: (status) => {
+                      const statusLower = (status || '').toLowerCase()
+                      let color = 'default'
+                      if (statusLower === 'done' || statusLower === 'closed') color = 'success'
+                      else if (statusLower === 'in progress') color = 'processing'
+                      else if (statusLower === 'blocked') color = 'error'
+                      else if (statusLower === 'in review') color = 'warning'
+                      return <Tag color={color}>{status || 'To Do'}</Tag>
+                    }
+                  },
+                  {
+                    title: 'Story Points',
+                    dataIndex: 'story_points',
+                    key: 'story_points',
+                    width: 100,
+                    render: (points) => (
+                      <Tag color={points > 0 ? 'geekblue' : 'default'}>
+                        {points || 0}
+                      </Tag>
+                    )
+                  },
+                  {
+                    title: 'Assignees',
+                    dataIndex: 'assignees',
+                    key: 'assignees',
+                    width: 150,
+                    render: (assignees) => {
+                      if (!assignees || assignees.length === 0) {
+                        return <Text type="secondary">Unassigned</Text>
+                      }
+                      return (
+                        <Space wrap size={2}>
+                          {assignees.slice(0, 2).map((a, i) => (
+                            <Avatar
+                              key={i}
+                              size="small"
+                              style={{ backgroundColor: token.colorPrimary }}
+                            >
+                              {(a.name || a.username || '?').charAt(0).toUpperCase()}
+                            </Avatar>
+                          ))}
+                          {assignees.length > 2 && (
+                            <Text type="secondary" style={{ fontSize: '11px' }}>
+                              +{assignees.length - 2}
+                            </Text>
+                          )}
+                        </Space>
+                      )
+                    }
+                  }
+                ]}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </Modal>
+
+    {/* Team Utilization Modal */}
+    {showTeamUtilization && (
+      <Modal
+        title="Team Utilization"
+        open={showTeamUtilization}
+        onCancel={() => setShowTeamUtilization(false)}
+        width={1200}
+        footer={null}
+        destroyOnClose
+      >
+        <TeamUtilization
+          workspaceId={zenhubWorkspaceId}
+          forceRefresh={true}
+        />
+      </Modal>
+    )}
+    </>
   )
 }
 

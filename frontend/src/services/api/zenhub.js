@@ -254,7 +254,7 @@ class ZenhubService {
   async getSoftwareProducts() {
     const client = await this.initClient()
     return withRetry(async () => {
-      const response = await client.get('/api/method/frappe_devsecops_dashboard.api.zenhub.get_software_products_with_workspace')
+      const response = await client.get('/api/method/frappe_devsecops_dashboard.api.zenhub.fetch_software_products_zenhub')
       return response.data
     })
   }

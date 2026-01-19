@@ -9,6 +9,68 @@ Creates a Zenhub Issue of type Project when a Project is saved
 import frappe
 import requests
 from typing import Optional, Dict, Any, List
+import base64
+
+
+def verify_issue_exists(issue_id: str, issue_title: str, issue_type: str) -> bool:
+    """
+    Verify that an issue actually exists in Zenhub by querying it.
+    
+    Args:
+        issue_id: Zenhub Issue ID
+        issue_title: Issue title (for logging)
+        issue_type: Type of issue (Project/Epic) for logging
+        
+    Returns:
+        bool: True if issue exists, False otherwise
+    """
+    try:
+        from frappe_devsecops_dashboard.api.zenhub import get_zenhub_token
+        
+        token = get_zenhub_token()
+        if not token:
+            return False
+        
+        url = "https://api.zenhub.com/public/graphql"
+        
+        query = """
+        query VerifyIssue($issueId: ID!) {
+          node(id: $issueId) {
+            ... on Issue {
+              id
+              title
+              number
+            }
+          }
+        }
+        """
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(
+            url,
+            json={"query": query, "variables": {"issueId": issue_id}},
+            headers=headers,
+            timeout=10
+        )
+        
+        data = response.json()
+        if data.get("data", {}).get("node"):
+            verified_issue = data["data"]["node"]
+            issue_number = verified_issue.get("number")
+            frappe.logger().info(f"[verify_issue_exists] ✅ Verified {issue_type} issue exists: #{issue_number} - {verified_issue.get('title')}")
+            return True
+        else:
+            frappe.logger().error(f"[verify_issue_exists] ❌ {issue_type} issue does NOT exist in Zenhub: {issue_id}")
+            frappe.logger().error(f"[verify_issue_exists] Issue title: {issue_title}")
+            return False
+            
+    except Exception as e:
+        frappe.logger().warning(f"[verify_issue_exists] Could not verify issue existence: {str(e)}")
+        return False
 
 
 def create_zenhub_project_issue(
@@ -131,8 +193,26 @@ def create_zenhub_project_issue(
             frappe.logger().error(f"[create_zenhub_project_issue] Issue object: {frappe.as_json(issue, indent=2)}")
             return None
 
+        # CRITICAL VALIDATION: Ensure this is actually an Issue ID, not a Pipeline ID
+        # Issue IDs should contain "Issue" when decoded, Pipeline IDs contain "Pipeline"
+        try:
+            decoded = base64.b64decode(issue_id + '==').decode('utf-8')
+            if 'Pipeline' in decoded:
+                frappe.logger().error(f"[create_zenhub_project_issue] ❌ CRITICAL: API returned a Pipeline ID instead of an Issue ID!")
+                frappe.logger().error(f"[create_zenhub_project_issue] Decoded ID: {decoded}")
+                frappe.logger().error(f"[create_zenhub_project_issue] This should NOT happen with createIssue mutation")
+                return None
+            elif 'Issue' not in decoded:
+                frappe.logger().warning(f"[create_zenhub_project_issue] Warning: ID doesn't appear to be an Issue ID: {decoded}")
+        except Exception as decode_error:
+            frappe.logger().warning(f"[create_zenhub_project_issue] Could not validate ID format: {str(decode_error)}")
+
         frappe.logger().info(f"[create_zenhub_project_issue] ✅ Created Zenhub Project issue ID: {issue_id}")
         frappe.logger().info(f"[create_zenhub_project_issue] Issue details: {frappe.as_json(issue, indent=2)}")
+        
+        # Verify the issue actually exists and can be queried
+        verify_issue_exists(issue_id, issue.get("title", "Unknown"), "Project")
+        
         return issue_id
 
     except Exception as e:
@@ -690,16 +770,79 @@ def generate_zenhub_project_id(project_id: str) -> dict:
             frappe.db.set_value("Project", project_id, "custom_zenhub_project_id", zenhub_issue_id)
             frappe.db.commit()
 
-            # Add comment to project
+            # Get issue number and details for display
+            issue_number = None
+            issue_title = None
+            try:
+                from frappe_devsecops_dashboard.api.zenhub import get_zenhub_token
+                token = get_zenhub_token()
+                if token:
+                    url = "https://api.zenhub.com/public/graphql"
+                    query = """
+                    query GetIssue($issueId: ID!) {
+                      node(id: $issueId) {
+                        ... on Issue {
+                          id
+                          title
+                          number
+                          repository {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                    """
+                    headers = {
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json"
+                    }
+                    response = requests.post(
+                        url,
+                        json={"query": query, "variables": {"issueId": zenhub_issue_id}},
+                        headers=headers,
+                        timeout=10
+                    )
+                    data = response.json()
+                    if data.get("data", {}).get("node"):
+                        issue_data = data["data"]["node"]
+                        issue_number = issue_data.get("number")
+                        issue_title = issue_data.get("title")
+                        repo_name = issue_data.get("repository", {}).get("name", "Unknown")
+            except Exception as e:
+                frappe.logger().warning(f"[generate_zenhub_project_id] Could not get issue details: {str(e)}")
+
+            # Add comment to project with issue number
+            comment_text = f"<b>Zenhub Integration - Manual Generation:</b><br>✅ Successfully created Zenhub Project Issue<br><b>Issue ID:</b> {zenhub_issue_id}"
+            if issue_number:
+                comment_text += f"<br><b>Issue #:</b> {issue_number}"
+                comment_text += f"<br><b>Title:</b> {issue_title or 'N/A'}"
             project_doc.add_comment(
                 comment_type="Comment",
-                text=f"<b>Zenhub Integration - Manual Generation:</b><br>✅ Successfully created Zenhub Project Issue<br><b>Issue ID:</b> {zenhub_issue_id}"
+                text=comment_text
             )
+
+            # Build success message with helpful instructions
+            message = "Zenhub Project ID generated successfully"
+            if issue_number:
+                message += f"\n\n✅ Issue #{issue_number} has been created in Zenhub"
+                message += f"\n\n📍 WHERE TO FIND IT IN ZENHUB UI:"
+                message += f"\n   Issues created via API appear in REPOSITORIES, not on boards automatically."
+                message += f"\n\n   Steps to view:"
+                message += f"\n   1. Go to your Zenhub workspace: https://app.zenhub.com/workspaces"
+                message += f"\n   2. Click on your workspace"
+                message += f"\n   3. Look for the REPOSITORY section/view (not just the board view)"
+                message += f"\n   4. Click on the repository name to open repository issues"
+                message += f"\n   5. Search for Issue #{issue_number} or look for: {issue_title or project_display_name}"
+                message += f"\n\n   💡 TIP: Use Zenhub's search feature (top bar) to find Issue #{issue_number} quickly"
+                message += f"\n   💡 TIP: If you want it on a board, you may need to add it manually from the repository"
 
             return {
                 "success": True,
                 "zenhub_project_id": zenhub_issue_id,
-                "message": "Zenhub Project ID generated successfully",
+                "zenhub_issue_number": issue_number,
+                "zenhub_issue_title": issue_title,
+                "message": message,
                 "project_id": project_id,
                 "workspace_id": workspace_id,
                 "repository_id": repository_id

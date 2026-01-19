@@ -682,7 +682,7 @@ def get_issues_by_epic_query() -> str:
     """
 
 @frappe.whitelist()
-def get_software_products_with_workspace() -> Dict[str, Any]:
+def fetch_software_products_zenhub() -> Dict[str, Any]:
     """
     Fetch all Software Product documents that have a Zenhub Workspace ID configured.
     """
@@ -690,7 +690,9 @@ def get_software_products_with_workspace() -> Dict[str, Any]:
         products = frappe.get_list(
             "Software Product",
             fields=["name", "product_name", "zenhub_workspace_id"],
-            filters={"zenhub_workspace_id": ["is", "set"], "status": "Active"}
+            filters={
+                "zenhub_workspace_id": ["is", "set"]
+            }
         )
         return {"success": True, "products": products}
     except Exception as e:

@@ -30,7 +30,8 @@ import {
   Table,
   Alert,
   Divider,
-  Tooltip
+  Tooltip,
+  Input
 } from 'antd'
 import {
   BarChartOutlined,
@@ -68,6 +69,7 @@ const ZenhubDashboard = () => {
   const [loadingText, setLoadingText] = useState('')
   const [error, setError] = useState(null)
   const [currentIssues, setCurrentIssues] = useState([]) // Issues to display/calculate metrics from
+  const [searchText, setSearchText] = useState('')
   const [teamUtilization, setTeamUtilization] = useState([])
 
   // --- Initialization ---
@@ -84,11 +86,13 @@ const ZenhubDashboard = () => {
     try {
       const response = await zenhubService.getSoftwareProducts()
       if (response.success && response.products) {
-        setSoftwareProducts(response.products)
+        const prodList = response.products
+        setSoftwareProducts(prodList)
 
         // Auto-select first if available
-        if (response.products.length > 0) {
-          handleProductChange(response.products[0].name)
+        if (prodList.length > 0) {
+          // Pass the list directly to avoid stale state in handleProductChange
+          selectProductInternal(prodList[0].name, prodList)
         }
       } else {
         setError(response.error || 'Failed to load software products')
@@ -174,18 +178,24 @@ const ZenhubDashboard = () => {
   // --- Handlers ---
 
   const handleProductChange = (productName) => {
-    const product = softwareProducts.find(p => p.name === productName)
+    selectProductInternal(productName, softwareProducts)
+  }
+
+  const selectProductInternal = (productName, productList) => {
+    const product = productList.find(p => p.name === productName)
     setSelectedProduct(product)
     setSelectedProject(null)
     setSelectedEpic(null)
     setProjects([])
     setEpics([])
+    setCurrentIssues([])
+    setSearchText('')
     setTeamUtilization([])
     setError(null)
 
     if (product && product.zenhub_workspace_id) {
       loadProjects(product.zenhub_workspace_id)
-    } else {
+    } else if (product) {
       setError('Selected product does not have a Zenhub Workspace ID configured.')
     }
   }
@@ -193,6 +203,7 @@ const ZenhubDashboard = () => {
   const handleProjectChange = (projectId) => {
     setSelectedProject(projectId)
     setSelectedEpic(null)
+    setSearchText('')
     if (projectId) {
       loadEpics(projectId)
     } else {
@@ -203,6 +214,7 @@ const ZenhubDashboard = () => {
 
   const handleEpicChange = (epicId) => {
     setSelectedEpic(epicId)
+    setSearchText('')
     if (epicId) {
       loadTasks(epicId)
     } else if (selectedProject) {
@@ -221,7 +233,8 @@ const ZenhubDashboard = () => {
   // --- Metrics Calculation ---
 
   const metrics = useMemo(() => {
-    if (!currentIssues.length) return null
+    // Return zeros instead of null if we have a context (product), but no issues yet
+    if (!selectedProduct) return null
 
     const total = currentIssues.length
     const completed = currentIssues.filter(i => i.state === 'CLOSED').length
@@ -230,7 +243,7 @@ const ZenhubDashboard = () => {
     // Calculate blocked
     const blocked = currentIssues.filter(i =>
       (i.blockedBy && i.blockedBy.length > 0) ||
-      (i.pipeline && i.pipeline.toLowerCase().includes('block'))
+      (i.pipeline && (i.pipeline.toLowerCase().includes('block') || i.pipeline.toLowerCase().includes('hold')))
     ).length
 
     // Pipeline distribution
@@ -248,7 +261,7 @@ const ZenhubDashboard = () => {
       blocked,
       pipelineCounts
     }
-  }, [currentIssues])
+  }, [currentIssues, selectedProduct])
 
 
   // --- Render Helpers ---
@@ -259,11 +272,13 @@ const ZenhubDashboard = () => {
         <Col xs={24} md={8}>
           <Text strong>Software Product (Workspace)</Text>
           <Select
+            showSearch
             style={{ width: '100%', marginTop: 8 }}
             placeholder="Select Product"
             onChange={handleProductChange}
             value={selectedProduct?.name}
             loading={loading && !softwareProducts.length}
+            optionFilterProp="children"
           >
             {softwareProducts.map(p => (
               <Option key={p.name} value={p.name}>{p.product_name}</Option>
@@ -273,12 +288,14 @@ const ZenhubDashboard = () => {
         <Col xs={24} md={8}>
           <Text strong>Project</Text>
           <Select
+            showSearch
             style={{ width: '100%', marginTop: 8 }}
             placeholder={selectedProduct ? "Select Project" : "Select Product First"}
             onChange={handleProjectChange}
             value={selectedProject}
             disabled={!projects.length}
             allowClear
+            optionFilterProp="children"
           >
             {projects.map(p => (
               <Option key={p.id} value={p.id}>{p.title}</Option>
@@ -288,12 +305,14 @@ const ZenhubDashboard = () => {
         <Col xs={24} md={8}>
           <Text strong>Epic</Text>
           <Select
+            showSearch
             style={{ width: '100%', marginTop: 8 }}
             placeholder={selectedProject ? "Select Epic" : "Select Project First"}
             onChange={handleEpicChange}
             value={selectedEpic}
             disabled={!epics.length}
             allowClear
+            optionFilterProp="children"
           >
             {epics.map(e => (
               <Option key={e.id} value={e.id}>{e.title}</Option>
@@ -371,11 +390,28 @@ const ZenhubDashboard = () => {
     }
 
     if (!selectedProduct) {
-      return <Empty description="Please select a Software Product to begin" />
+      return (
+        <div style={{ padding: '100px 0' }}>
+          <Empty
+            description={
+              <Space direction="vertical">
+                <Text type="secondary">Select a Software Product to view its Zenhub lifecycle</Text>
+                {!softwareProducts.length && !loading && (
+                  <Alert message="No Software Products found with Zenhub configuration." type="warning" showIcon />
+                )}
+              </Space>
+            }
+          />
+        </div>
+      )
     }
 
-    if (!projects.length && !loading) {
-      return <Empty description="No Projects found in this workspace" />
+    if (!projects.length && !loading && !currentIssues.length) {
+      return (
+        <div style={{ padding: '60px 0' }}>
+          <Empty description="No Projects or Issues found for this selection." />
+        </div>
+      )
     }
 
     // Columns for the issues table
@@ -426,12 +462,37 @@ const ZenhubDashboard = () => {
 
         <Row gutter={16}>
           <Col span={16}>
-            <Card title={selectedEpic ? "Tasks" : (selectedProject ? "Epics" : "Projects")} className="shadow-sm">
+            <Card
+              title={
+                <Row justify="space-between" align="middle" style={{ width: '100%' }}>
+                  <Col>
+                    {selectedEpic ? "Tasks" : (selectedProject ? "Epics" : "Projects")}
+                  </Col>
+                  <Col>
+                    <Input.Search
+                      placeholder="Search items..."
+                      allowClear
+                      onSearch={setSearchText}
+                      onChange={e => setSearchText(e.target.value)}
+                      style={{ width: 250 }}
+                    />
+                  </Col>
+                </Row>
+              }
+              className="shadow-sm"
+              bodyStyle={{ padding: 0 }}
+            >
               <Table
-                dataSource={currentIssues}
+                dataSource={currentIssues.filter(i =>
+                  i.title?.toLowerCase().includes(searchText.toLowerCase()) ||
+                  i.number?.toString().includes(searchText) ||
+                  i.state?.toLowerCase().includes(searchText.toLowerCase()) ||
+                  i.pipeline?.toLowerCase().includes(searchText.toLowerCase())
+                )}
                 columns={columns}
                 rowKey="id"
                 pagination={{ pageSize: 10 }}
+                locale={{ emptyText: <Empty description="No matching items found" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
               />
             </Card>
           </Col>
@@ -474,7 +535,12 @@ const ZenhubDashboard = () => {
           <Text type="secondary">Zenhub Integration & Metrics</Text>
         </Col>
         <Col>
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
+          <Space>
+            {(selectedProject || selectedEpic) && (
+              <Button onClick={() => handleProductChange(selectedProduct.name)}>Clear Filters</Button>
+            )}
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
+          </Space>
         </Col>
       </Row>
 

@@ -132,8 +132,59 @@ def create_zenhub_epic_issue(
             frappe.logger().error(f"[create_zenhub_epic_issue] Issue object: {frappe.as_json(issue, indent=2)}")
             return None
 
+        # CRITICAL VALIDATION: Ensure this is actually an Issue ID, not a Pipeline ID
+        try:
+            import base64
+            decoded = base64.b64decode(issue_id + '==').decode('utf-8')
+            if 'Pipeline' in decoded:
+                frappe.logger().error(f"[create_zenhub_epic_issue] ❌ CRITICAL: API returned a Pipeline ID instead of an Issue ID!")
+                frappe.logger().error(f"[create_zenhub_epic_issue] Decoded ID: {decoded}")
+                return None
+            elif 'Issue' not in decoded:
+                frappe.logger().warning(f"[create_zenhub_epic_issue] Warning: ID doesn't appear to be an Issue ID: {decoded}")
+        except Exception as decode_error:
+            frappe.logger().warning(f"[create_zenhub_epic_issue] Could not validate ID format: {str(decode_error)}")
+
         frappe.logger().info(f"[create_zenhub_epic_issue] ✅ Created Zenhub Epic issue ID: {issue_id}")
         frappe.logger().info(f"[create_zenhub_epic_issue] Issue details: {frappe.as_json(issue, indent=2)}")
+        
+        # Verify the issue actually exists
+        try:
+            from frappe_devsecops_dashboard.api.zenhub import get_zenhub_token
+            token = get_zenhub_token()
+            if token:
+                url = "https://api.zenhub.com/public/graphql"
+                query = """
+                query VerifyIssue($issueId: ID!) {
+                  node(id: $issueId) {
+                    ... on Issue {
+                      id
+                      title
+                      number
+                    }
+                  }
+                }
+                """
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                }
+                response = requests.post(
+                    url,
+                    json={"query": query, "variables": {"issueId": issue_id}},
+                    headers=headers,
+                    timeout=10
+                )
+                data = response.json()
+                if data.get("data", {}).get("node"):
+                    verified_issue = data["data"]["node"]
+                    issue_number = verified_issue.get("number")
+                    frappe.logger().info(f"[create_zenhub_epic_issue] ✅ Verified Epic issue exists: #{issue_number} - {verified_issue.get('title')}")
+                else:
+                    frappe.logger().error(f"[create_zenhub_epic_issue] ❌ Epic issue does NOT exist in Zenhub: {issue_id}")
+        except Exception as verify_error:
+            frappe.logger().warning(f"[create_zenhub_epic_issue] Could not verify issue existence: {str(verify_error)}")
+        
         return issue_id
 
     except Exception as e:
@@ -356,10 +407,53 @@ def generate_zenhub_epic_id(task_id: str) -> dict:
                 text=f"<b>Zenhub Integration - Manual Generation:</b><br>✅ Successfully created Zenhub Epic Issue<br><b>Epic ID:</b> {zenhub_epic_id}"
             )
 
+            # Get issue number for display
+            issue_number = None
+            try:
+                from frappe_devsecops_dashboard.api.zenhub import get_zenhub_token
+                token = get_zenhub_token()
+                url = "https://api.zenhub.com/public/graphql"
+                query = """
+                query GetIssue($issueId: ID!) {
+                  node(id: $issueId) {
+                    ... on Issue {
+                      id
+                      title
+                      number
+                    }
+                  }
+                }
+                """
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                }
+                response = requests.post(url, json={"query": query, "variables": {"issueId": zenhub_epic_id}}, headers=headers, timeout=10)
+                data = response.json()
+                if data.get("data", {}).get("node"):
+                    issue_number = data["data"]["node"].get("number")
+            except:
+                pass
+            
+            message = "Zenhub Epic ID generated successfully"
+            if issue_number:
+                message += f"\n\n✅ Epic Issue #{issue_number} has been created in Zenhub"
+                message += f"\n\n📍 WHERE TO FIND IT IN ZENHUB UI:"
+                message += f"\n   Issues created via API appear in REPOSITORIES, not on boards automatically."
+                message += f"\n\n   Steps to view:"
+                message += f"\n   1. Go to your Zenhub workspace: https://app.zenhub.com/workspaces"
+                message += f"\n   2. Click on your workspace"
+                message += f"\n   3. Look for the REPOSITORY section/view (not just the board view)"
+                message += f"\n   4. Click on the repository name to open repository issues"
+                message += f"\n   5. Search for Issue #{issue_number} or look for: {task_name}"
+                message += f"\n   6. The Epic is a child of the Project Issue (parent relationship)"
+                message += f"\n\n   💡 TIP: Use Zenhub's search feature to find Issue #{issue_number} quickly"
+            
             return {
                 "success": True,
                 "zenhub_epic_id": zenhub_epic_id,
-                "message": "Zenhub Epic ID generated successfully",
+                "zenhub_issue_number": issue_number,
+                "message": message,
                 "task_id": task_id,
                 "project_id": project_id,
                 "parent_project_id": parent_project_id,

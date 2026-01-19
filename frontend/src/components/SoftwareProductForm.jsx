@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Form,
   Input,
@@ -34,7 +34,10 @@ import {
   DashboardOutlined,
   SyncOutlined,
   AppstoreOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  ApiOutlined,
+  FileTextOutlined,
+  FolderOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { searchUsers, searchDesignations } from '../utils/projectAttachmentsApi'
@@ -58,36 +61,20 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
   const [designationSearchLoading, setDesignationSearchLoading] = useState(false)
   const [isFormDirty, setIsFormDirty] = useState(false)
 
+  // RACI Template and Project Template state
+  const [raciTemplates, setRaciTemplates] = useState([])
+  const [loadingRaciTemplates, setLoadingRaciTemplates] = useState(false)
+  const [projectTemplates, setProjectTemplates] = useState([])
+  const [loadingProjectTemplates, setLoadingProjectTemplates] = useState(false)
+
   // Workspace Summary Modal State
   const [showWorkspaceSummary, setShowWorkspaceSummary] = useState(false)
   const [workspaceSummary, setWorkspaceSummary] = useState(null)
   const [loadingWorkspaceSummary, setLoadingWorkspaceSummary] = useState(false)
 
-  // Mock data for dropdowns (in a real app, these might come from API)
-  const projectOptions = [
-    { label: 'Portal App', value: 'Portal App' },
-    { label: 'Mobile Project', value: 'Mobile Project' },
-    { label: 'Backend Infra', value: 'Backend Infra' }
-  ]
-
-  const userOptions = [
-    { label: 'John Doe', value: 'john-doe' },
-    { label: 'Jane Smith', value: 'jane-smith' },
-    { label: 'Mike Johnson', value: 'mike-johnson' },
-    { label: 'Sarah Lee', value: 'sarah-lee' },
-    { label: 'Tom Brown', value: 'tom-brown' }
-  ]
-
-  const businessRoles = [
-    'Product Owner',
-    'Tech Lead',
-    'QA Lead',
-    'Business Analyst',
-    'DevOps Engineer',
-    'Security Lead',
-    'Stakeholder',
-    'Architect'
-  ]
+  // Refs for debounce timeouts
+  const raciSearchTimeoutRef = useRef(null)
+  const projectTemplateSearchTimeoutRef = useRef(null)
 
   const statusOptions = [
     { label: 'Draft', value: 'Draft' },
@@ -103,6 +90,17 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
     { label: 'Deprecated', value: 'Deprecated' }
   ]
 
+  // Cleanup debounce timeouts on component unmount
+  useEffect(() => {
+    return () => {
+      if (raciSearchTimeoutRef.current) {
+        clearTimeout(raciSearchTimeoutRef.current)
+      }
+      if (projectTemplateSearchTimeoutRef.current) {
+        clearTimeout(projectTemplateSearchTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Load product data if editing
   useEffect(() => {
@@ -115,6 +113,9 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
         release_status: 'Planning'
       })
     }
+    // Load initial data for search fields
+    loadRaciTemplates('')
+    loadProjectTemplates('')
   }, [mode, productId])
 
   // Load designations when team modal opens
@@ -181,6 +182,111 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
     } finally {
       setLoading(false)
     }
+  }
+
+  // Load RACI Templates with search
+  const loadRaciTemplates = async (searchValue = '') => {
+    try {
+      setLoadingRaciTemplates(true)
+      const filters = searchValue && searchValue.trim()
+        ? JSON.stringify([['RACI Template', 'template_name', 'like', `%${searchValue.trim()}%`]])
+        : JSON.stringify([])
+      
+      const params = new URLSearchParams({
+        fields: JSON.stringify(['name', 'template_name']),
+        filters: filters,
+        limit_page_length: 100
+      })
+
+      const response = await fetch(
+        `/api/method/frappe_devsecops_dashboard.api.raci_template.get_raci_templates?${params}`,
+        {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
+          }
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        const result = data.message || data
+        if (result.success && result.data) {
+          setRaciTemplates(result.data.map(t => ({
+            label: t.template_name,
+            value: t.name
+          })))
+        }
+      }
+    } catch (error) {
+      console.error('[SoftwareProductForm] Error loading RACI templates:', error)
+    } finally {
+      setLoadingRaciTemplates(false)
+    }
+  }
+
+  // Debounced RACI template search
+  const handleRaciTemplateSearch = (searchValue) => {
+    if (raciSearchTimeoutRef.current) {
+      clearTimeout(raciSearchTimeoutRef.current)
+    }
+
+    raciSearchTimeoutRef.current = setTimeout(() => {
+      loadRaciTemplates(searchValue)
+    }, 400)
+  }
+
+  // Load Project Templates with search
+  const loadProjectTemplates = async (searchValue = '') => {
+    try {
+      setLoadingProjectTemplates(true)
+      const filters = searchValue && searchValue.trim()
+        ? JSON.stringify([['Project', 'project_name', 'like', `%${searchValue.trim()}%`], ['disabled', '=', 0]])
+        : JSON.stringify([['disabled', '=', 0]])
+      
+      const params = new URLSearchParams({
+        fields: JSON.stringify(['name', 'project_name']),
+        filters: filters,
+        limit_page_length: 100
+      })
+
+      const response = await fetch(
+        `/api/resource/Project?${params}`,
+        {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
+          }
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.data) {
+          setProjectTemplates(data.data.map(p => ({
+            label: p.project_name,
+            value: p.name
+          })))
+        }
+      }
+    } catch (error) {
+      console.error('[SoftwareProductForm] Error loading project templates:', error)
+    } finally {
+      setLoadingProjectTemplates(false)
+    }
+  }
+
+  // Debounced Project Template search
+  const handleProjectTemplateSearch = (searchValue) => {
+    if (projectTemplateSearchTimeoutRef.current) {
+      clearTimeout(projectTemplateSearchTimeoutRef.current)
+    }
+
+    projectTemplateSearchTimeoutRef.current = setTimeout(() => {
+      loadProjectTemplates(searchValue)
+    }, 400)
   }
 
   const handleAddTeamMember = () => {
@@ -410,11 +516,11 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
       dataIndex: 'member',
       key: 'member',
       render: (member) => {
-        const user = userOptions.find(u => u.value === member)
+        const user = userSearchResults.find(u => u.name === member)
         return (
           <Space>
             <UserOutlined style={{ color: getHeaderIconColor(token) }} />
-            <span>{user?.label || member || '-'}</span>
+            <span>{user?.full_name || member || '-'}</span>
           </Space>
         )
       }
@@ -453,24 +559,28 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      {/* Header */}
-      <Card style={{
-        marginBottom: 16,
-        ...getHeaderBannerStyle(token)
-      }}>
+    <div style={{ padding: '24px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* Header - Gestalt: Proximity & Closure */}
+      <Card
+        style={{
+          marginBottom: 24,
+          borderRadius: 12,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          ...getHeaderBannerStyle(token)
+        }}
+      >
         <Row justify="space-between" align="middle">
           <Col>
-            <Space direction="vertical" size="small">
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
               <Button
                 type="text"
                 icon={<ArrowLeftOutlined />}
                 onClick={handleCancel}
-                style={{ paddingLeft: 0 }}
+                style={{ padding: '4px 8px' }}
               >
                 Back to List
               </Button>
-              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+              <Title level={2} style={{ margin: 0, fontSize: '28px', fontWeight: 600, display: 'flex', alignItems: 'center' }}>
                 <RocketOutlined style={{
                   marginRight: 16,
                   color: getHeaderIconColor(token),
@@ -489,7 +599,7 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
                     onClick={fetchWorkspaceSummary}
                     size="large"
                   >
-                    Fetch Workspace Summary
+                    Workspace Summary
                   </Button>
                   <Button
                     type="primary"
@@ -506,27 +616,34 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
         </Row>
       </Card>
 
-      <Card bordered={false}>
+      {/* Main Form - Gestalt: Visual Hierarchy & Similarity */}
+      <Card
+        bordered={false}
+        style={{
+          borderRadius: 12,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        }}
+      >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
           onValuesChange={handleFormChange}
+          autoComplete="off"
         >
-          {/* Project Manager Header - Prominent Position */}
+          {/* Product Manager - Prominent Position (Gestalt: Figure/Ground) */}
           <Card
             style={{
-              marginBottom: '24px',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              marginBottom: 24,
+              borderRadius: 12,
               background: 'linear-gradient(135deg, #f0f4ff 0%, #e6f2ff 100%)',
               border: '1px solid #d6e4ff'
             }}
           >
             <Row gutter={[24, 24]} align="middle">
-              <Col xs={24} sm={12}>
+              <Col xs={24} sm={16}>
                 <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                  <Text type="secondary" style={{ fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0050b3' }}>
+                  <Text type="secondary" style={{ fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0050b3' }}>
                     Product Manager
                   </Text>
                   <Form.Item
@@ -539,22 +656,32 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
                       filterOption={false}
                       onSearch={handleUserSearch}
                       loading={searchLoading}
+                      size="large"
                       options={userSearchResults.map(user => ({
-                        label: user.full_name,
+                        label: (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Avatar size="small" style={{ backgroundColor: getHeaderIconColor(token) }}>
+                              {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                            </Avatar>
+                            <div>
+                              <div style={{ fontWeight: 500 }}>{user.full_name}</div>
+                              <div style={{ fontSize: '11px', color: token.colorTextSecondary }}>{user.email}</div>
+                            </div>
+                          </div>
+                        ),
                         value: user.name
                       }))}
                       notFoundContent={searchLoading ? <Spin size="small" /> : 'Type to search users'}
-                      style={{ fontSize: '16px', fontWeight: 500 }}
                     />
                   </Form.Item>
                 </Space>
               </Col>
-              <Col xs={24} sm={12}>
-                <div style={{ padding: '16px', background: '#fff', borderRadius: '8px', textAlign: 'center', border: '1px solid #d6e4ff' }}>
-                  <div style={{ fontSize: '12px', color: '#0050b3', fontWeight: '500', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              <Col xs={24} sm={8}>
+                <div style={{ padding: '16px', background: '#fff', borderRadius: '8px', border: '1px solid #d6e4ff' }}>
+                  <Text type="secondary" style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0050b3' }}>
                     Key Responsibility
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#666' }}>
+                  </Text>
+                  <div style={{ fontSize: '13px', color: '#666', marginTop: '8px' }}>
                     Overall product strategy, roadmap & delivery
                   </div>
                 </div>
@@ -562,72 +689,115 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
             </Row>
           </Card>
 
-          <Row gutter={[24, 24]}>
-            {/* Left Column */}
-            <Col xs={24} md={12}>
-              <Card title="Basic Information" size="small" style={{ height: '100%' }}>
+          {/* Basic Information & Status - Grouped by Similarity (Gestalt: Similarity) */}
+          <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
+            <Col xs={24} lg={12}>
+              <Card
+                title={
+                  <Space>
+                    <RocketOutlined style={{ color: getHeaderIconColor(token) }} />
+                    <span style={{ fontWeight: 600 }}>Basic Information</span>
+                  </Space>
+                }
+                size="small"
+                style={{ height: '100%', borderRadius: 8 }}
+              >
                 <Form.Item
-                  label="Product Name"
+                  label={<Text strong>Product Name</Text>}
                   name="product_name"
                   rules={[{ required: true, message: 'Please enter product name' }]}
                 >
-                  <Input placeholder="e.g., Web Platform v2.0" prefix={<RocketOutlined />} />
+                  <Input
+                    placeholder="e.g., Web Platform v2.0"
+                    prefix={<RocketOutlined style={{ color: token.colorTextSecondary }} />}
+                    size="large"
+                  />
                 </Form.Item>
 
                 <Form.Item
-                  label="Description"
+                  label={<Text strong>Description</Text>}
                   name="description"
                   rules={[{ required: true, message: 'Please enter description' }]}
                 >
-                  <Input.TextArea rows={4} placeholder="Product description" />
+                  <Input.TextArea
+                    rows={4}
+                    placeholder="Describe the product, its purpose, and key features..."
+                    showCount
+                    maxLength={1000}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  label={
+                    <Space>
+                      <ApiOutlined style={{ color: getHeaderIconColor(token) }} />
+                      <Text strong>API Namespace</Text>
+                    </Space>
+                  }
+                  name="api_namespace"
+                  tooltip="API namespace for route generation (e.g., 'user-service', 'payment-gateway')"
+                >
+                  <Input
+                    placeholder="e.g., user-service"
+                    prefix={<ApiOutlined style={{ color: token.colorTextSecondary }} />}
+                    size="large"
+                  />
                 </Form.Item>
               </Card>
             </Col>
 
-            {/* Right Column */}
-            <Col xs={24} md={12}>
-              <Card title="Status & Details" size="small" style={{ height: '100%' }}>
+            <Col xs={24} lg={12}>
+              <Card
+                title={
+                  <Space>
+                    <AppstoreOutlined style={{ color: getHeaderIconColor(token) }} />
+                    <span style={{ fontWeight: 600 }}>Status & Version</span>
+                  </Space>
+                }
+                size="small"
+                style={{ height: '100%', borderRadius: 8 }}
+              >
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item
-                      label="Status"
+                      label={<Text strong>Status</Text>}
                       name="status"
                       rules={[{ required: true, message: 'Please select status' }]}
                     >
-                      <Select options={statusOptions} />
+                      <Select options={statusOptions} size="large" />
                     </Form.Item>
                   </Col>
                   <Col span={12}>
                     <Form.Item
-                      label="Release Status"
+                      label={<Text strong>Release Status</Text>}
                       name="release_status"
                       rules={[{ required: true, message: 'Please select release status' }]}
                     >
-                      <Select options={releaseStatusOptions} />
+                      <Select options={releaseStatusOptions} size="large" />
                     </Form.Item>
                   </Col>
                 </Row>
 
                 <Form.Item
-                  label="Version"
+                  label={<Text strong>Version</Text>}
                   name="version"
                   rules={[{ required: true, message: 'Please enter version' }]}
                 >
-                  <Input placeholder="e.g., 2.0" />
+                  <Input placeholder="e.g., 2.0" size="large" />
                 </Form.Item>
 
                 <Form.Item
                   label={
-                    <span style={{ fontWeight: 600 }}>
-                      <AppstoreOutlined style={{ marginRight: '6px', color: getHeaderIconColor(token) }} />
-                      Zenhub Workspace ID
-                    </span>
+                    <Space>
+                      <AppstoreOutlined style={{ color: getHeaderIconColor(token) }} />
+                      <Text strong>Zenhub Workspace ID</Text>
+                    </Space>
                   }
                   name="zenhub_workspace_id"
-                  tooltip="The Zenhub workspace ID for tracking and integration. This enables workspace summary and sprint tracking features."
+                  tooltip="The Zenhub workspace ID for tracking and integration"
                 >
-                  <Input 
-                    placeholder="e.g., Z2lkOi8vcmFwdG9yL1dvcmtzcGFjZS8xNDUwNjY=" 
+                  <Input
+                    placeholder="e.g., Z2lkOi8vcmFwdG9yL1dvcmtzcGFjZS8xNDUwNjY="
                     size="large"
                   />
                 </Form.Item>
@@ -635,18 +805,18 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item
-                      label="Start Date"
+                      label={<Text strong>Start Date</Text>}
                       name="start_date"
                     >
-                      <DatePicker style={{ width: '100%' }} />
+                      <DatePicker style={{ width: '100%' }} size="large" />
                     </Form.Item>
                   </Col>
                   <Col span={12}>
                     <Form.Item
-                      label="Expected Completion"
+                      label={<Text strong>Expected Completion</Text>}
                       name="completion_date"
                     >
-                      <DatePicker style={{ width: '100%' }} />
+                      <DatePicker style={{ width: '100%' }} size="large" />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -654,99 +824,202 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
             </Col>
           </Row>
 
-          {/* Environment URLs */}
-          <Divider orientation="left">
-            <Space>
-              <RocketOutlined />
-              Environment URLs
-            </Space>
-          </Divider>
-
-          <Row gutter={[24, 24]}>
-            <Col xs={24} md={12}>
-              <Card title="Production URL" size="small" style={{ height: '100%' }}>
+          {/* Templates & Configuration - Grouped by Function (Gestalt: Proximity) */}
+          <Card
+            title={
+              <Space>
+                <FileTextOutlined style={{ color: getHeaderIconColor(token) }} />
+                <span style={{ fontWeight: 600 }}>Templates & Configuration</span>
+              </Space>
+            }
+            size="small"
+            style={{ marginBottom: 24, borderRadius: 8 }}
+          >
+            <Row gutter={[24, 0]}>
+              <Col xs={24} md={12}>
                 <Form.Item
-                  label="Production URL"
+                  label={
+                    <Space>
+                      <TeamOutlined style={{ color: getHeaderIconColor(token) }} />
+                      <Text strong>Default RACI Template</Text>
+                      <Text type="danger">*</Text>
+                    </Space>
+                  }
+                  name="default_raci_template"
+                  rules={[{ required: true, message: 'Please select a RACI template' }]}
+                  tooltip="Select the default RACI template for this product. This will be used for projects linked to this product."
+                >
+                  <Select
+                    size="large"
+                    placeholder="Type to search RACI templates..."
+                    options={raciTemplates}
+                    allowClear
+                    loading={loadingRaciTemplates}
+                    showSearch
+                    filterOption={false}
+                    onSearch={handleRaciTemplateSearch}
+                    suffixIcon={loadingRaciTemplates ? <LoadingOutlined spin /> : undefined}
+                    notFoundContent={
+                      loadingRaciTemplates ? (
+                        <div style={{ textAlign: 'center', padding: '20px' }}>
+                          <Spin size="small" />
+                          <div style={{ marginTop: '8px', fontSize: '12px', color: token.colorTextSecondary }}>
+                            Searching templates...
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '20px', color: token.colorTextSecondary }}>
+                          <FileTextOutlined style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.3 }} />
+                          <div style={{ fontSize: '12px' }}>Type to search RACI templates</div>
+                        </div>
+                      )
+                    }
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label={
+                    <Space>
+                      <FolderOutlined style={{ color: getHeaderIconColor(token) }} />
+                      <Text strong>Project Template</Text>
+                    </Space>
+                  }
+                  name="project_template"
+                  tooltip="Project template is read-only and will be auto-populated from the selected RACI template"
+                >
+                  <Select
+                    size="large"
+                    placeholder="Project template (read-only)"
+                    options={projectTemplates}
+                    disabled={true}
+                    loading={loadingProjectTemplates}
+                    suffixIcon={loadingProjectTemplates ? <LoadingOutlined spin /> : undefined}
+                    notFoundContent={
+                      <div style={{ textAlign: 'center', padding: '20px', color: token.colorTextSecondary }}>
+                        <FolderOutlined style={{ fontSize: '24px', marginBottom: '8px', opacity: 0.3 }} />
+                        <div style={{ fontSize: '12px' }}>No project template available</div>
+                      </div>
+                    }
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* Environment URLs - Grouped by Similarity (Gestalt: Similarity) */}
+          <Card
+            title={
+              <Space>
+                <RocketOutlined style={{ color: getHeaderIconColor(token) }} />
+                <span style={{ fontWeight: 600 }}>Environment URLs</span>
+              </Space>
+            }
+            size="small"
+            style={{ marginBottom: 24, borderRadius: 8 }}
+          >
+            <Row gutter={[24, 0]}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label={<Text strong>Production URL</Text>}
                   name="production_url"
                 >
                   <Input
                     placeholder="https://prod.example.com"
                     type="url"
-                    prefix={<RocketOutlined />}
+                    prefix={<RocketOutlined style={{ color: token.colorTextSecondary }} />}
+                    size="large"
                   />
                 </Form.Item>
-              </Card>
-            </Col>
-            <Col xs={24} md={12}>
-              <Card title="UAT URL" size="small" style={{ height: '100%' }}>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
-                  label="UAT URL"
+                  label={<Text strong>UAT URL</Text>}
                   name="uat_url"
                 >
                   <Input
                     placeholder="https://uat.example.com"
                     type="url"
-                    prefix={<RocketOutlined />}
+                    prefix={<RocketOutlined style={{ color: token.colorTextSecondary }} />}
+                    size="large"
                   />
                 </Form.Item>
-              </Card>
-            </Col>
-          </Row>
+              </Col>
+            </Row>
+          </Card>
 
-          {/* Team Members Section */}
-          <Divider orientation="left">
-            <Space>
-              <TeamOutlined />
-              Team Members
-            </Space>
-          </Divider>
-
-          <Card size="small" style={{ marginBottom: '24px', background: '#fafafa' }}>
-            <div style={{ marginBottom: '16px' }}>
+          {/* Team Members Section - Gestalt: Closure */}
+          <Card
+            title={
+              <Space>
+                <TeamOutlined style={{ color: getHeaderIconColor(token) }} />
+                <span style={{ fontWeight: 600 }}>Team Members</span>
+              </Space>
+            }
+            size="small"
+            style={{ marginBottom: 24, borderRadius: 8 }}
+            extra={
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={handleAddTeamMember}
+                size="large"
               >
-                Add Team Member
+                Add Member
               </Button>
-            </div>
-
+            }
+          >
             {teamMembers.length > 0 ? (
               <Table
                 columns={teamMemberColumns}
                 dataSource={teamMembers.map((m, i) => ({ ...m, key: m.id || i }))}
                 pagination={false}
                 size="small"
-                style={{ background: '#fff' }}
               />
             ) : (
-              <div style={{ padding: '32px', textAlign: 'center', background: '#fff', borderRadius: '4px', border: '1px dashed #d9d9d9' }}>
-                <TeamOutlined style={{ fontSize: '24px', color: '#bfbfbf', marginBottom: '8px' }} />
-                <div style={{ color: '#999' }}>No team members assigned yet</div>
+              <div style={{ padding: '40px', textAlign: 'center', border: `1px dashed ${token.colorBorder}`, borderRadius: 8 }}>
+                <TeamOutlined style={{ fontSize: '32px', color: token.colorTextSecondary, marginBottom: '12px', opacity: 0.5 }} />
+                <div style={{ color: token.colorTextSecondary }}>No team members assigned yet</div>
+                <Button
+                  type="link"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddTeamMember}
+                  style={{ marginTop: '8px' }}
+                >
+                  Add your first team member
+                </Button>
               </div>
             )}
-
           </Card>
 
-          {/* Form Actions */}
-          <Form.Item>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <Button onClick={handleCancel} size="large" disabled={submitting}>
-                Cancel
-              </Button>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                htmlType="submit"
-                loading={submitting}
-                disabled={submitting}
-                size="large"
-              >
-                {mode === 'create' ? 'Create Product' : 'Update Product'}
-              </Button>
-            </div>
-          </Form.Item>
+          {/* Form Actions - Gestalt: Continuity */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '12px',
+            paddingTop: '24px',
+            borderTop: `1px solid ${token.colorBorderSecondary}`
+          }}>
+            <Button
+              onClick={handleCancel}
+              size="large"
+              disabled={submitting}
+              style={{ minWidth: '120px' }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              htmlType="submit"
+              loading={submitting}
+              disabled={submitting}
+              size="large"
+              style={{ minWidth: '160px' }}
+            >
+              {mode === 'create' ? 'Create Product' : 'Update Product'}
+            </Button>
+          </div>
         </Form>
       </Card>
 

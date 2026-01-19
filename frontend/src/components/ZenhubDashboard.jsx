@@ -1,4 +1,19 @@
-import { useState, useEffect } from 'react'
+/**
+ * ZenHub Dashboard - Enhanced Stakeholder View
+ *
+ * Implements 3-level hierarchy:
+ * 1. Software Product (Maps to Zenhub Workspace via Frappe Doc)
+ * 2. Project (Maps to Zenhub Issue of type 'Project')
+ * 3. Epic (Maps to Zenhub Issue of type 'Epic', child of Project)
+ *
+ * Displays key stakeholder metrics:
+ * - Team Utilization
+ * - Blockers
+ * - Time Estimates & Completion
+ * - Pipeline Status
+ */
+
+import { useState, useEffect, useMemo } from 'react'
 import {
   Card,
   Row,
@@ -9,17 +24,13 @@ import {
   Empty,
   Statistic,
   Progress,
-  Tag,
   Select,
   Space,
-  Tabs,
+  Tag,
   Table,
   Alert,
-  Badge,
-  Tooltip,
-  theme,
-  Drawer,
-  Segmented
+  Divider,
+  Tooltip
 } from 'antd'
 import {
   BarChartOutlined,
@@ -29,613 +40,446 @@ import {
   ClockCircleOutlined,
   AlertOutlined,
   ReloadOutlined,
-  FilterOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  CalendarOutlined,
-  UnorderedListOutlined,
-  BgColorsOutlined,
-  RiseOutlined
+  ProjectOutlined,
+  RiseOutlined,
+  WarningOutlined
 } from '@ant-design/icons'
 import zenhubService from '../services/api/zenhub'
 import useNavigationStore from '../stores/navigationStore'
-import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
 const { Option } = Select
 
-const ZenhubDashboard = ({ navigateToRoute }) => {
-  const { token } = theme.useToken()
+const ZenhubDashboard = () => {
   const { setCurrentRoute } = useNavigationStore()
 
-  // State management
-  const [loading, setLoading] = useState(true)
-  const [workspaceData, setWorkspaceData] = useState(null)
-  const [teamData, setTeamData] = useState(null)
+  // --- State: Filters ---
+  const [softwareProducts, setSoftwareProducts] = useState([])
+  const [selectedProduct, setSelectedProduct] = useState(null) // { name, zenhub_workspace_id }
+
+  const [projects, setProjects] = useState([]) // Zenhub Issues (type=Project)
+  const [selectedProject, setSelectedProject] = useState(null) // ID
+
+  const [epics, setEpics] = useState([]) // Children of selected Project
+  const [selectedEpic, setSelectedEpic] = useState(null) // ID
+
+  // --- State: Data & UI ---
+  const [loading, setLoading] = useState(false)
+  const [loadingText, setLoadingText] = useState('')
   const [error, setError] = useState(null)
-  const [selectedProject, setSelectedProject] = useState(null)
-  const [viewMode, setViewMode] = useState('overview') // overview, projects, team, sprints
-  const [refreshing, setRefreshing] = useState(false)
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
-  const [workspaceId, setWorkspaceId] = useState(null)
+  const [currentIssues, setCurrentIssues] = useState([]) // Issues to display/calculate metrics from
+  const [teamUtilization, setTeamUtilization] = useState([])
 
-  // Initialize workspace_id from frappe context or environment
+  // --- Initialization ---
   useEffect(() => {
-    const initializeWorkspaceId = async () => {
-      try {
-        // Try to get workspace_id from multiple sources
-
-        // 1. Check frappe context (if available)
-        if (window.frappe && window.frappe.session && window.frappe.session.user) {
-          console.log('[ZenhubDashboard] Checking Frappe context for workspace configuration...')
-        }
-
-        // 2. Try to fetch from API - get first project with workspace_id
-        try {
-          const response = await frappe.call({
-            method: 'frappe.client.get_list',
-            args: {
-              doctype: 'Project',
-              filters: {
-                'custom_zenhub_workspace_id': ['!=', ''],
-                'custom_zenhub_workspace_id': ['is', 'set']
-              },
-              fields: ['name', 'title', 'custom_zenhub_workspace_id'],
-              limit_page_length: 1
-            }
-          })
-
-          if (response && response.message && response.message.length > 0) {
-            const firstProject = response.message[0]
-            setWorkspaceId(firstProject.custom_zenhub_workspace_id)
-            console.log('[ZenhubDashboard] Found workspace_id:', firstProject.custom_zenhub_workspace_id)
-            return
-          }
-        } catch (apiError) {
-          console.warn('[ZenhubDashboard] Could not fetch projects from API:', apiError)
-        }
-
-        // If no workspace_id found
-        console.warn('[ZenhubDashboard] No projects with ZenHub workspace_id configured')
-      } catch (err) {
-        console.error('[ZenhubDashboard] Error initializing workspace_id:', err)
-      }
-    }
-
-    initializeWorkspaceId()
     setCurrentRoute('zenhub-dashboard')
+    loadSoftwareProducts()
   }, [setCurrentRoute])
 
-  // Load workspace data
-  useEffect(() => {
-    if (workspaceId) {
-      loadDashboardData()
-    }
-  }, [workspaceId])
+  // --- Data Loaders ---
 
-  // Reload when project selection changes
-  useEffect(() => {
-    if (workspaceId && selectedProject) {
-      loadDashboardData()
-    }
-  }, [selectedProject, workspaceId])
-
-  const loadDashboardData = async () => {
+  const loadSoftwareProducts = async () => {
+    setLoading(true)
+    setLoadingText('Loading Software Products...')
     try {
-      setLoading(true)
-      setError(null)
+      const response = await zenhubService.getSoftwareProducts()
+      if (response.success && response.products) {
+        setSoftwareProducts(response.products)
 
-      // If no workspace_id set, try to get it from first project
-      let currentWorkspaceId = workspaceId
-
-      if (!currentWorkspaceId) {
-        // Attempt to fetch from first available project
-        console.warn('[ZenhubDashboard] No workspace_id provided. Please configure ZenHub workspace ID on your projects.')
-        setError('No ZenHub workspace configured. Please add ZenHub Workspace ID to your projects.')
-        setLoading(false)
-        return
-      }
-
-      // Fetch workspace summary and team utilization in parallel
-      const [workspace, team] = await Promise.all([
-        zenhubService.getWorkspaceSummary(currentWorkspaceId),
-        zenhubService.getTeamUtilization(currentWorkspaceId)
-      ])
-
-      // Response from axios interceptor strips the .message wrapper
-      setWorkspaceData(workspace)
-      setTeamData(team)
-
-      // Auto-select first project if none selected
-      if (!selectedProject && workspace?.projects?.length > 0) {
-        setSelectedProject(workspace.projects[0].id)
+        // Auto-select first if available
+        if (response.products.length > 0) {
+          handleProductChange(response.products[0].name)
+        }
+      } else {
+        setError(response.error || 'Failed to load software products')
       }
     } catch (err) {
-      console.error('[ZenhubDashboard] Failed to load ZenHub data:', err)
-      frappe.log_error({
-        title: 'ZenHub Dashboard Error',
-        message: `Failed to load ZenHub data: ${err?.message || JSON.stringify(err)}`,
-        doc: null
-      })
-      setError(`Failed to load ZenHub dashboard data: ${err?.message || 'Unknown error'}`)
+      console.error('[ZenhubDashboard] Error loading software products:', err)
+      const errorMsg = err.message || (typeof err === 'string' ? err : 'Unknown error')
+      const errorDetails = err.data?.exception || err.data?.message || ''
+      setError(`Error loading software products: ${errorMsg} ${errorDetails}`)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleRefresh = async () => {
-    if (!workspaceId) {
-      setError('No ZenHub workspace configured.')
-      return
-    }
-
-    setRefreshing(true)
+  const loadProjects = async (workspaceId) => {
+    setLoading(true)
+    setLoadingText('Loading Projects...')
+    setProjects([])
+    setEpics([])
+    setCurrentIssues([])
     try {
-      const [workspace, team] = await Promise.all([
-        zenhubService.getWorkspaceSummary(workspaceId, true),
-        zenhubService.getTeamUtilization(workspaceId, true)
-      ])
-      setWorkspaceData(workspace)
-      setTeamData(team)
-      setError(null)
+      // Fetch Projects (Issues of type Project)
+      const response = await zenhubService.getZenhubProjects(workspaceId)
+      if (response.success) {
+        const projList = response.projects || []
+        setProjects(projList)
+        setCurrentIssues(projList)
+
+        // Also fetch Team Utilization for the workspace context
+        const teamResp = await zenhubService.getTeamUtilization(workspaceId)
+        if (teamResp.success) {
+          setTeamUtilization(teamResp.team_members || [])
+        }
+      } else {
+        // Fallback or error handling
+        console.warn('Failed to load projects:', response.error)
+      }
     } catch (err) {
-      console.error('[ZenhubDashboard] Failed to refresh data:', err)
-      setError(`Failed to refresh data: ${err?.message || 'Unknown error'}`)
+      console.error(err)
+      setError('Error loading projects')
     } finally {
-      setRefreshing(false)
+      setLoading(false)
     }
   }
 
-  // Calculate metrics
-  const calculateMetrics = () => {
-    if (!workspaceData) return {}
-
-    let totalIssues = 0
-    let completedIssues = 0
-    let totalStoryPoints = 0
-    let completedStoryPoints = 0
-    let activeProjects = 0
-
-    workspaceData.projects?.forEach(project => {
-      if (project.sprints?.length > 0) {
-        activeProjects++
+  const loadEpics = async (projectId) => {
+    setLoading(true)
+    setLoadingText('Loading Epics...')
+    setEpics([])
+    setCurrentIssues([])
+    try {
+      // Fetch children of the Project Issue -> these are our Epics
+      const response = await zenhubService.getIssuesByEpic(projectId)
+      if (response.success) {
+        setEpics(response.issues || [])
+        // When a project is selected, the "issues" context is the list of Epics
+        setCurrentIssues(response.issues || [])
       }
+    } catch (err) {
+      console.error(err)
+      setError('Error loading epics')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-      project.epics?.forEach(epic => {
-        epic.sprints?.forEach(sprint => {
-          sprint.tasks?.forEach(task => {
-            totalIssues++
-            totalStoryPoints += task.estimate || 0
+  const loadTasks = async (epicId) => {
+    setLoading(true)
+    setLoadingText('Loading Tasks...')
+    try {
+      const response = await zenhubService.getIssuesByEpic(epicId)
+      if (response.success) {
+        setCurrentIssues(response.issues || [])
+      }
+    } catch (err) {
+      console.error(err)
+      setError('Error loading tasks')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-            if (task.kanban_status_id === 'done' || task.status === 'CLOSED') {
-              completedIssues++
-              completedStoryPoints += task.estimate || 0
-            }
-          })
-        })
-      })
-    })
+  // --- Handlers ---
+
+  const handleProductChange = (productName) => {
+    const product = softwareProducts.find(p => p.name === productName)
+    setSelectedProduct(product)
+    setSelectedProject(null)
+    setSelectedEpic(null)
+    setProjects([])
+    setEpics([])
+    setTeamUtilization([])
+    setError(null)
+
+    if (product && product.zenhub_workspace_id) {
+      loadProjects(product.zenhub_workspace_id)
+    } else {
+      setError('Selected product does not have a Zenhub Workspace ID configured.')
+    }
+  }
+
+  const handleProjectChange = (projectId) => {
+    setSelectedProject(projectId)
+    setSelectedEpic(null)
+    if (projectId) {
+      loadEpics(projectId)
+    } else {
+      setEpics([])
+      setCurrentIssues([])
+    }
+  }
+
+  const handleEpicChange = (epicId) => {
+    setSelectedEpic(epicId)
+    if (epicId) {
+      loadTasks(epicId)
+    } else if (selectedProject) {
+      // Revert to showing Epics if Epic deselected
+      loadEpics(selectedProject)
+    }
+  }
+
+  const handleRefresh = () => {
+    if (selectedEpic) loadTasks(selectedEpic)
+    else if (selectedProject) loadEpics(selectedProject)
+    else if (selectedProduct) loadProjects(selectedProduct.zenhub_workspace_id)
+    else loadSoftwareProducts()
+  }
+
+  // --- Metrics Calculation ---
+
+  const metrics = useMemo(() => {
+    if (!currentIssues.length) return null
+
+    const total = currentIssues.length
+    const completed = currentIssues.filter(i => i.state === 'CLOSED').length
+    const points = currentIssues.reduce((acc, i) => acc + (i.estimate || 0), 0)
+
+    // Calculate blocked
+    const blocked = currentIssues.filter(i =>
+      (i.blockedBy && i.blockedBy.length > 0) ||
+      (i.pipeline && i.pipeline.toLowerCase().includes('block'))
+    ).length
+
+    // Pipeline distribution
+    const pipelineCounts = currentIssues.reduce((acc, i) => {
+      const p = i.pipeline || 'Unknown'
+      acc[p] = (acc[p] || 0) + 1
+      return acc
+    }, {})
 
     return {
-      totalIssues,
-      completedIssues,
-      completionRate: totalIssues > 0 ? (completedIssues / totalIssues * 100).toFixed(1) : 0,
-      totalStoryPoints,
-      completedStoryPoints,
-      pointsCompletionRate: totalStoryPoints > 0 ? (completedStoryPoints / totalStoryPoints * 100).toFixed(1) : 0,
-      activeProjects
+      total,
+      completed,
+      progress: total ? Math.round((completed / total) * 100) : 0,
+      points,
+      blocked,
+      pipelineCounts
     }
-  }
+  }, [currentIssues])
 
-  const metrics = calculateMetrics()
 
-  // Get project options for selector
-  const projectOptions = workspaceData?.projects?.map(p => ({
-    label: p.title || p.name,
-    value: p.id
-  })) || []
+  // --- Render Helpers ---
 
-  // Filter data by selected project
-  const getFilteredData = () => {
-    if (!selectedProject || !workspaceData) return null
-    return workspaceData.projects?.find(p => p.id === selectedProject)
-  }
-
-  const filteredProject = getFilteredData()
-
-  // Render Overview Tab
-  const renderOverview = () => (
-    <div>
-      {/* Key Metrics Row */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-            <Statistic
-              title="Total Issues"
-              value={metrics.totalIssues}
-              prefix={<FileTextOutlined style={{ color: token.colorPrimary }} />}
-              valueStyle={{ color: token.colorText }}
-            />
-          </Card>
+  const renderFilters = () => (
+    <Card style={{ marginBottom: 16, borderRadius: 8 }}>
+      <Row gutter={16} align="middle">
+        <Col xs={24} md={8}>
+          <Text strong>Software Product (Workspace)</Text>
+          <Select
+            style={{ width: '100%', marginTop: 8 }}
+            placeholder="Select Product"
+            onChange={handleProductChange}
+            value={selectedProduct?.name}
+            loading={loading && !softwareProducts.length}
+          >
+            {softwareProducts.map(p => (
+              <Option key={p.name} value={p.name}>{p.product_name}</Option>
+            ))}
+          </Select>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-            <Statistic
-              title="Completed"
-              value={metrics.completedIssues}
-              suffix={`/ ${metrics.totalIssues}`}
-              prefix={<CheckCircleOutlined style={{ color: token.colorSuccess }} />}
-              valueStyle={{ color: token.colorSuccess }}
-            />
-          </Card>
+        <Col xs={24} md={8}>
+          <Text strong>Project</Text>
+          <Select
+            style={{ width: '100%', marginTop: 8 }}
+            placeholder={selectedProduct ? "Select Project" : "Select Product First"}
+            onChange={handleProjectChange}
+            value={selectedProject}
+            disabled={!projects.length}
+            allowClear
+          >
+            {projects.map(p => (
+              <Option key={p.id} value={p.id}>{p.title}</Option>
+            ))}
+          </Select>
         </Col>
+        <Col xs={24} md={8}>
+          <Text strong>Epic</Text>
+          <Select
+            style={{ width: '100%', marginTop: 8 }}
+            placeholder={selectedProject ? "Select Epic" : "Select Project First"}
+            onChange={handleEpicChange}
+            value={selectedEpic}
+            disabled={!epics.length}
+            allowClear
+          >
+            {epics.map(e => (
+              <Option key={e.id} value={e.id}>{e.title}</Option>
+            ))}
+          </Select>
+        </Col>
+      </Row>
+    </Card>
+  )
+
+  const renderMetrics = () => {
+    if (!metrics) return null
+    return (
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          <Card bordered={false} className="metric-card">
             <Statistic
-              title="Completion Rate"
-              value={metrics.completionRate}
+              title="Completion Status"
+              value={metrics.progress}
               suffix="%"
-              prefix={<RiseOutlined style={{ color: token.colorWarning }} />}
-              valueStyle={{ color: token.colorWarning }}
+              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
             />
+            <Progress percent={metrics.progress} size="small" showInfo={false} strokeColor="#52c41a" />
+            <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+              {metrics.completed} / {metrics.total} items completed
+            </div>
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} style={{ borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          <Card bordered={false} className="metric-card">
             <Statistic
-              title="Active Projects"
-              value={metrics.activeProjects}
-              prefix={<BgColorsOutlined style={{ color: token.colorInfo }} />}
-              valueStyle={{ color: token.colorInfo }}
+              title="Total Estimates"
+              value={metrics.points}
+              prefix={<RiseOutlined style={{ color: '#1890ff' }} />}
+              suffix="Pts"
             />
+            <Text type="secondary" style={{ fontSize: 12 }}>Total effort across {metrics.total} items</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card bordered={false} className="metric-card">
+            <Statistic
+              title="Blockers"
+              value={metrics.blocked}
+              valueStyle={{ color: metrics.blocked > 0 ? '#cf1322' : '#3f8600' }}
+              prefix={<WarningOutlined />}
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>Blocked items requiring attention</Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card bordered={false} className="metric-card">
+            <Title level={5} style={{ marginTop: 0, marginBottom: 16 }}>Pipeline Status</Title>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {Object.entries(metrics.pipelineCounts).slice(0, 3).map(([pipeline, count]) => (
+                <Row key={pipeline} justify="space-between">
+                  <Text>{pipeline}</Text>
+                  <Tag>{count}</Tag>
+                </Row>
+              ))}
+            </Space>
           </Card>
         </Col>
       </Row>
-
-      {/* Story Points Progress */}
-      <Card bordered={false} style={{ borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginBottom: '24px' }}>
-        <Title level={4} style={{ marginBottom: '16px' }}>
-          Story Points Progress
-        </Title>
-        <Row gutter={[24, 24]}>
-          <Col xs={24} lg={12}>
-            <div>
-              <Text style={{ display: 'block', marginBottom: '8px', color: token.colorTextSecondary }}>
-                Completed: {metrics.completedStoryPoints} / {metrics.totalStoryPoints} points
-              </Text>
-              <Progress
-                percent={metrics.pointsCompletionRate}
-                strokeColor={token.colorSuccess}
-                format={percent => `${percent.toFixed(0)}%`}
-              />
-            </div>
-          </Col>
-          <Col xs={24} lg={12}>
-            <Text style={{ display: 'block', fontSize: '12px', color: token.colorTextTertiary }}>
-              {metrics.totalStoryPoints > 0 ? (
-                <>
-                  {metrics.completedStoryPoints} points delivered • {metrics.totalStoryPoints - metrics.completedStoryPoints} remaining
-                </>
-              ) : (
-                'No story points assigned'
-              )}
-            </Text>
-          </Col>
-        </Row>
-      </Card>
-    </div>
-  )
-
-  // Render Projects Tab
-  const renderProjects = () => {
-    const projectColumns = [
-      {
-        title: 'Project',
-        dataIndex: 'title',
-        key: 'title',
-        render: (text) => <Text strong>{text}</Text>
-      },
-      {
-        title: 'Sprints',
-        dataIndex: 'sprints',
-        key: 'sprints',
-        render: (sprints) => sprints?.length || 0
-      },
-      {
-        title: 'Tasks',
-        key: 'tasks',
-        render: (_, record) => {
-          let taskCount = 0
-          record.epics?.forEach(epic => {
-            epic.sprints?.forEach(sprint => {
-              taskCount += sprint.tasks?.length || 0
-            })
-          })
-          return taskCount
-        }
-      },
-      {
-        title: 'Status',
-        key: 'status',
-        render: (_, record) => (
-          <Badge status={record.sprints?.length > 0 ? 'success' : 'default'} text={record.sprints?.length > 0 ? 'Active' : 'Inactive'} />
-        )
-      }
-    ]
-
-    return (
-      <Card bordered={false} style={{ borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-        <Table
-          columns={projectColumns}
-          dataSource={workspaceData?.projects || []}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-          loading={loading}
-          onRow={(record) => ({
-            onClick: () => setSelectedProject(record.id)
-          })}
-        />
-      </Card>
     )
   }
 
-  // Render Team Tab
-  const renderTeam = () => {
-    const teamColumns = [
-      {
-        title: 'Team Member',
-        dataIndex: 'name',
-        key: 'name',
-        render: (text, record) => (
-          <Space>
-            <Text strong>{text}</Text>
-            {record.role && <Tag>{record.role}</Tag>}
-          </Space>
-        )
-      },
-      {
-        title: 'Tasks Assigned',
-        dataIndex: 'task_count',
-        key: 'task_count',
-        render: (count) => <Text>{count || 0}</Text>
-      },
-      {
-        title: 'Story Points',
-        dataIndex: 'story_points',
-        key: 'story_points',
-        render: (points) => <Text strong>{points || 0}</Text>
-      },
-      {
-        title: 'Utilization',
-        key: 'utilization',
-        render: (_, record) => {
-          const utilization = record.utilization_percent || 0
-          return (
-            <Tooltip title={`${utilization}% utilized`}>
-              <Progress type="circle" percent={utilization} width={40} strokeColor={utilization > 80 ? token.colorError : token.colorSuccess} />
-            </Tooltip>
-          )
-        }
-      }
-    ]
-
-    return (
-      <Card bordered={false} style={{ borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-        <Table
-          columns={teamColumns}
-          dataSource={teamData?.team_members || []}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-          loading={loading}
-        />
-      </Card>
-    )
-  }
-
-  // Render Sprints Tab
-  const renderSprints = () => {
-    if (!filteredProject) {
-      return <Empty description="Select a project to view sprints" />
+  const renderContent = () => {
+    if (loading) {
+      return <div style={{ textAlign: 'center', padding: 50 }}><Spin size="large" tip={loadingText} /></div>
     }
 
-    const sprints = []
-    filteredProject.epics?.forEach(epic => {
-      epic.sprints?.forEach(sprint => {
-        sprints.push({
-          id: sprint.id,
-          name: sprint.name,
-          epic: epic.title,
-          taskCount: sprint.tasks?.length || 0,
-          completedCount: sprint.tasks?.filter(t => t.status === 'CLOSED')?.length || 0,
-          storyPoints: sprint.tasks?.reduce((sum, t) => sum + (t.estimate || 0), 0) || 0
-        })
-      })
-    })
+    if (error) {
+      return <Alert message="Error" description={error} type="error" showIcon style={{ marginBottom: 16 }} />
+    }
 
-    const sprintColumns = [
+    if (!selectedProduct) {
+      return <Empty description="Please select a Software Product to begin" />
+    }
+
+    if (!projects.length && !loading) {
+      return <Empty description="No Projects found in this workspace" />
+    }
+
+    // Columns for the issues table
+    const columns = [
       {
-        title: 'Sprint',
-        dataIndex: 'name',
-        key: 'name',
+        title: 'ID',
+        dataIndex: 'number',
+        width: 80,
+        render: (text, record) => <a href={record.htmlUrl} target="_blank" rel="noopener noreferrer">#{text}</a>
+      },
+      {
+        title: 'Title',
+        dataIndex: 'title',
         render: (text) => <Text strong>{text}</Text>
       },
       {
-        title: 'Epic',
-        dataIndex: 'epic',
-        key: 'epic'
+        title: 'State',
+        dataIndex: 'state',
+        width: 100,
+        render: (state) => <Tag color={state === 'CLOSED' ? 'green' : 'blue'}>{state}</Tag>
       },
       {
-        title: 'Progress',
-        key: 'progress',
-        render: (_, record) => {
-          const progress = record.taskCount > 0 ? (record.completedCount / record.taskCount * 100).toFixed(0) : 0
-          return (
-            <Space size="small">
-              <Progress
-                type="circle"
-                percent={progress}
-                width={40}
-                strokeColor={token.colorPrimary}
-              />
-              <Text>{record.completedCount}/{record.taskCount}</Text>
-            </Space>
-          )
-        }
+        title: 'Pipeline',
+        dataIndex: 'pipeline',
+        width: 150,
+        render: v => v ? <Tag>{v}</Tag> : '-'
       },
       {
-        title: 'Story Points',
-        dataIndex: 'storyPoints',
-        key: 'storyPoints',
-        render: (points) => <Text strong>{points}</Text>
+        title: 'Estimates',
+        dataIndex: 'estimate',
+        width: 100,
+        render: v => v ? <Tag color="geekblue">{v} Pts</Tag> : '-'
+      },
+      {
+        title: 'Assignees',
+        dataIndex: 'assignees',
+        render: (assignees) => (
+          <Space wrap>
+            {assignees && assignees.map(a => <Tag key={a}>{a}</Tag>)}
+          </Space>
+        )
       }
     ]
 
     return (
-      <Card bordered={false} style={{ borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-        <Table
-          columns={sprintColumns}
-          dataSource={sprints}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-        />
-      </Card>
-    )
-  }
+      <>
+        {renderMetrics()}
 
-  if (loading && !workspaceData) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" tip="Loading ZenHub Dashboard..." />
-      </div>
+        <Row gutter={16}>
+          <Col span={16}>
+            <Card title={selectedEpic ? "Tasks" : (selectedProject ? "Epics" : "Projects")} className="shadow-sm">
+              <Table
+                dataSource={currentIssues}
+                columns={columns}
+                rowKey="id"
+                pagination={{ pageSize: 10 }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card title="Team Utilization" className="shadow-sm">
+              {teamUtilization.length > 0 ? (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  {teamUtilization.map(member => (
+                    <div key={member.id} style={{ marginBottom: 12 }}>
+                      <Row justify="space-between">
+                        <Text strong>{member.name}</Text>
+                        <Text type="secondary">{member.story_points} Pts</Text>
+                      </Row>
+                      <Progress
+                        percent={member.task_completion_percentage || 0}
+                        status="active"
+                        size="small"
+                      />
+                    </div>
+                  ))}
+                </Space>
+              ) : (
+                <Empty description="No team data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              )}
+            </Card>
+          </Col>
+        </Row>
+      </>
     )
   }
 
   return (
-    <div style={{ padding: '0' }}>
-      {/* Header Banner */}
-      <Card
-        style={{
-          marginBottom: '24px',
-          borderRadius: '0',
-          border: 'none',
-          ...getHeaderBannerStyle(token)
-        }}
-        bodyStyle={{ padding: '24px' }}
-      >
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Space direction="vertical" size="small">
-              <Button
-                type="text"
-                onClick={() => navigateToRoute('projects')}
-                style={{ paddingLeft: 0, color: token.colorPrimary }}
-              >
-                ← Back to Projects
-              </Button>
-              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                <BarChartOutlined style={{
-                  marginRight: 16,
-                  color: getHeaderIconColor(token),
-                  fontSize: '28px'
-                }} />
-                ZenHub Dashboard
-              </Title>
-            </Space>
-          </Col>
-          <Col>
-            <Space>
-              <Button
-                icon={<ReloadOutlined />}
-                loading={refreshing}
-                onClick={handleRefresh}
-              >
-                Refresh
-              </Button>
-              <Button
-                type="primary"
-                icon={<FilterOutlined />}
-                onClick={() => setFilterDrawerOpen(true)}
-              >
-                Filters
-              </Button>
-            </Space>
-          </Col>
-        </Row>
-      </Card>
+    <div style={{ padding: 24 }}>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+        <Col>
+          <Title level={2} style={{ marginBottom: 0 }}>
+            <ProjectOutlined style={{ marginRight: 8 }} />
+            Stakeholder Dashboard
+          </Title>
+          <Text type="secondary">Zenhub Integration & Metrics</Text>
+        </Col>
+        <Col>
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
+        </Col>
+      </Row>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          closable
-          style={{ marginBottom: '24px' }}
-        />
-      )}
-
-      {/* Content */}
-      <div style={{ paddingLeft: '24px', paddingRight: '24px', paddingBottom: '24px' }}>
-        {/* View Mode Selector */}
-        <Card bordered={false} style={{ marginBottom: '24px', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-          <Space>
-            <Text strong>View:</Text>
-            <Segmented
-              value={viewMode}
-              onChange={setViewMode}
-              options={[
-                { label: 'Overview', value: 'overview', icon: <BarChartOutlined /> },
-                { label: 'Projects', value: 'projects', icon: <BgColorsOutlined /> },
-                { label: 'Team', value: 'team', icon: <TeamOutlined /> },
-                { label: 'Sprints', value: 'sprints', icon: <CalendarOutlined /> }
-              ]}
-            />
-          </Space>
-        </Card>
-
-        {/* Project Selector (for filtered views) */}
-        {(viewMode === 'sprints' || viewMode === 'overview') && (
-          <Card bordered={false} style={{ marginBottom: '24px', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-            <Space>
-              <Text strong>Project:</Text>
-              <Select
-                style={{ minWidth: '250px' }}
-                placeholder="Select a project..."
-                value={selectedProject}
-                onChange={setSelectedProject}
-                options={projectOptions}
-              />
-            </Space>
-          </Card>
-        )}
-
-        {/* Tab Content */}
-        {viewMode === 'overview' && renderOverview()}
-        {viewMode === 'projects' && renderProjects()}
-        {viewMode === 'team' && renderTeam()}
-        {viewMode === 'sprints' && renderSprints()}
-      </div>
-
-      {/* Filters Drawer */}
-      <Drawer
-        title="Dashboard Filters"
-        placement="right"
-        onClose={() => setFilterDrawerOpen(false)}
-        open={filterDrawerOpen}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <div>
-            <Text strong>Project</Text>
-            <Select
-              style={{ width: '100%', marginTop: '8px' }}
-              placeholder="Select project..."
-              value={selectedProject}
-              onChange={setSelectedProject}
-              options={projectOptions}
-            />
-          </div>
-        </Space>
-      </Drawer>
+      {renderFilters()}
+      {renderContent()}
     </div>
   )
 }

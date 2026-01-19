@@ -44,7 +44,8 @@ def get_products(
         else:
             field_list = [
                 'name', 'product_name', 'description', 'status',
-                'release_status', 'version', 'start_date', 'completion_date', 'modified'
+                'release_status', 'version', 'start_date', 'completion_date', 'modified',
+                'default_raci_template', 'project_template', 'product_manager', 'api_namespace'
             ]
 
         # Always include 'name' for identification

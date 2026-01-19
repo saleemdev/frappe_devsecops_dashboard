@@ -7,13 +7,27 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "zenhub_token"
+  "zenhub_token",
+  "zenhub_organization_id",
+  "default_repository_id"
  ],
  "fields": [
   {
    "fieldname": "zenhub_token",
    "fieldtype": "Password",
    "label": "Zenhub Token"
+  },
+  {
+   "fieldname": "zenhub_organization_id",
+   "fieldtype": "Data",
+   "label": "Zenhub Organization ID",
+   "description": "The Zenhub Organization ID (required for creating workspaces). Get this from an existing workspace or your Zenhub organization settings."
+  },
+  {
+   "fieldname": "default_repository_id",
+   "fieldtype": "Data",
+   "label": "Default Repository ID",
+   "description": "Default Zenhub Repository ID to use when creating issues. Required if workspace has no existing issues. Get this from a repository in your Zenhub workspace."
   }
  ],
  "index_web_pages_for_search": 1,

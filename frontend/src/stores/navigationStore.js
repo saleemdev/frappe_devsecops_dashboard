@@ -981,8 +981,36 @@ const useNavigationStore = create(
        * Handle browser hash changes
        */
       handleHashChange: () => {
-        const hash = window.location.hash.slice(1) // Remove the '#'
+        // Remove the '#' and split off query parameters
+        let hash = window.location.hash.slice(1)
+
+        // Handle query parameters (strip them for routing matching)
+        if (hash.includes('?')) {
+          hash = hash.split('?')[0]
+        }
+
+        // Handle trailing slashes
+        if (hash.length > 1 && hash.endsWith('/')) {
+          hash = hash.slice(0, -1)
+        }
+
         console.log('[Navigation] handleHashChange:', hash)
+
+        // Empty hash -> dashboard
+        if (!hash || hash === '') {
+          set({
+            currentRoute: 'dashboard',
+            selectedProjectId: null,
+            showProjectDetail: false,
+            selectedAppId: null,
+            showAppDetail: false,
+            selectedIncidentId: null,
+            showIncidentDetail: false,
+            selectedSwaggerId: null,
+            showSwaggerDetail: false
+          })
+          return
+        }
 
         // Check most specific routes first
         if (hash === 'project/create') {
@@ -1000,6 +1028,8 @@ const useNavigationStore = create(
           })
         } else if (hash === 'projects') {
           get().navigateToRoute('projects')
+        } else if (hash === 'zenhub-dashboard') {
+          get().navigateToRoute('zenhub-dashboard')
         } else if (hash === 'team-utilization') {
           get().navigateToRoute('team-utilization')
         } else if (hash === 'product-kpi-dashboard') {
@@ -1443,6 +1473,7 @@ const useNavigationStore = create(
             showSwaggerDetail: false
           })
         } else {
+          console.warn('[Navigation] Unknown match for hash:', hash, 'falling back to dashboard')
           // Default to dashboard
           set({
             currentRoute: 'dashboard',

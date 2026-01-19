@@ -247,6 +247,62 @@ class ZenhubService {
       })
     })
   }
+
+  /**
+   * Get Software Products with configured Zenhub Workspaces
+   */
+  async getSoftwareProducts() {
+    const client = await this.initClient()
+    return withRetry(async () => {
+      const response = await client.get('/api/method/frappe_devsecops_dashboard.api.zenhub.get_software_products_with_workspace')
+      return response.data
+    })
+  }
+
+  /**
+   * Get Zenhub Projects (Issues of type Project)
+   * @param {string} workspaceId 
+   */
+  async getZenhubProjects(workspaceId) {
+    if (!workspaceId) throw { status: 400, message: 'workspaceId is required' }
+    const client = await this.initClient()
+    return withRetry(async () => {
+      const response = await client.get('/api/method/frappe_devsecops_dashboard.api.zenhub.get_zenhub_projects', {
+        params: { workspace_id: workspaceId }
+      })
+      return response.data
+    })
+  }
+
+  /**
+   * Get Epics from workspace
+   * @param {string} workspaceId 
+   */
+  async getEpics(workspaceId) {
+    if (!workspaceId) throw { status: 400, message: 'workspaceId is required' }
+    const client = await this.initClient()
+    return withRetry(async () => {
+      const response = await client.get('/api/method/frappe_devsecops_dashboard.api.zenhub.get_epics', {
+        params: { workspace_id: workspaceId }
+      })
+      return response.data
+    })
+  }
+
+  /**
+   * Get Issues by Epic
+   * @param {string} epicId - The Zenhub Issue ID of the Epic
+   */
+  async getIssuesByEpic(epicId) {
+    if (!epicId) throw { status: 400, message: 'epicId is required' }
+    const client = await this.initClient()
+    return withRetry(async () => {
+      const response = await client.get('/api/method/frappe_devsecops_dashboard.api.zenhub.get_issues_by_epic', {
+        params: { zenhub_issue_id: epicId }
+      })
+      return response.data
+    })
+  }
 }
 
 export default new ZenhubService()

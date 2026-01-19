@@ -25,8 +25,9 @@
   "production_url",
   "uat_url",
   "team_section",
-  "team_members",
-  "default_raci_template"
+  "default_raci_template",
+  "project_template",
+  "team_members"
  ],
  "fields": [
   {
@@ -139,16 +140,26 @@
    "label": "RACI Matrix - Team Assignment"
   },
   {
+   "fieldname": "default_raci_template",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Default RACI Template",
+   "options": "RACI Template"
+  },
+  {
+   "fieldname": "project_template",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project Template",
+   "options": "Project"
+  },
+  {
    "fieldname": "team_members",
    "fieldtype": "Table",
    "label": "Team Members",
    "options": "Software Product Team Member"
-  },
-  {
-   "fieldname": "default_raci_template",
-   "fieldtype": "Link",
-   "label": "Default RACI Template",
-   "options": "RACI Template"
   },
   {
    "description": "The workspace ID for Zenhub.",
@@ -159,8 +170,8 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-13 07:00:17.562901",
- "modified_by": "dsmwaura@gmail.com",
+ "modified": "2026-01-15 09:59:51.649770",
+ "modified_by": "Administrator",
  "module": "Frappe Devsecops Dashboard",
  "name": "Software Product",
  "naming_rule": "Expression",

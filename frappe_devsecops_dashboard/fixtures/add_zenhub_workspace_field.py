@@ -53,8 +53,8 @@ def add_zenhub_workspace_field():
 			'permlevel': 0
 		}
 
-		# Insert the field
-		project_doctype.insert_before(insert_position, new_field)
+		# Insert the field using append with insert_after
+		project_doctype.append('fields', new_field)
 		project_doctype.save()
 		frappe.db.commit()
 

@@ -310,6 +310,14 @@ export const getProjectDetails = async (projectName) => {
         _t: Date.now()  // Cache-busting parameter to force fresh data
       }
     })
+    
+    // Frappe API returns { message: { success: true, project: {...} } }
+    // Extract the message content
+    if (response.data && response.data.message) {
+      return response.data.message
+    }
+    
+    // Fallback: return the full response if structure is different
     return response.data
   } catch (error) {
     throw error

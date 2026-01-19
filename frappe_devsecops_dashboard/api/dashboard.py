@@ -101,6 +101,10 @@ def get_projects_with_tasks():
                 "actual_end_date",
                 "cost_center",
                 "department",
+                "custom_software_product",
+                "custom_default_raci_template",
+                "custom_zenhub_workspace_id",
+                "custom_zenhub_project_id",
                 "modified"
             ],
             filters={
@@ -196,6 +200,7 @@ def enhance_project_with_task_data(project):
                     "is_milestone",
                     "owner",
                     "description",
+                    "custom_zenhub_epic_id",
                     "idx"
                 ],
                 filters={
@@ -297,6 +302,7 @@ def enhance_project_with_task_data(project):
         "custom_software_product": project.get('custom_software_product'),
         "custom_default_raci_template": project.get('custom_default_raci_template'),
         "custom_zenhub_workspace_id": project.get('custom_zenhub_workspace_id'),
+        "custom_zenhub_project_id": project.get('custom_zenhub_project_id'),
         "notes": project.get('notes'),
         "project_manager": project.get('project_manager'),  # Include project manager
         "tasks": tasks or []
@@ -596,7 +602,8 @@ def get_project_details(project_name):
         # Get custom fields safely
         software_product = getattr(project, 'custom_software_product', None)
         raci_template = getattr(project, 'custom_default_raci_template', None)
-        zenhub_id = getattr(project, 'custom_zenhub_workspace_id', '')
+        zenhub_workspace_id = getattr(project, 'custom_zenhub_workspace_id', '')
+        zenhub_project_id = getattr(project, 'custom_zenhub_project_id', '')
 
         # Get enhanced project data
         project_data = {
@@ -613,11 +620,12 @@ def get_project_details(project_name):
             "actual_end_date": project.actual_end_date,
             "cost_center": project.cost_center,
             "department": project.department,
-            "zenhub_id": zenhub_id,
+            "zenhub_id": zenhub_workspace_id,
             "notes": project.notes or "",  # Include notes field for project description
             "custom_software_product": software_product,
             "custom_default_raci_template": raci_template,
-            "custom_zenhub_workspace_id": zenhub_id
+            "custom_zenhub_workspace_id": zenhub_workspace_id,
+            "custom_zenhub_project_id": zenhub_project_id
         }
 
         enhanced_project = enhance_project_with_task_data(project_data)

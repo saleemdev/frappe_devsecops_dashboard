@@ -12,24 +12,17 @@ import frappe
 import requests
 import base64
 import json as json_lib
-from typing import Dict, List, Optional, Any
-
+from typing import Dict, List, Optional, Any, Union
 
 # Zenhub GraphQL API endpoint
 ZENHUB_GRAPHQL_ENDPOINT = "https://api.zenhub.com/public/graphql"
 
-# Cache key for Zenhub token
+# Cache keys
 ZENHUB_TOKEN_CACHE_KEY = "zenhub_api_token"
-ZENHUB_TOKEN_CACHE_TTL = 3600  # 1 hour
-
-
-# Cache key for GitHub user data
+ZENHUB_TOKEN_CACHE_TTL = 3600
 GITHUB_USER_CACHE_KEY_PREFIX = "github_user_"
-GITHUB_USER_CACHE_TTL = 86400  # 24 hours (usernames rarely change)
+GITHUB_USER_CACHE_TTL = 86400
 
-# Cache key for sprint data responses
-SPRINT_DATA_CACHE_KEY_PREFIX = "zenhub_sprint_data_"
-SPRINT_DATA_CACHE_TTL = 300  # 5 minutes
 
 
 def get_zenhub_token() -> Optional[str]:
@@ -349,6 +342,7 @@ def get_workspace_sprints_query() -> str:
               nodes {
                 id
                 title
+                type
                 state
                 estimate { value }
                 assignees {
@@ -508,6 +502,7 @@ def get_workspace_issues_query() -> str:
           nodes {
             id
             title
+            type
             state
             htmlUrl
             number
@@ -618,6 +613,194 @@ def get_stakeholder_sprint_query() -> str:
       }
     }
     """
+
+def get_epics_query() -> str:
+    """
+    GraphQL query to fetch Epics in a workspace.
+    """
+    return """
+    query GetEpics($workspaceId: ID!) {
+      workspace(id: $workspaceId) {
+        epics(first: 100) {
+          nodes {
+            issue {
+              id
+              title
+              number
+              state
+              htmlUrl
+              estimate { value }
+            }
+          }
+        }
+      }
+    }
+    """
+
+def get_issues_by_epic_query() -> str:
+    """
+    GraphQL query to fetch issues belonging to specific Epics from a workspace.
+    Actually Zenhub API structure for "issues in epic" is usually querying the Epic issue itself
+    and getting its children, or filtering workspace issues by epic.
+    However, the "epic" field on Issue is a connection.
+    Depending on Zenhub schema, we might need to query the Issue node of the Epic directly.
+    """
+    return """
+    query GetEpicIssues($zenhubIssueId: ID!) {
+        issue(id: $zenhubIssueId) {
+            id
+            title
+            childIssues {
+                nodes {
+                    id
+                    title
+                    state
+                    number
+                    htmlUrl
+                    estimate { value }
+                    assignees {
+                        nodes {
+                            id
+                            login
+                            name
+                        }
+                    }
+                    pipeline {
+                        name
+                    }
+                    blockedBy {
+                        nodes {
+                            id
+                            title
+                            state
+                        }
+                    }
+                }
+            }
+        }
+    }
+    """
+
+@frappe.whitelist()
+def get_software_products_with_workspace() -> Dict[str, Any]:
+    """
+    Fetch all Software Product documents that have a Zenhub Workspace ID configured.
+    """
+    try:
+        products = frappe.get_list(
+            "Software Product",
+            fields=["name", "product_name", "zenhub_workspace_id"],
+            filters={"zenhub_workspace_id": ["is", "set"], "status": "Active"}
+        )
+        return {"success": True, "products": products}
+    except Exception as e:
+        frappe.log_error(f"Error fetching software products: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+@frappe.whitelist()
+def get_zenhub_projects(workspace_id: str) -> Dict[str, Any]:
+    """
+    Fetch Zenhub 'Projects' (Issues of type Project) from a workspace.
+    Since 'type' filtering in GraphQL might be restricted, we fetch issues and filter by type/label python-side
+    if the API doesn't support direct type filtering in the query.
+    
+    Actually, we can use the `searchIssues` or just `issues` query and check the type field.
+    """
+    query = get_workspace_issues_query() # Reusing general issue query
+    try:
+        data = execute_graphql_query(query, {"workspaceId": workspace_id})
+        workspace = data.get("workspace", {})
+        issues = workspace.get("issues", {}).get("nodes", [])
+        
+        # Filter for type == 'Project' (case insensitive)
+        projects = []
+        for issue in issues:
+            # Check 'type' field if available, or labels
+            issue_type = issue.get("type", "").lower() if issue.get("type") else ""
+            if issue_type == "project" or "project" in [l.get("name","").lower() for l in issue.get("labels", {}).get("nodes", [])]:
+                 projects.append({
+                     "id": issue.get("id"),
+                     "title": issue.get("title"),
+                     "number": issue.get("number"),
+                     "state": issue.get("state"),
+                     "estimate": issue.get("estimate", {}).get("value", 0),
+                     "htmlUrl": issue.get("htmlUrl")
+                 })
+        
+        # If no "Project" type found (maybe Zenhub schema differs), return all for now or empty?
+        # Let's try to match "Project" in title as a fallback if strict type not found? 
+        # No, strict is better.
+        
+        return {"success": True, "projects": projects}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@frappe.whitelist()
+def get_epics(workspace_id: str) -> Dict[str, Any]:
+    """
+    Fetch Epics from the workspace.
+    """
+    try:
+        query = get_epics_query()
+        data = execute_graphql_query(query, {"workspaceId": workspace_id})
+        epics = data.get("workspace", {}).get("epics", {}).get("nodes", [])
+        
+        processed_epics = []
+        for node in epics:
+            issue = node.get("issue", {})
+            if issue:
+                processed_epics.append({
+                    "id": issue.get("id"),
+                    "title": issue.get("title"),
+                    "number": issue.get("number"),
+                    "state": issue.get("state"),
+                    "estimate": issue.get("estimate", {}).get("value", 0),
+                    "htmlUrl": issue.get("htmlUrl")
+                })
+        
+        return {"success": True, "epics": processed_epics}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@frappe.whitelist()
+def get_issues_by_epic(zenhub_issue_id: str) -> Dict[str, Any]:
+    """
+    Fetch child issues of an Epic.
+    """
+    try:
+        query = get_issues_by_epic_query()
+        data = execute_graphql_query(query, {"zenhubIssueId": zenhub_issue_id})
+        issue = data.get("issue", {})
+        child_issues = issue.get("childIssues", {}).get("nodes", [])
+        
+        processed_issues = []
+        for child in child_issues:
+            # Flatten assignees
+            assignees = []
+            for a in child.get("assignees", {}).get("nodes", []):
+                assignees.append(a.get("name") or a.get("login"))
+
+            # Flatten blockedBy
+            blockers = []
+            for b in child.get("blockedBy", {}).get("nodes", []):
+                blockers.append({"id": b.get("id"), "title": b.get("title"), "state": b.get("state")})
+
+            processed_issues.append({
+                "id": child.get("id"),
+                "title": child.get("title"),
+                "state": child.get("state"),
+                "number": child.get("number"),
+                "htmlUrl": child.get("htmlUrl"),
+                "estimate": child.get("estimate", {}).get("value", 0),
+                "assignees": assignees,
+                "pipeline": child.get("pipeline", {}).get("name"),
+                "blockedBy": blockers
+            })
+            
+        return {"success": True, "issues": processed_issues}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 def calculate_sprint_metrics(sprint_data: Dict[str, Any]) -> Dict[str, Any]:
     """

@@ -108,6 +108,9 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
   const [loadingSoftwareProducts, setLoadingSoftwareProducts] = useState(false)
   const [raciTemplates, setRaciTemplates] = useState([])
   const [loadingRaciTemplates, setLoadingRaciTemplates] = useState(false)
+  const [generatingZenhubProjectId, setGeneratingZenhubProjectId] = useState(false)
+  const [zenhubResultModal, setZenhubResultModal] = useState(false)
+  const [zenhubResult, setZenhubResult] = useState(null)
 
   // Edit Team Member modal state
   const [showEditMemberModal, setShowEditMemberModal] = useState(false)
@@ -242,6 +245,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
       // Fetch project details
       const projectResponse = await getProjectDetails(projectId)
       console.log('[ProjectEdit] Project response:', projectResponse)
+      console.log('[ProjectEdit] custom_zenhub_project_id:', projectResponse?.project?.custom_zenhub_project_id)
 
       if (projectResponse.success && projectResponse.project) {
         setProjectData(projectResponse.project)
@@ -249,7 +253,7 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
         setNotesContent(notesValue)
 
         // Populate form with project data
-        form.setFieldsValue({
+        const formValues = {
           project_name: projectResponse.project.project_name || projectResponse.project.name,
           status: projectResponse.project.status || 'Open',
           priority: projectResponse.project.priority || 'Medium',
@@ -259,8 +263,12 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
           custom_default_raci_template: projectResponse.project.custom_default_raci_template || null,
           custom_zenhub_project_id: projectResponse.project.custom_zenhub_project_id || null,
           custom_zenhub_workspace_id: projectResponse.project.custom_zenhub_workspace_id || null
-        })
+        }
+        
+        console.log('[ProjectEdit] Setting form values:', formValues)
+        form.setFieldsValue(formValues)
         console.log('[ProjectEdit] Form populated successfully')
+        console.log('[ProjectEdit] Form custom_zenhub_project_id value after setFieldsValue:', form.getFieldValue('custom_zenhub_project_id'))
       } else {
         throw new Error(projectResponse.error || 'Failed to load project')
       }
@@ -681,6 +689,72 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
     }
   }
 
+  const handleGenerateZenhubProjectId = async () => {
+    if (!projectId) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Project ID is required',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      })
+      return
+    }
+
+    // Check if workspace ID is set
+    const workspaceId = form.getFieldValue('custom_zenhub_workspace_id')
+    if (!workspaceId) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'Workspace ID Required',
+        text: 'Please set the Zenhub Workspace ID before generating a Project ID',
+        confirmButtonText: 'OK'
+      })
+      return
+    }
+
+    setGeneratingZenhubProjectId(true)
+    try {
+      const response = await fetch(
+        `/api/method/frappe_devsecops_dashboard.frappe_devsecops_dashboard.doctype.project_extension.project_extension.generate_zenhub_project_id?project_id=${encodeURIComponent(projectId)}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frappe-CSRF-Token': window.csrf_token || ''
+          }
+        }
+      )
+
+      const data = await response.json()
+      const result = data.message || data
+
+      setZenhubResult(result)
+      setZenhubResultModal(true)
+
+      if (result.success) {
+        // Update the form field with the new ID
+        form.setFieldsValue({
+          custom_zenhub_project_id: result.zenhub_project_id
+        })
+        // Reload project data to get updated values
+        await loadProjectData()
+      }
+    } catch (error) {
+      console.error('[ProjectEdit] Error generating Zenhub Project ID:', error)
+      setZenhubResult({
+        success: false,
+        error: error.message || 'Failed to generate Zenhub Project ID',
+        error_type: 'api_error'
+      })
+      setZenhubResultModal(true)
+    } finally {
+      setGeneratingZenhubProjectId(false)
+    }
+  }
+
 
   if (loading) {
     return (
@@ -1004,7 +1078,25 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
                 name="custom_zenhub_project_id"
                 tooltip="The Zenhub project ID for this project. This enables project-level tracking and integration with Zenhub."
               >
-                <Input size="large" placeholder="Enter Zenhub project ID (e.g., Z2lkOi8vcmFwdG9yL1Byb2plY3QvMTIzNDU2)" />
+                <Input 
+                  size="large" 
+                  placeholder="Enter Zenhub project ID (e.g., Z2lkOi8vcmFwdG9yL1Byb2plY3QvMTIzNDU2)"
+                  readOnly={!!form.getFieldValue('custom_zenhub_project_id')}
+                  suffix={
+                    !form.getFieldValue('custom_zenhub_project_id') && (
+                      <Button
+                        type="primary"
+                        icon={<RocketOutlined />}
+                        loading={generatingZenhubProjectId}
+                        onClick={handleGenerateZenhubProjectId}
+                        disabled={generatingZenhubProjectId || !form.getFieldValue('custom_zenhub_workspace_id')}
+                        size="small"
+                      >
+                        Generate
+                      </Button>
+                    )
+                  }
+                />
               </Form.Item>
 
               {/* Zenhub Workspace ID */}
@@ -1020,6 +1112,31 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
               >
                 <Input size="large" placeholder="Enter Zenhub workspace ID (e.g., Z2lkOi8vcmFwdG9yL1dvcmtzcGFjZS8xNDUwNjY=)" />
               </Form.Item>
+
+              <div style={{
+                padding: '12px 16px',
+                background: token.colorInfoBg,
+                border: `1px solid ${token.colorInfoBorder}`,
+                borderRadius: '6px',
+                marginBottom: '16px',
+                fontSize: '12px',
+                color: token.colorTextSecondary,
+                lineHeight: '1.6'
+              }}>
+                <InfoCircleOutlined style={{ marginRight: '6px', color: token.colorInfo }} />
+                <Text strong style={{ color: token.colorText }}>Zenhub Settings:</Text> Configure repositories and workspace settings at{' '}
+                <a 
+                  href="/app/zenhub-settings" 
+                  target="_blank"
+                  style={{ color: token.colorPrimary, textDecoration: 'underline' }}
+                >
+                  /app/zenhub-settings
+                </a>
+                <br />
+                <Text type="secondary" style={{ fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                  Repository IDs are automatically fetched from your workspace. If needed, set a default repository ID in Zenhub Settings.
+                </Text>
+              </div>
             </Card>
 
             {/* Notes Section */}
@@ -1420,6 +1537,148 @@ const ProjectEdit = ({ projectId, navigateToRoute }) => {
           projectName={projectData?.project_name || projectData?.name}
         />
       )}
+
+      {/* Zenhub Project ID Generation Result Modal */}
+      <Modal
+        title={
+          <Space>
+            <RocketOutlined style={{ color: zenhubResult?.success ? '#52c41a' : '#ff4d4f' }} />
+            <span>Zenhub Project ID Generation Result</span>
+          </Space>
+        }
+        open={zenhubResultModal}
+        onCancel={() => setZenhubResultModal(false)}
+        width={700}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setZenhubResultModal(false)}>
+            Close
+          </Button>
+        ]}
+      >
+        {zenhubResult && (
+          <div>
+            {zenhubResult.success ? (
+              <div>
+                <div style={{
+                  padding: '16px',
+                  background: '#f6ffed',
+                  border: '1px solid #b7eb8f',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Text strong style={{ color: '#52c41a', fontSize: '16px' }}>
+                      ✅ Successfully Generated Zenhub Project ID
+                    </Text>
+                    <div style={{ marginTop: '12px' }}>
+                      <Text strong>Project ID:</Text>
+                      <div style={{
+                        padding: '8px',
+                        background: '#fff',
+                        border: '1px solid #d9d9d9',
+                        borderRadius: '4px',
+                        marginTop: '4px',
+                        fontFamily: 'monospace',
+                        fontSize: '12px',
+                        wordBreak: 'break-all'
+                      }}>
+                        {zenhubResult.zenhub_project_id}
+                      </div>
+                    </div>
+                    {zenhubResult.message && (
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        {zenhubResult.message}
+                      </Text>
+                    )}
+                  </Space>
+                </div>
+
+                <div style={{
+                  padding: '12px',
+                  background: '#fafafa',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '6px',
+                  fontSize: '12px'
+                }}>
+                  <Text strong>API Response Details:</Text>
+                  <pre style={{
+                    marginTop: '8px',
+                    padding: '8px',
+                    background: '#fff',
+                    border: '1px solid #e8e8e8',
+                    borderRadius: '4px',
+                    overflow: 'auto',
+                    maxHeight: '200px',
+                    fontSize: '11px',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word'
+                  }}>
+                    {JSON.stringify(zenhubResult, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{
+                  padding: '16px',
+                  background: '#fff2f0',
+                  border: '1px solid #ffccc7',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Text strong style={{ color: '#ff4d4f', fontSize: '16px' }}>
+                      ❌ Failed to Generate Zenhub Project ID
+                    </Text>
+                    <div style={{ marginTop: '12px' }}>
+                      <Text strong>Error:</Text>
+                      <div style={{
+                        padding: '8px',
+                        background: '#fff',
+                        border: '1px solid #ffccc7',
+                        borderRadius: '4px',
+                        marginTop: '4px',
+                        color: '#ff4d4f'
+                      }}>
+                        {zenhubResult.error || 'Unknown error occurred'}
+                      </div>
+                    </div>
+                    {zenhubResult.error_type && (
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        Error Type: {zenhubResult.error_type}
+                      </Text>
+                    )}
+                  </Space>
+                </div>
+
+                <div style={{
+                  padding: '12px',
+                  background: '#fafafa',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '6px',
+                  fontSize: '12px'
+                }}>
+                  <Text strong>Full API Response:</Text>
+                  <pre style={{
+                    marginTop: '8px',
+                    padding: '8px',
+                    background: '#fff',
+                    border: '1px solid #e8e8e8',
+                    borderRadius: '4px',
+                    overflow: 'auto',
+                    maxHeight: '200px',
+                    fontSize: '11px',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word'
+                  }}>
+                    {JSON.stringify(zenhubResult, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

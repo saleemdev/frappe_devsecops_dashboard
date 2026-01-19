@@ -116,11 +116,17 @@ home_page = "index"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"Project": {
-# 		"after_save": "frappe_devsecops_dashboard.doc_hooks.project_user_permissions.handle_project_user_permissions"
-# 	}
-# }
+doc_events = {
+	"Software Product": {
+		"before_save": "frappe_devsecops_dashboard.doc_hooks.software_product_zenhub.handle_software_product_zenhub_workspace"
+	},
+	"Project": {
+		"before_save": "frappe_devsecops_dashboard.frappe_devsecops_dashboard.doctype.project_extension.project_extension.on_project_before_save"
+	},
+	"Task": {
+		"before_save": "frappe_devsecops_dashboard.frappe_devsecops_dashboard.doctype.task_extension.task_extension.on_task_before_save"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
@@ -221,7 +227,10 @@ whitelisted_methods = [
 	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_by_project",
 	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_by_epic",
 	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_team_utilization",
-	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_summary_with_filters"
+	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_summary_with_filters",
+	# ZenHub Project Creation Methods
+	"frappe_devsecops_dashboard.api.zenhub_workspace_setup.setup_product_workspace",
+	"frappe_devsecops_dashboard.api.zenhub_workspace_setup.test_create_project_in_workspace"
 ]
 
 # Build hooks for frontend assets
@@ -236,6 +245,8 @@ build_hooks = {
 # Run frontend build after migrations to ensure assets are always up-to-date
 after_migrate = [
 	"frappe_devsecops_dashboard.fixtures.add_zenhub_workspace_field.add_zenhub_workspace_field",
+	"frappe_devsecops_dashboard.fixtures.migrate_software_product_zenhub_field.migrate_software_product_zenhub_field",
+	"frappe_devsecops_dashboard.fixtures.add_zenhub_fields_to_product.add_zenhub_project_field_to_project",
 	"frappe_devsecops_dashboard.build.run_frontend_build",
 	"frappe_devsecops_dashboard.fixtures.add_zenhub_menu.add_zenhub_dashboard_menu"
 ]
@@ -245,4 +256,10 @@ after_migrate = [
 # Override default login page with custom login UI
 website_route_rules = [
 	{"from_route": "/login", "to_route": "login"},
+]
+
+# CLI Commands
+# -----------
+commands = [
+	"frappe_devsecops_dashboard.commands.setup_zenhub_workspace.setup_zenhub_workspace"
 ]

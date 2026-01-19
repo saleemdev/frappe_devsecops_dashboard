@@ -635,7 +635,7 @@ const ProjectDetail = ({ projectId, navigateToRoute }) => {
           <p><strong>Priority:</strong> ${values.priority || 'Medium'}</p>
           <p><strong>Status:</strong> ${values.status || 'Open'}</p>
           ${values.task_type ? `<p><strong>Type:</strong> ${values.task_type}</p>` : ''}
-          ${values.exp_end_date ? `<p><strong>Due Date:</strong> ${values.exp_end_date.format('YYYY-MM-DD')}</p>` : ''}
+          ${values.exp_end_date ? `<p><strong>Due Date:</strong> ${dayjs(values.exp_end_date).format('YYYY-MM-DD')}</p>` : ''}
           ${values.is_milestone ? `<p><strong>Milestone:</strong> Yes</p>` : ''}
         </div>
       `,

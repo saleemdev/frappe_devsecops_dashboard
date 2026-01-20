@@ -714,24 +714,29 @@ def get_zenhub_projects(workspace_id: str) -> Dict[str, Any]:
         workspace = data.get("workspace", {})
         issues = workspace.get("issues", {}).get("nodes", [])
         
-        # Filter for type == 'Project' (case insensitive)
+        # Filter for type == 'Project' (case insensitive) or PROJ- prefix in title
         projects = []
         for issue in issues:
-            # Check 'type' field if available, or labels
             issue_type = issue.get("type", "").lower() if issue.get("type") else ""
-            if issue_type == "project" or "project" in [l.get("name","").lower() for l in issue.get("labels", {}).get("nodes", [])]:
-                 projects.append({
-                     "id": issue.get("id"),
-                     "title": issue.get("title"),
-                     "number": issue.get("number"),
-                     "state": issue.get("state"),
-                     "estimate": issue.get("estimate", {}).get("value", 0),
-                     "htmlUrl": issue.get("htmlUrl")
-                 })
-        
-        # If no "Project" type found (maybe Zenhub schema differs), return all for now or empty?
-        # Let's try to match "Project" in title as a fallback if strict type not found? 
-        # No, strict is better.
+            issue_title = issue.get("title", "")
+            labels = [l.get("name", "").lower() for l in issue.get("labels", {}).get("nodes", [])]
+            
+            # Match by type, label, or PROJ- prefix
+            is_project = (
+                issue_type == "project" or
+                "project" in labels or
+                issue_title.upper().startswith("PROJ-")
+            )
+            
+            if is_project:
+                projects.append({
+                    "id": issue.get("id"),
+                    "title": issue_title,
+                    "number": issue.get("number"),
+                    "state": issue.get("state"),
+                    "estimate": issue.get("estimate", {}).get("value", 0) if issue.get("estimate") else 0,
+                    "htmlUrl": issue.get("htmlUrl")
+                })
         
         return {"success": True, "projects": projects}
     except Exception as e:

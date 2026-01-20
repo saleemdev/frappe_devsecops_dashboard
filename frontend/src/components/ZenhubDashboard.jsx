@@ -31,7 +31,9 @@ import {
   Alert,
   Divider,
   Tooltip,
-  Input
+  Input,
+  Breadcrumb,
+  Skeleton
 } from 'antd'
 import {
   BarChartOutlined,
@@ -54,13 +56,11 @@ const { Option } = Select
 const ZenhubDashboard = () => {
   const { setCurrentRoute } = useNavigationStore()
 
-  // --- State: Filters ---
+  // --- State: Filters & Context ---
   const [softwareProducts, setSoftwareProducts] = useState([])
   const [selectedProduct, setSelectedProduct] = useState(null) // { name, zenhub_workspace_id }
-
   const [projects, setProjects] = useState([]) // Zenhub Issues (type=Project)
   const [selectedProject, setSelectedProject] = useState(null) // ID
-
   const [epics, setEpics] = useState([]) // Children of selected Project
   const [selectedEpic, setSelectedEpic] = useState(null) // ID
 
@@ -72,6 +72,9 @@ const ZenhubDashboard = () => {
   const [searchText, setSearchText] = useState('')
   const [teamUtilization, setTeamUtilization] = useState([])
 
+  // Tracking the active hierarchy level for Breadcrumbs: 'product' | 'project' | 'epic'
+  const [activeLevel, setActiveLevel] = useState('product')
+
   // --- Initialization ---
   useEffect(() => {
     setCurrentRoute('zenhub-dashboard')
@@ -82,16 +85,15 @@ const ZenhubDashboard = () => {
 
   const loadSoftwareProducts = async () => {
     setLoading(true)
-    setLoadingText('Loading Software Products...')
+    setLoadingText('Connecting to Workspaces...')
     try {
       const response = await zenhubService.getSoftwareProducts()
       if (response.success && response.products) {
         const prodList = response.products
         setSoftwareProducts(prodList)
 
-        // Auto-select first if available
+        // Default Auto-load first product if available
         if (prodList.length > 0) {
-          // Pass the list directly to avoid stale state in handleProductChange
           selectProductInternal(prodList[0].name, prodList)
         }
       } else {
@@ -99,77 +101,79 @@ const ZenhubDashboard = () => {
       }
     } catch (err) {
       console.error('[ZenhubDashboard] Error loading software products:', err)
-      const errorMsg = err.message || (typeof err === 'string' ? err : 'Unknown error')
-      const errorDetails = err.data?.exception || err.data?.message || ''
-      setError(`Error loading software products: ${errorMsg} ${errorDetails}`)
+      setError(`Critical Error: Could not initialize product list. ${err.message || ''}`)
     } finally {
       setLoading(false)
     }
   }
 
-  const loadProjects = async (workspaceId) => {
+  const loadProductView = async (workspaceId) => {
     setLoading(true)
-    setLoadingText('Loading Projects...')
+    setLoadingText('Fetching Workspace Aggregate...')
     setProjects([])
     setEpics([])
     setCurrentIssues([])
+    setActiveLevel('product')
     try {
-      // Fetch Projects (Issues of type Project)
+      // 1. Fetch Projects
       const response = await zenhubService.getZenhubProjects(workspaceId)
       if (response.success) {
         const projList = response.projects || []
         setProjects(projList)
         setCurrentIssues(projList)
 
-        // Also fetch Team Utilization for the workspace context
+        // 2. Fetch Team Utilization
         const teamResp = await zenhubService.getTeamUtilization(workspaceId)
         if (teamResp.success) {
           setTeamUtilization(teamResp.team_members || [])
         }
-      } else {
-        // Fallback or error handling
-        console.warn('Failed to load projects:', response.error)
+
+        // 3. Pre-load Epics for the workspace context if needed
+        const epicsResp = await zenhubService.getEpics(workspaceId)
+        if (epicsResp.success) {
+          setEpics(epicsResp.epics || [])
+        }
       }
     } catch (err) {
       console.error(err)
-      setError('Error loading projects')
+      setError('Error loading product lifecycle data.')
     } finally {
       setLoading(false)
     }
   }
 
-  const loadEpics = async (projectId) => {
+  const loadProjectView = async (projectId) => {
     setLoading(true)
-    setLoadingText('Loading Epics...')
-    setEpics([])
-    setCurrentIssues([])
+    setLoadingText('Drilling into Project Detail...')
+    setActiveLevel('project')
     try {
       // Fetch children of the Project Issue -> these are our Epics
       const response = await zenhubService.getIssuesByEpic(projectId)
       if (response.success) {
-        setEpics(response.issues || [])
-        // When a project is selected, the "issues" context is the list of Epics
+        // In Project view, current context is the list of child Epics
         setCurrentIssues(response.issues || [])
       }
     } catch (err) {
       console.error(err)
-      setError('Error loading epics')
+      setError('Error loading project epics')
     } finally {
       setLoading(false)
     }
   }
 
-  const loadTasks = async (epicId) => {
+  const loadEpicView = async (epicId) => {
     setLoading(true)
-    setLoadingText('Loading Tasks...')
+    setLoadingText('Gathering Epic Tasks...')
+    setActiveLevel('epic')
     try {
       const response = await zenhubService.getIssuesByEpic(epicId)
       if (response.success) {
+        // In Epic view, current context is the list of child Tasks
         setCurrentIssues(response.issues || [])
       }
     } catch (err) {
       console.error(err)
-      setError('Error loading tasks')
+      setError('Error loading epic tasks')
     } finally {
       setLoading(false)
     }
@@ -194,9 +198,9 @@ const ZenhubDashboard = () => {
     setError(null)
 
     if (product && product.zenhub_workspace_id) {
-      loadProjects(product.zenhub_workspace_id)
+      loadProductView(product.zenhub_workspace_id)
     } else if (product) {
-      setError('Selected product does not have a Zenhub Workspace ID configured.')
+      setError(`Configuration Warning: Product "${product.product_name}" has no Zenhub Workspace ID.`)
     }
   }
 
@@ -205,10 +209,9 @@ const ZenhubDashboard = () => {
     setSelectedEpic(null)
     setSearchText('')
     if (projectId) {
-      loadEpics(projectId)
-    } else {
-      setEpics([])
-      setCurrentIssues([])
+      loadProjectView(projectId)
+    } else if (selectedProduct) {
+      loadProductView(selectedProduct.zenhub_workspace_id)
     }
   }
 
@@ -216,37 +219,35 @@ const ZenhubDashboard = () => {
     setSelectedEpic(epicId)
     setSearchText('')
     if (epicId) {
-      loadTasks(epicId)
+      loadEpicView(epicId)
     } else if (selectedProject) {
-      // Revert to showing Epics if Epic deselected
-      loadEpics(selectedProject)
+      loadProjectView(selectedProject)
+    } else if (selectedProduct) {
+      loadProductView(selectedProduct.zenhub_workspace_id)
     }
   }
 
   const handleRefresh = () => {
-    if (selectedEpic) loadTasks(selectedEpic)
-    else if (selectedProject) loadEpics(selectedProject)
-    else if (selectedProduct) loadProjects(selectedProduct.zenhub_workspace_id)
+    if (selectedEpic) loadEpicView(selectedEpic)
+    else if (selectedProject) loadProjectView(selectedProject)
+    else if (selectedProduct) loadProductView(selectedProduct.zenhub_workspace_id)
     else loadSoftwareProducts()
   }
 
   // --- Metrics Calculation ---
 
   const metrics = useMemo(() => {
-    // Return zeros instead of null if we have a context (product), but no issues yet
     if (!selectedProduct) return null
 
     const total = currentIssues.length
     const completed = currentIssues.filter(i => i.state === 'CLOSED').length
     const points = currentIssues.reduce((acc, i) => acc + (i.estimate || 0), 0)
 
-    // Calculate blocked
     const blocked = currentIssues.filter(i =>
       (i.blockedBy && i.blockedBy.length > 0) ||
       (i.pipeline && (i.pipeline.toLowerCase().includes('block') || i.pipeline.toLowerCase().includes('hold')))
     ).length
 
-    // Pipeline distribution
     const pipelineCounts = currentIssues.reduce((acc, i) => {
       const p = i.pipeline || 'Unknown'
       acc[p] = (acc[p] || 0) + 1
@@ -263,64 +264,120 @@ const ZenhubDashboard = () => {
     }
   }, [currentIssues, selectedProduct])
 
-
   // --- Render Helpers ---
 
+  const renderBreadcrumbs = () => {
+    if (!selectedProduct) return null
+
+    const items = [
+      {
+        title: <Space><ProjectOutlined /> Workspaces</Space>,
+        onClick: () => handleProductChange(null),
+        className: 'clickable-breadcrumb'
+      },
+      {
+        title: selectedProduct.product_name,
+        onClick: () => handleProductChange(selectedProduct.name),
+        className: 'clickable-breadcrumb'
+      }
+    ]
+
+    if (selectedProject) {
+      const proj = projects.find(p => p.id === selectedProject)
+      items.push({
+        title: proj?.title || 'Project',
+        onClick: () => handleProjectChange(selectedProject),
+        className: 'clickable-breadcrumb'
+      })
+    }
+
+    if (selectedEpic) {
+      const epic = currentIssues.find(e => e.id === selectedEpic) || epics.find(e => e.id === selectedEpic)
+      items.push({ title: epic?.title || 'Epic' })
+    }
+
+    return (
+      <Breadcrumb
+        items={items}
+        style={{ marginBottom: 16, fontSize: 13, color: '#8c8c8c' }}
+      />
+    )
+  }
+
   const renderFilters = () => (
-    <Card style={{ marginBottom: 16, borderRadius: 8 }}>
+    <div className="professional-filter-bar">
       <Row gutter={16} align="middle">
-        <Col xs={24} md={8}>
-          <Text strong>Software Product (Workspace)</Text>
-          <Select
-            showSearch
-            style={{ width: '100%', marginTop: 8 }}
-            placeholder="Select Product"
-            onChange={handleProductChange}
-            value={selectedProduct?.name}
-            loading={loading && !softwareProducts.length}
-            optionFilterProp="children"
-          >
-            {softwareProducts.map(p => (
-              <Option key={p.name} value={p.name}>{p.product_name}</Option>
-            ))}
-          </Select>
+        <Col flex="auto">
+          <Space size="large">
+            <div className="filter-group">
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>PRODUCT</Text>
+              <Select
+                showSearch
+                className="glass-select"
+                style={{ width: 220 }}
+                placeholder="Select Product"
+                onChange={handleProductChange}
+                value={selectedProduct?.name}
+                loading={loading && !softwareProducts.length}
+                optionFilterProp="children"
+              >
+                {softwareProducts.map(p => (
+                  <Option key={p.name} value={p.name}>{p.product_name}</Option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="filter-group">
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>PROJECT</Text>
+              <Select
+                showSearch
+                className="glass-select"
+                style={{ width: 220 }}
+                placeholder="All Projects"
+                onChange={handleProjectChange}
+                value={selectedProject}
+                disabled={!projects.length}
+                allowClear
+                optionFilterProp="children"
+              >
+                {projects.map(p => (
+                  <Option key={p.id} value={p.id}>{p.title}</Option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="filter-group">
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>EPIC</Text>
+              <Select
+                showSearch
+                className="glass-select"
+                style={{ width: 220 }}
+                placeholder="All Epics"
+                onChange={handleEpicChange}
+                value={selectedEpic}
+                disabled={!epics.length}
+                allowClear
+                optionFilterProp="children"
+              >
+                {epics.map(e => (
+                  <Option key={e.id} value={e.id}>{e.title}</Option>
+                ))}
+              </Select>
+            </div>
+          </Space>
         </Col>
-        <Col xs={24} md={8}>
-          <Text strong>Project</Text>
-          <Select
-            showSearch
-            style={{ width: '100%', marginTop: 8 }}
-            placeholder={selectedProduct ? "Select Project" : "Select Product First"}
-            onChange={handleProjectChange}
-            value={selectedProject}
-            disabled={!projects.length}
-            allowClear
-            optionFilterProp="children"
+        <Col>
+          <Button
+            type="text"
+            icon={<ReloadOutlined spin={loading} />}
+            onClick={handleRefresh}
+            className="refresh-btn-minimal"
           >
-            {projects.map(p => (
-              <Option key={p.id} value={p.id}>{p.title}</Option>
-            ))}
-          </Select>
-        </Col>
-        <Col xs={24} md={8}>
-          <Text strong>Epic</Text>
-          <Select
-            showSearch
-            style={{ width: '100%', marginTop: 8 }}
-            placeholder={selectedProject ? "Select Epic" : "Select Project First"}
-            onChange={handleEpicChange}
-            value={selectedEpic}
-            disabled={!epics.length}
-            allowClear
-            optionFilterProp="children"
-          >
-            {epics.map(e => (
-              <Option key={e.id} value={e.id}>{e.title}</Option>
-            ))}
-          </Select>
+            Sync Data
+          </Button>
         </Col>
       </Row>
-    </Card>
+    </div>
   )
 
   const renderMetrics = () => {
@@ -328,224 +385,336 @@ const ZenhubDashboard = () => {
     return (
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className="metric-card">
+          <div className="glass-metric-card completion">
             <Statistic
-              title="Completion Status"
+              title={<span className="stat-label">Completion Velocity</span>}
               value={metrics.progress}
               suffix="%"
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+              prefix={<RiseOutlined />}
             />
-            <Progress percent={metrics.progress} size="small" showInfo={false} strokeColor="#52c41a" />
-            <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
-              {metrics.completed} / {metrics.total} items completed
+            <Progress
+              percent={metrics.progress}
+              size="small"
+              strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }}
+              className="mt-2"
+            />
+            <div className="stat-footer">
+              <CheckCircleOutlined /> {metrics.completed} / {metrics.total} Resolved
             </div>
-          </Card>
+          </div>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className="metric-card">
+          <div className="glass-metric-card estimates">
             <Statistic
-              title="Total Estimates"
+              title={<span className="stat-label">Total Estimates</span>}
               value={metrics.points}
-              prefix={<RiseOutlined style={{ color: '#1890ff' }} />}
-              suffix="Pts"
+              prefix={<ClockCircleOutlined />}
+              suffix={<span style={{ fontSize: 14 }}>SP</span>}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>Total effort across {metrics.total} items</Text>
-          </Card>
+            <div className="stat-footer">
+              Across {metrics.total} scope items
+            </div>
+          </div>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className="metric-card">
+          <div className="glass-metric-card risk">
             <Statistic
-              title="Blockers"
+              title={<span className="stat-label">Blocked / Risks</span>}
               value={metrics.blocked}
-              valueStyle={{ color: metrics.blocked > 0 ? '#cf1322' : '#3f8600' }}
               prefix={<WarningOutlined />}
+              className={metrics.blocked > 0 ? 'text-danger' : 'text-success'}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>Blocked items requiring attention</Text>
-          </Card>
+            <div className="stat-footer">
+              {metrics.blocked > 0 ? "Action required" : "Healthy Pipeline"}
+            </div>
+          </div>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card bordered={false} className="metric-card">
-            <Title level={5} style={{ marginTop: 0, marginBottom: 16 }}>Pipeline Status</Title>
-            <Space direction="vertical" style={{ width: '100%' }}>
+          <div className="glass-metric-card pipelines">
+            <Title level={5} style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 12 }}>Pipeline Map</Title>
+            <div className="pipeline-mini-list">
               {Object.entries(metrics.pipelineCounts).slice(0, 3).map(([pipeline, count]) => (
-                <Row key={pipeline} justify="space-between">
-                  <Text>{pipeline}</Text>
-                  <Tag>{count}</Tag>
-                </Row>
+                <div key={pipeline} className="pipeline-row">
+                  <Text style={{ color: '#eee', fontSize: 12 }}>{pipeline}</Text>
+                  <Tag color="rgba(255,255,255,0.1)" style={{ border: 'none', color: '#fff' }}>{count}</Tag>
+                </div>
               ))}
-            </Space>
-          </Card>
+            </div>
+          </div>
         </Col>
       </Row>
     )
   }
 
-  const renderContent = () => {
-    if (loading) {
-      return <div style={{ textAlign: 'center', padding: 50 }}><Spin size="large" tip={loadingText} /></div>
-    }
-
-    if (error) {
-      return <Alert message="Error" description={error} type="error" showIcon style={{ marginBottom: 16 }} />
-    }
-
-    if (!selectedProduct) {
-      return (
-        <div style={{ padding: '100px 0' }}>
-          <Empty
-            description={
-              <Space direction="vertical">
-                <Text type="secondary">Select a Software Product to view its Zenhub lifecycle</Text>
-                {!softwareProducts.length && !loading && (
-                  <Alert message="No Software Products found with Zenhub configuration." type="warning" showIcon />
-                )}
-              </Space>
-            }
-          />
-        </div>
-      )
-    }
-
-    if (!projects.length && !loading && !currentIssues.length) {
-      return (
-        <div style={{ padding: '60px 0' }}>
-          <Empty description="No Projects or Issues found for this selection." />
-        </div>
-      )
-    }
-
-    // Columns for the issues table
+  const renderTableContent = () => {
     const columns = [
       {
-        title: 'ID',
-        dataIndex: 'number',
-        width: 80,
-        render: (text, record) => <a href={record.htmlUrl} target="_blank" rel="noopener noreferrer">#{text}</a>
-      },
-      {
-        title: 'Title',
-        dataIndex: 'title',
-        render: (text) => <Text strong>{text}</Text>
-      },
-      {
-        title: 'State',
+        title: 'STATUS',
         dataIndex: 'state',
         width: 100,
-        render: (state) => <Tag color={state === 'CLOSED' ? 'green' : 'blue'}>{state}</Tag>
+        render: (state) => (
+          <Tag color={state === 'CLOSED' ? '#e6f7ff' : '#f9f0ff'} style={{ border: 'none', color: state === 'CLOSED' ? '#1890ff' : '#722ed1', fontWeight: 600 }}>
+            {state}
+          </Tag>
+        )
       },
       {
-        title: 'Pipeline',
+        title: 'REFERENCE',
+        dataIndex: 'number',
+        width: 110,
+        render: (text, record) => <a href={record.htmlUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#1890ff', opacity: 0.8 }}>#{text}</a>
+      },
+      {
+        title: 'TITLE',
+        dataIndex: 'title',
+        render: (text) => <Text strong style={{ color: '#262626' }}>{text}</Text>
+      },
+      {
+        title: 'PIPELINE',
         dataIndex: 'pipeline',
         width: 150,
-        render: v => v ? <Tag>{v}</Tag> : '-'
+        render: v => v ? <Tag style={{ borderRadius: 12, border: '1px solid #f0f0f0' }}>{v}</Tag> : '-'
       },
       {
-        title: 'Estimates',
+        title: 'ESTIMATE',
         dataIndex: 'estimate',
-        width: 100,
-        render: v => v ? <Tag color="geekblue">{v} Pts</Tag> : '-'
-      },
-      {
-        title: 'Assignees',
-        dataIndex: 'assignees',
-        render: (assignees) => (
-          <Space wrap>
-            {assignees && assignees.map(a => <Tag key={a}>{a}</Tag>)}
-          </Space>
-        )
+        width: 110,
+        render: v => v ? <Text strong style={{ color: '#595959' }}>{v} Pts</Text> : <Text type="secondary">0 Pts</Text>
       }
     ]
 
     return (
-      <>
-        {renderMetrics()}
-
-        <Row gutter={16}>
-          <Col span={16}>
-            <Card
-              title={
-                <Row justify="space-between" align="middle" style={{ width: '100%' }}>
-                  <Col>
-                    {selectedEpic ? "Tasks" : (selectedProject ? "Epics" : "Projects")}
-                  </Col>
-                  <Col>
-                    <Input.Search
-                      placeholder="Search items..."
-                      allowClear
-                      onSearch={setSearchText}
-                      onChange={e => setSearchText(e.target.value)}
-                      style={{ width: 250 }}
-                    />
-                  </Col>
-                </Row>
-              }
-              className="shadow-sm"
-              bodyStyle={{ padding: 0 }}
-            >
-              <Table
-                dataSource={currentIssues.filter(i =>
-                  i.title?.toLowerCase().includes(searchText.toLowerCase()) ||
-                  i.number?.toString().includes(searchText) ||
-                  i.state?.toLowerCase().includes(searchText.toLowerCase()) ||
-                  i.pipeline?.toLowerCase().includes(searchText.toLowerCase())
-                )}
-                columns={columns}
-                rowKey="id"
-                pagination={{ pageSize: 10 }}
-                locale={{ emptyText: <Empty description="No matching items found" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+      <Card
+        className="professional-data-card"
+        title={
+          <Row justify="space-between" align="middle" style={{ width: '100%' }}>
+            <Col>
+              <Text strong style={{ fontSize: 16 }}>
+                {activeLevel === 'product' ? 'Product Projects' : (activeLevel === 'project' ? 'Project Epics' : 'Epic Tasks')}
+              </Text>
+              <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>({currentIssues.length} items)</Text>
+            </Col>
+            <Col>
+              <Input.Search
+                placeholder="Search by title, ID, or status..."
+                allowClear
+                onChange={e => setSearchText(e.target.value)}
+                style={{ width: 280 }}
+                className="clean-search"
               />
-            </Card>
-          </Col>
-          <Col span={8}>
-            <Card title="Team Utilization" className="shadow-sm">
-              {teamUtilization.length > 0 ? (
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {teamUtilization.map(member => (
-                    <div key={member.id} style={{ marginBottom: 12 }}>
-                      <Row justify="space-between">
-                        <Text strong>{member.name}</Text>
-                        <Text type="secondary">{member.story_points} Pts</Text>
-                      </Row>
-                      <Progress
-                        percent={member.task_completion_percentage || 0}
-                        status="active"
-                        size="small"
-                      />
-                    </div>
-                  ))}
-                </Space>
-              ) : (
-                <Empty description="No team data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-              )}
-            </Card>
-          </Col>
-        </Row>
-      </>
+            </Col>
+          </Row>
+        }
+        bodyStyle={{ padding: 0 }}
+      >
+        <Table
+          dataSource={currentIssues.filter(i =>
+            i.title?.toLowerCase().includes(searchText.toLowerCase()) ||
+            i.number?.toString().includes(searchText) ||
+            i.state?.toLowerCase().includes(searchText.toLowerCase()) ||
+            i.pipeline?.toLowerCase().includes(searchText.toLowerCase())
+          )}
+          columns={columns}
+          rowKey="id"
+          pagination={{ pageSize: 8, showSizeChanger: false }}
+          locale={{ emptyText: <Empty description="No matching records found" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        />
+      </Card>
     )
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
-        <Col>
-          <Title level={2} style={{ marginBottom: 0 }}>
-            <ProjectOutlined style={{ marginRight: 8 }} />
-            Stakeholder Dashboard
-          </Title>
-          <Text type="secondary">Zenhub Integration & Metrics</Text>
-        </Col>
-        <Col>
-          <Space>
-            {(selectedProject || selectedEpic) && (
-              <Button onClick={() => handleProductChange(selectedProduct.name)}>Clear Filters</Button>
-            )}
-            <Button icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
-          </Space>
-        </Col>
-      </Row>
+    <div className="zenhub-dashboard-container">
+      {/* Dynamic Header */}
+      <div className="dashboard-header">
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Title level={3} style={{ margin: 0, letterSpacing: -0.5 }}>
+              Precision Dashboard
+            </Title>
+            <Text type="secondary" style={{ fontSize: 12 }}>Strategic Oversight & Zenhub Lifecycle</Text>
+          </Col>
+          <Col>
+            {renderFilters()}
+          </Col>
+        </Row>
+      </div>
 
-      {renderFilters()}
-      {renderContent()}
+      <Divider style={{ margin: '16px 0' }} />
+
+      {/* Main Viewport */}
+      <div className="dashboard-viewport">
+        {renderBreadcrumbs()}
+
+        {loading ? (
+          <div style={{ background: '#fff', padding: 32, borderRadius: 12 }}>
+            <Skeleton active avatar paragraph={{ rows: 2 }} />
+            <Divider />
+            <Skeleton active paragraph={{ rows: 8 }} />
+          </div>
+        ) : error ? (
+          <Alert message="Workspace Insight Interrupted" description={error} type="error" showIcon closable onClose={() => setError(null)} />
+        ) : !selectedProduct ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_DEFAULT}
+            description={<Text type="secondary">Connect a Workspace to Begin Strategic Analysis</Text>}
+            style={{ marginTop: 100 }}
+          />
+        ) : (
+          <>
+            {renderMetrics()}
+            <Row gutter={16}>
+              <Col span={17}>
+                {renderTableContent()}
+              </Col>
+              <Col span={7}>
+                <Card title={<Space><TeamOutlined /> Team Velocity</Space>} className="professional-data-card">
+                  {teamUtilization.length > 0 ? (
+                    <div className="team-scroll-area">
+                      {teamUtilization.map(member => (
+                        <div key={member.id} className="team-member-row">
+                          <Row justify="space-between" align="middle" style={{ marginBottom: 4 }}>
+                            <Text strong style={{ fontSize: 13 }}>{member.name}</Text>
+                            <Text type="secondary" style={{ fontSize: 11 }}>{member.story_points} Pts</Text>
+                          </Row>
+                          <Progress
+                            percent={member.task_completion_percentage || 0}
+                            strokeColor={member.task_completion_percentage > 80 ? '#52c41a' : '#1890ff'}
+                            trailColor="#f5f5f5"
+                            strokeWidth={6}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Empty description="No utility data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  )}
+                </Card>
+
+                <Card
+                  title={<Space><BarChartOutlined /> Health Index</Space>}
+                  className="professional-data-card mt-3"
+                  style={{ marginTop: 16 }}
+                >
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <Progress
+                      type="dashboard"
+                      percent={metrics?.progress || 0}
+                      strokeColor={{ '0%': '#ff4d4f', '50%': '#faad14', '100%': '#52c41a' }}
+                      width={120}
+                      format={p => <div style={{ fontSize: 24, fontWeight: 'bold' }}>{p}%<div style={{ fontSize: 11, fontWeight: 'normal', color: '#999' }}>Health</div></div>}
+                    />
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+          </>
+        )}
+      </div>
+
+      <style jsx="true">{`
+        .zenhub-dashboard-container {
+          padding: 24px;
+          background: #fafafa;
+          min-height: 100vh;
+        }
+        .dashboard-header {
+          margin-bottom: 8px;
+        }
+        .professional-filter-bar {
+          background: #fff;
+          padding: 12px 20px;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+          border: 1px solid #f0f0f0;
+        }
+        .filter-group {
+          line-height: 1.2;
+        }
+        .glass-select .ant-select-selector {
+          border-radius: 8px !important;
+          border: 1px solid #d9d9d9 !important;
+          background: #fdfdfd !important;
+        }
+        .refresh-btn-minimal {
+          color: #1890ff;
+          font-weight: 500;
+          font-size: 13px;
+        }
+        
+        /* Glassmorphism Metrics */
+        .glass-metric-card {
+          padding: 20px;
+          border-radius: 16px;
+          color: #fff;
+          box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          min-height: 140px;
+        }
+        .glass-metric-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+        }
+        .glass-metric-card.completion { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); }
+        .glass-metric-card.estimates { background: linear-gradient(135deg, #485563 0%, #29323c 100%); }
+        .glass-metric-card.risk { background: linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%); }
+        .glass-metric-card.pipelines { background: linear-gradient(135deg, #5c258d 0%, #4389a2 100%); }
+        
+        .stat-label { color: rgba(255,255,255,0.7); font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        .glass-metric-card .ant-statistic-content { color: #fff !important; font-weight: 700; margin-top: 4px; }
+        .glass-metric-card .ant-statistic-title { margin-bottom: 0; }
+        
+        .stat-footer {
+          margin-top: 12px;
+          font-size: 11px;
+          color: rgba(255,255,255,0.6);
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        
+        .pipeline-mini-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .pipeline-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .professional-data-card {
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+          border: 1px solid #f0f0f0;
+        }
+        .ant-table-thead > tr > th {
+          background: #fafafa !important;
+          font-size: 11px;
+          letter-spacing: 0.5px;
+          color: #8c8c8c !important;
+          text-transform: uppercase;
+        }
+        
+        .team-member-row {
+          padding-bottom: 12px;
+          margin-bottom: 12px;
+          border-bottom: 1px solid #f9f9f9;
+        }
+        .team-member-row:last-child {
+          border-bottom: none;
+        }
+        
+        .clickable-breadcrumb {
+          cursor: pointer;
+          transition: color 0.2s;
+        }
+        .clickable-breadcrumb:hover {
+          color: #1890ff !important;
+        }
+      `}</style>
     </div>
   )
 }

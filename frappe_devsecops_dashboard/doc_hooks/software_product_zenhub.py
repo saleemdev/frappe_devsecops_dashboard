@@ -40,7 +40,14 @@ def search_workspace_by_name(workspace_name: str) -> dict:
     """
     
     try:
-        result = execute_graphql_query(query, {"query": workspace_name})
+        result = execute_graphql_query(
+            query,
+            {"query": workspace_name},
+            log_to_db=True,
+            reference_doctype="Software Product",
+            reference_docname=workspace_name,
+            operation_name="searchWorkspaces"
+        )
         
         if "viewer" in result and "searchWorkspaces" in result["viewer"]:
             workspaces = result["viewer"]["searchWorkspaces"].get("nodes", [])
@@ -152,7 +159,14 @@ def create_zenhub_workspace(workspace_name: str, description: str = None) -> dic
     }
     
     try:
-        result = execute_graphql_query(mutation, variables)
+        result = execute_graphql_query(
+            mutation,
+            variables,
+            log_to_db=True,
+            reference_doctype="Software Product",
+            reference_docname=workspace_name,
+            operation_name="createWorkspace"
+        )
         
         # Check for GraphQL errors at the top level
         if "errors" in result:

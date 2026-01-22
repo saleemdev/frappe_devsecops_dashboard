@@ -8,7 +8,9 @@ Creates a Zenhub Issue of type Epic when a Task is saved
 
 import frappe
 import requests
+import time
 from typing import Optional
+from frappe_devsecops_dashboard.api.zenhub_graphql_logger import execute_graphql_query_with_logging
 
 
 def create_zenhub_epic_issue(
@@ -87,21 +89,19 @@ def create_zenhub_epic_issue(
         frappe.logger().info(f"[create_zenhub_epic_issue] Parent Issue ID: {parent_issue_id}")
         frappe.logger().info(f"[create_zenhub_epic_issue] Issue Type ID: {EPIC_ISSUE_TYPE_ID}")
 
-        response = requests.post(
-            url,
-            json={"query": mutation, "variables": variables},
-            headers=headers,
-            timeout=30
+        # Use logging wrapper for API call
+        data, success = execute_graphql_query_with_logging(
+            query=mutation,
+            variables=variables,
+            reference_doctype="Task",
+            reference_docname=task_id,
+            operation_name="createEpicIssue",
+            operation_type="Mutation",
+            token=token
         )
-        
-        # Log response details
-        frappe.logger().info(f"[create_zenhub_epic_issue] HTTP Status: {response.status_code}")
-        
-        try:
-            data = response.json()
-        except Exception as json_error:
-            frappe.logger().error(f"[create_zenhub_epic_issue] Failed to parse JSON response: {str(json_error)}")
-            frappe.logger().error(f"[create_zenhub_epic_issue] Raw response: {response.text[:500]}")
+
+        if not success:
+            frappe.logger().error(f"[create_zenhub_epic_issue] API call failed (logged to Zenhub GraphQL API Log)")
             return None
 
         frappe.logger().info(f"[create_zenhub_epic_issue] Full API Response: {frappe.as_json(data, indent=2)}")

@@ -13,6 +13,7 @@ import requests
 import base64
 import json as json_lib
 from typing import Dict, List, Optional, Any, Union
+from frappe_devsecops_dashboard.api.zenhub_api_decorator import log_zenhub_api_call
 
 # Zenhub GraphQL API endpoint
 ZENHUB_GRAPHQL_ENDPOINT = "https://api.zenhub.com/public/graphql"
@@ -220,13 +221,24 @@ def process_assignees_from_zenhub(assignees: List[Dict[str, Any]]) -> List[Dict[
     return processed
 
 
-def execute_graphql_query(query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
+def execute_graphql_query(
+    query: str,
+    variables: Dict[str, Any],
+    log_to_db: bool = False,
+    reference_doctype: Optional[str] = None,
+    reference_docname: Optional[str] = None,
+    operation_name: Optional[str] = None
+) -> Dict[str, Any]:
     """
-    Execute a GraphQL query against the Zenhub API.
+    Execute a GraphQL query against the Zenhub API with optional logging.
 
     Args:
         query (str): The GraphQL query string
         variables (dict): Variables for the GraphQL query
+        log_to_db (bool): Whether to log this query to Zenhub GraphQL API Log
+        reference_doctype (str): DocType for logging (if log_to_db=True)
+        reference_docname (str): Document name for logging (if log_to_db=True)
+        operation_name (str): Name of the operation for logging (if log_to_db=True)
 
     Returns:
         dict: The GraphQL response data
@@ -236,6 +248,35 @@ def execute_graphql_query(query: str, variables: Dict[str, Any]) -> Dict[str, An
         frappe.AuthenticationError: For authentication failures
         frappe.ValidationError: For invalid responses
     """
+    # If logging is enabled, use the logging wrapper
+    if log_to_db and reference_doctype and reference_docname and operation_name:
+        from frappe_devsecops_dashboard.api.zenhub_graphql_logger import execute_graphql_query_with_logging
+
+        # Determine operation type from query
+        operation_type = "Query" if query.strip().startswith("query") else "Mutation"
+
+        data, success = execute_graphql_query_with_logging(
+            query=query,
+            variables=variables,
+            reference_doctype=reference_doctype,
+            reference_docname=reference_docname,
+            operation_name=operation_name,
+            operation_type=operation_type
+        )
+
+        if not success:
+            # Extract error from response
+            if "errors" in data:
+                error_messages = [err.get("message", "Unknown error") for err in data.get("errors", [])]
+                frappe.throw(", ".join(error_messages), frappe.ValidationError)
+            elif "error" in data:
+                frappe.throw(data["error"], frappe.ValidationError)
+            else:
+                frappe.throw("GraphQL query failed", frappe.ValidationError)
+
+        return data.get("data", {})
+
+    # Original implementation (without logging)
     token = get_zenhub_token()
 
     headers = {
@@ -710,7 +751,14 @@ def get_zenhub_projects(workspace_id: str) -> Dict[str, Any]:
     """
     query = get_workspace_issues_query() # Reusing general issue query
     try:
-        data = execute_graphql_query(query, {"workspaceId": workspace_id})
+        data = execute_graphql_query(
+            query,
+            {"workspaceId": workspace_id},
+            log_to_db=True,
+            reference_doctype="Software Product",
+            reference_docname=workspace_id,
+            operation_name="getZenhubProjects"
+        )
         workspace = data.get("workspace", {})
         issues = workspace.get("issues", {}).get("nodes", [])
         
@@ -749,7 +797,14 @@ def get_epics(workspace_id: str) -> Dict[str, Any]:
     """
     try:
         query = get_epics_query()
-        data = execute_graphql_query(query, {"workspaceId": workspace_id})
+        data = execute_graphql_query(
+            query,
+            {"workspaceId": workspace_id},
+            log_to_db=True,
+            reference_doctype="Software Product",
+            reference_docname=workspace_id,
+            operation_name="getEpics"
+        )
         epics = data.get("workspace", {}).get("epics", {}).get("nodes", [])
         
         processed_epics = []
@@ -776,7 +831,14 @@ def get_issues_by_epic(zenhub_issue_id: str) -> Dict[str, Any]:
     """
     try:
         query = get_issues_by_epic_query()
-        data = execute_graphql_query(query, {"zenhubIssueId": zenhub_issue_id})
+        data = execute_graphql_query(
+            query,
+            {"zenhubIssueId": zenhub_issue_id},
+            log_to_db=True,
+            reference_doctype="Task",
+            reference_docname=zenhub_issue_id,
+            operation_name="getIssuesByEpic"
+        )
         issue = data.get("issue", {})
         child_issues = issue.get("childIssues", {}).get("nodes", [])
         
@@ -1229,6 +1291,11 @@ def transform_stakeholder_sprint_data(sprint: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+@log_zenhub_api_call(
+    operation_name="getSprintData",
+    reference_doctype="Project",
+    get_reference_docname=lambda kwargs: kwargs.get("project_id", "Unknown")
+)
 def get_sprint_data(project_id: str, sprint_states: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
     """
     Fetch sprint data from Zenhub for a given project.
@@ -1321,7 +1388,14 @@ def get_sprint_data(project_id: str, sprint_states: Optional[str] = None, force_
 
         try:
             query = get_workspace_issues_query()
-            response_data = execute_graphql_query(query, variables)
+            response_data = execute_graphql_query(
+                query,
+                variables,
+                log_to_db=True,
+                reference_doctype="Project",
+                reference_docname=project_id,
+                operation_name="getWorkspaceIssuesForSprint"
+            )
         except Exception as e:
             frappe.log_error(
                 title="Zenhub Workspace Issues Query Failed",
@@ -1464,7 +1538,14 @@ def get_workspace_issues(project_id: str, page_size: int = 100) -> Dict[str, Any
         # Execute GraphQL query
         query = get_workspace_issues_query()
         variables = {"workspaceId": workspace_id, "first": int(page_size)}
-        response_data = execute_graphql_query(query, variables)
+        response_data = execute_graphql_query(
+            query,
+            variables,
+            log_to_db=True,
+            reference_doctype="Project",
+            reference_docname=project_id,
+            operation_name="getProjectIssues"
+        )
 
         # Extract workspace and issues
         workspace = response_data.get("workspace", {})
@@ -1523,6 +1604,11 @@ def get_workspace_issues(project_id: str, page_size: int = 100) -> Dict[str, Any
 
 
 @frappe.whitelist()
+@log_zenhub_api_call(
+    operation_name="getStakeholderSprintReport",
+    reference_doctype="Project",
+    get_reference_docname=lambda kwargs: kwargs.get("project_id", "Unknown")
+)
 def get_stakeholder_sprint_report(project_id: str, force_refresh: bool = False) -> Dict[str, Any]:
     """
     Fetch simplified stakeholder-focused sprint report from Zenhub.
@@ -1600,7 +1686,14 @@ def get_stakeholder_sprint_report(project_id: str, force_refresh: bool = False) 
         # Execute GraphQL query
         query = get_stakeholder_sprint_query()
         variables = {"workspaceId": workspace_id}
-        response_data = execute_graphql_query(query, variables)
+        response_data = execute_graphql_query(
+            query,
+            variables,
+            log_to_db=True,
+            reference_doctype="Project",
+            reference_docname=project_id,
+            operation_name="getStakeholderSprintData"
+        )
 
         # Extract workspace and sprints
         workspace = response_data.get("workspace", {})
@@ -1676,9 +1769,16 @@ def get_workspace_summary(workspace_id: str, project_id: Optional[str] = None) -
                 "error_type": "validation_error"
             }
 
-        # Fetch workspace data using GraphQL
+        # Fetch workspace data using GraphQL with logging
         variables = {"workspaceId": workspace_id}
-        response_data = execute_graphql_query(get_workspace_issues_query(), variables)
+        response_data = execute_graphql_query(
+            get_workspace_issues_query(),
+            variables,
+            log_to_db=True,
+            reference_doctype="Software Product",
+            reference_docname=workspace_id,
+            operation_name="getWorkspaceSummary"
+        )
 
         workspace = response_data.get("workspace", {})
         issues_container = workspace.get("issues", {})
@@ -1817,7 +1917,14 @@ def get_project_summary(project_id: str, zenhub_workspace_id: str = None) -> Dic
 
         # Fetch workspace issues
         variables = {"workspaceId": workspace_id}
-        response_data = execute_graphql_query(get_workspace_issues_query(), variables)
+        response_data = execute_graphql_query(
+            get_workspace_issues_query(),
+            variables,
+            log_to_db=True,
+            reference_doctype="Project",
+            reference_docname=project_id,
+            operation_name="getTaskProgressTracking"
+        )
         workspace = response_data.get("workspace", {})
         all_issues = workspace.get("issues", {}).get("nodes", [])
 
@@ -1997,7 +2104,14 @@ def get_task_summary(task_id: str) -> Dict[str, Any]:
             # Search for issues related to this task
             variables = {"workspaceId": workspace_id}
             try:
-                response_data = execute_graphql_query(get_workspace_issues_query(), variables)
+                response_data = execute_graphql_query(
+                    get_workspace_issues_query(),
+                    variables,
+                    log_to_db=True,
+                    reference_doctype="Task",
+                    reference_docname=task_id,
+                    operation_name="getTaskZenhubRelated"
+                )
                 workspace = response_data.get("workspace", {})
                 all_issues = workspace.get("issues", {}).get("nodes", [])
 

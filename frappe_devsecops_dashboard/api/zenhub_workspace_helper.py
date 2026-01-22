@@ -339,7 +339,14 @@ class ZenhubWorkspaceHelper:
             # Fetch workspace issues (includes repositories as projects)
             try:
                 issues_query = get_workspace_issues_query()
-                issues_response = execute_graphql_query(issues_query, {"workspaceId": self.workspace_id})
+                issues_response = execute_graphql_query(
+                    issues_query,
+                    {"workspaceId": self.workspace_id},
+                    log_to_db=True,
+                    reference_doctype="Software Product",
+                    reference_docname=self.workspace_id,
+                    operation_name="getWorkspaceIssues"
+                )
 
                 if issues_response and issues_response.get("data"):
                     workspace = issues_response["data"].get("workspace", {})
@@ -374,7 +381,14 @@ class ZenhubWorkspaceHelper:
             # Fetch sprints with their issues
             try:
                 sprints_query = get_workspace_sprints_query()
-                sprints_response = execute_graphql_query(sprints_query, {"workspaceId": self.workspace_id})
+                sprints_response = execute_graphql_query(
+                    sprints_query,
+                    {"workspaceId": self.workspace_id},
+                    log_to_db=True,
+                    reference_doctype="Software Product",
+                    reference_docname=self.workspace_id,
+                    operation_name="getWorkspaceSprints"
+                )
 
                 if sprints_response and sprints_response.get("data"):
                     workspace = sprints_response["data"].get("workspace", {})

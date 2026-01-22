@@ -96,13 +96,12 @@ def create_zenhub_project_issue(
     """
     try:
         from frappe_devsecops_dashboard.api.zenhub import get_zenhub_token
+        from frappe_devsecops_dashboard.api.zenhub_graphql_logger import execute_graphql_query_with_logging
 
         token = get_zenhub_token()
         if not token:
             frappe.logger().error(f"[create_zenhub_project_issue] No Zenhub token found")
             return None
-
-        url = "https://api.zenhub.com/public/graphql"
 
         # Zenhub Project issue type ID (level 2)
         # This is the ID for issues of type "Project"
@@ -139,30 +138,23 @@ def create_zenhub_project_issue(
             }
         }
 
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-
         frappe.logger().info(f"[create_zenhub_project_issue] Creating Zenhub Project issue: {issue_title}")
         frappe.logger().info(f"[create_zenhub_project_issue] Repository ID: {repository_id}")
         frappe.logger().info(f"[create_zenhub_project_issue] Issue Type ID: {PROJECT_ISSUE_TYPE_ID}")
 
-        response = requests.post(
-            url,
-            json={"query": mutation, "variables": variables},
-            headers=headers,
-            timeout=30
+        # Use logging wrapper for API call
+        data, success = execute_graphql_query_with_logging(
+            query=mutation,
+            variables=variables,
+            reference_doctype="Project",
+            reference_docname=project_id,
+            operation_name="createProjectIssue",
+            operation_type="Mutation",
+            token=token
         )
-        
-        # Log response details
-        frappe.logger().info(f"[create_zenhub_project_issue] HTTP Status: {response.status_code}")
-        
-        try:
-            data = response.json()
-        except Exception as json_error:
-            frappe.logger().error(f"[create_zenhub_project_issue] Failed to parse JSON response: {str(json_error)}")
-            frappe.logger().error(f"[create_zenhub_project_issue] Raw response: {response.text[:500]}")
+
+        if not success:
+            frappe.logger().error(f"[create_zenhub_project_issue] API call failed (logged to Zenhub GraphQL API Log)")
             return None
 
         frappe.logger().info(f"[create_zenhub_project_issue] Full API Response: {frappe.as_json(data, indent=2)}")

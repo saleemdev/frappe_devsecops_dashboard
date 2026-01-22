@@ -53,9 +53,16 @@ def get_or_create_workspace(workspace_name: str, workspace_id: Optional[str] = N
           }
         }
         """
-        
+
         try:
-            result = execute_graphql_query(query, {"workspaceId": workspace_id})
+            result = execute_graphql_query(
+                query,
+                {"workspaceId": workspace_id},
+                log_to_db=True,
+                reference_doctype="Software Product",
+                reference_docname=workspace_id,
+                operation_name="getWorkspaceById"
+            )
             
             if "workspace" in result and result["workspace"]:
                 workspace = result["workspace"]
@@ -111,9 +118,16 @@ def get_or_create_project(workspace_id: str, project_name: str, project_id: Opti
           }
         }
         """
-        
+
         try:
-            result = execute_graphql_query(query, {"workspaceId": workspace_id})
+            result = execute_graphql_query(
+                query,
+                {"workspaceId": workspace_id},
+                log_to_db=True,
+                reference_doctype="Project",
+                reference_docname=project_id,
+                operation_name="getProjectById"
+            )
             
             if "workspace" in result:
                 projects = result["workspace"].get("projects", {}).get("nodes", [])
@@ -151,9 +165,16 @@ def get_or_create_project(workspace_id: str, project_name: str, project_id: Opti
           }
         }
         """
-        
+
         try:
-            result = execute_graphql_query(query, {"workspaceId": workspace_id})
+            result = execute_graphql_query(
+                query,
+                {"workspaceId": workspace_id},
+                log_to_db=True,
+                reference_doctype="Project",
+                reference_docname=project_name,
+                operation_name="listProjects"
+            )
             
             if "workspace" in result:
                 projects = result["workspace"].get("projects", {}).get("nodes", [])
@@ -216,7 +237,14 @@ def create_epic(workspace_id: str, project_id: str, epic_title: str, epic_descri
     
     try:
         # Get repositories in the workspace
-        repo_result = execute_graphql_query(query, {"workspaceId": workspace_id})
+        repo_result = execute_graphql_query(
+            query,
+            {"workspaceId": workspace_id},
+            log_to_db=True,
+            reference_doctype="Software Product",
+            reference_docname=workspace_id,
+            operation_name="getWorkspaceRepositories"
+        )
         
         if "workspace" not in repo_result:
             frappe.throw("Failed to fetch workspace repositories", frappe.ValidationError)
@@ -266,8 +294,15 @@ def create_epic(workspace_id: str, project_id: str, epic_title: str, epic_descri
             "body": epic_description or f"Epic created on {datetime.now().strftime('%Y-%m-%d')}"
         }
         
-        result = execute_graphql_query(mutation, variables)
-        
+        result = execute_graphql_query(
+            mutation,
+            variables,
+            log_to_db=True,
+            reference_doctype="Task",
+            reference_docname=epic_title,
+            operation_name="createEpicIssue"
+        )
+
         if "createIssue" in result:
             issue_data = result["createIssue"]
             
@@ -298,8 +333,15 @@ def create_epic(workspace_id: str, project_id: str, epic_title: str, epic_descri
                     "issueId": issue["id"],
                     "projectId": project_id
                 }
-                
-                link_result = execute_graphql_query(link_mutation, link_variables)
+
+                link_result = execute_graphql_query(
+                    link_mutation,
+                    link_variables,
+                    log_to_db=True,
+                    reference_doctype="Task",
+                    reference_docname=epic_title,
+                    operation_name="linkEpicToProject"
+                )
                 
                 if "addIssueToProject" in link_result:
                     link_data = link_result["addIssueToProject"]

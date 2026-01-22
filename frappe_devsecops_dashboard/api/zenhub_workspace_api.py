@@ -16,6 +16,8 @@ using the ZenhubWorkspaceHelper class. It includes:
 - GET /api/method/frappe_devsecops_dashboard.api.zenhub_workspace_api.get_team_utilization
   Get team member utilization metrics
 
+All API calls are logged to Zenhub GraphQL API Log for monitoring and debugging.
+
 Author: Frappe DevSecOps Dashboard
 License: MIT
 """
@@ -23,9 +25,16 @@ License: MIT
 import frappe
 from typing import Dict, Any, Optional
 from .zenhub_workspace_helper import ZenhubWorkspaceHelper
+from frappe_devsecops_dashboard.frappe_devsecops_dashboard.doctype.zenhub_graphql_api_log.zenhub_graphql_api_log import create_zenhub_api_log
+from .zenhub_api_decorator import log_zenhub_api_call
 
 
 @frappe.whitelist()
+@log_zenhub_api_call(
+    operation_name="getWorkspaceSummary",
+    reference_doctype="Software Product",
+    get_reference_docname=lambda kwargs: kwargs.get("workspace_id", "Unknown")
+)
 def get_workspace_summary(workspace_id: str) -> Dict[str, Any]:
     """
     Get comprehensive JSON summary of a Zenhub workspace.
@@ -99,6 +108,11 @@ def get_workspace_summary(workspace_id: str) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+@log_zenhub_api_call(
+    operation_name="getWorkspaceByProject",
+    reference_doctype="Software Product",
+    get_reference_docname=lambda kwargs: kwargs.get("workspace_id", "Unknown")
+)
 def get_workspace_by_project(workspace_id: str, project_id: str) -> Dict[str, Any]:
     """
     Get workspace data filtered by project.
@@ -153,6 +167,11 @@ def get_workspace_by_project(workspace_id: str, project_id: str) -> Dict[str, An
 
 
 @frappe.whitelist()
+@log_zenhub_api_call(
+    operation_name="getWorkspaceByEpic",
+    reference_doctype="Software Product",
+    get_reference_docname=lambda kwargs: kwargs.get("workspace_id", "Unknown")
+)
 def get_workspace_by_epic(workspace_id: str, epic_id: str) -> Dict[str, Any]:
     """
     Get workspace data filtered by epic.
@@ -208,6 +227,11 @@ def get_workspace_by_epic(workspace_id: str, epic_id: str) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+@log_zenhub_api_call(
+    operation_name="getTeamUtilization",
+    reference_doctype="Software Product",
+    get_reference_docname=lambda kwargs: kwargs.get("workspace_id", "Unknown")
+)
 def get_team_utilization(workspace_id: str) -> Dict[str, Any]:
     """
     Get team member utilization metrics for a workspace.
@@ -274,6 +298,11 @@ def get_team_utilization(workspace_id: str) -> Dict[str, Any]:
 
 
 @frappe.whitelist()
+@log_zenhub_api_call(
+    operation_name="getWorkspaceSummaryWithFilters",
+    reference_doctype="Software Product",
+    get_reference_docname=lambda kwargs: kwargs.get("workspace_id", "Unknown")
+)
 def get_workspace_summary_with_filters(
     workspace_id: str,
     project_id: Optional[str] = None,

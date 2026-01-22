@@ -45,6 +45,50 @@ import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
 
+/**
+ * Custom fetch wrapper using XMLHttpRequest to avoid 417 Expectation Failed errors
+ * The native fetch() API can send "Expect: 100-continue" header with large payloads,
+ * which causes 417 errors with some server configurations including Frappe.
+ */
+const fetchWithoutExpectHeader = async (url, options = {}) => {
+  const { method = 'GET', headers = {}, body, credentials = 'include' } = options
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open(method, url, true)
+
+    // Set headers
+    Object.entries(headers).forEach(([key, value]) => {
+      xhr.setRequestHeader(key, value)
+    })
+
+    // Set credentials
+    xhr.withCredentials = credentials === 'include'
+
+    xhr.onload = () => {
+      const response = {
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        statusText: xhr.statusText,
+        json: async () => {
+          try {
+            return JSON.parse(xhr.responseText)
+          } catch (e) {
+            throw new Error('Invalid JSON response')
+          }
+        },
+        text: async () => xhr.responseText
+      }
+      resolve(response)
+    }
+
+    xhr.onerror = () => reject(new Error('Network error'))
+    xhr.ontimeout = () => reject(new Error('Request timeout'))
+
+    xhr.send(body)
+  })
+}
+
 const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRoute }) => {
   const { token } = theme.useToken()
   const [form] = Form.useForm()
@@ -134,10 +178,11 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
     setLoading(true)
     try {
       const endpoint = `/api/method/frappe_devsecops_dashboard.api.software_product.get_product_detail?name=${encodeURIComponent(productId)}`
-      const response = await fetch(endpoint, {
+      const response = await fetchWithoutExpectHeader(endpoint, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'X-Frappe-CSRF-Token': window.csrf_token || ''
         },
         credentials: 'include'
@@ -198,12 +243,14 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
         limit_page_length: 100
       })
 
-      const response = await fetch(
+      const response = await fetchWithoutExpectHeader(
         `/api/method/frappe_devsecops_dashboard.api.raci_template.get_raci_templates?${params}`,
         {
+          method: 'GET',
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'X-Frappe-CSRF-Token': window.csrf_token || ''
           }
         }
@@ -251,12 +298,14 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
         limit_page_length: 100
       })
 
-      const response = await fetch(
+      const response = await fetchWithoutExpectHeader(
         `/api/resource/Project?${params}`,
         {
+          method: 'GET',
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'X-Frappe-CSRF-Token': window.csrf_token || ''
           }
         }
@@ -383,13 +432,14 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
     setWorkspaceSummary(null)
 
     try {
-      const response = await fetch(
+      const response = await fetchWithoutExpectHeader(
         `/api/method/frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_summary?workspace_id=${encodeURIComponent(workspaceId)}`,
         {
           method: 'GET',
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'X-Frappe-CSRF-Token': window.csrf_token || ''
           }
         }
@@ -458,10 +508,11 @@ const SoftwareProductForm = ({ mode = 'create', productId = null, navigateToRout
       console.log('[SoftwareProductForm] Making POST request to:', endpoint)
       console.log('[SoftwareProductForm] Payload:', payload)
 
-      const response = await fetch(endpoint, {
+      const response = await fetchWithoutExpectHeader(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'X-Frappe-CSRF-Token': window.csrf_token || ''
         },
         credentials: 'include',

@@ -17,10 +17,17 @@
     "test:accessibility": "cypress run --spec 'cypress/e2e/accessibility.cy.js'",
     "playwright:test": "playwright test",
     "playwright:test:headed": "playwright test --headed",
+    "playwright:test:zenhub": "playwright test tests/e2e/zenhub-dashboard.spec.ts",
+    "playwright:test:zenhub:headed": "playwright test tests/e2e/zenhub-dashboard.spec.ts --headed",
+    "playwright:test:zenhub:chromium": "playwright test tests/e2e/zenhub-dashboard.spec.ts --project=chromium",
+    "playwright:test:zenhub:firefox": "playwright test tests/e2e/zenhub-dashboard.spec.ts --project=firefox",
+    "playwright:test:zenhub:webkit": "playwright test tests/e2e/zenhub-dashboard.spec.ts --project=webkit",
+    "playwright:test:zenhub:mobile": "playwright test tests/e2e/zenhub-dashboard.spec.ts --project='Mobile Chrome'",
     "playwright:test:wiki": "playwright test tests/e2e/wiki.spec.ts",
     "playwright:test:wiki:headed": "playwright test tests/e2e/wiki.spec.ts --headed",
     "playwright:debug": "playwright test --debug",
-    "playwright:ui": "playwright test --ui"
+    "playwright:ui": "playwright test --ui",
+    "playwright:codegen": "playwright codegen"
   },
   "dependencies": {
     "@ant-design/icons": "^5.4.0",

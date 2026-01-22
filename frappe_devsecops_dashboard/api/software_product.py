@@ -208,7 +208,14 @@ def create_product(**kwargs) -> Dict[str, Any]:
             frappe.throw(_('Product name is required'), frappe.ValidationError)
 
         # Extract team data (handle both 'team' and 'team_members')
-        team_data = kwargs.pop('team_members', None) or kwargs.pop('team', []) or []
+        # Use explicit None check to properly handle empty arrays
+        team_data = kwargs.pop('team_members', None)
+        if team_data is None:
+            team_data = kwargs.pop('team', None)
+
+        # Default to empty list if no team data provided
+        if team_data is None:
+            team_data = []
 
         # Create new document
         doc = frappe.get_doc({
@@ -300,15 +307,20 @@ def update_product(name: str = None, **kwargs) -> Dict[str, Any]:
             frappe.throw(_('You do not have permission to update this Software Product'), frappe.PermissionError)
 
         # Extract team data (handle both 'team' and 'team_members')
-        team_data = kwargs.pop('team_members', None) or kwargs.pop('team', []) or []
+        # Use explicit None check to allow empty arrays to clear team members
+        team_data = kwargs.pop('team_members', None)
+        if team_data is None:
+            team_data = kwargs.pop('team', None)
 
         # Update fields
+        # Exclude project_template as it should be auto-populated from RACI template
         for key, value in kwargs.items():
-            if key not in ['name', 'doctype', 'creation', 'modified', 'owner', 'modified_by', 'team_members']:
+            if key not in ['name', 'doctype', 'creation', 'modified', 'owner', 'modified_by', 'team_members', 'project_template']:
                 doc.set(key, value)
 
         # Update team members - clear and re-add
-        if team_data:
+        # Use 'is not None' to properly handle empty arrays (allows clearing all team members)
+        if team_data is not None:
             doc.team_members = []
             for team_member in team_data:
                 if isinstance(team_member, dict):

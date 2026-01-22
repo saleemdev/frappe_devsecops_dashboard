@@ -1,0 +1,29 @@
+# Apply these changes to /home/erpuser/frappe-bench/apps/all_trails/all_trails/hooks.py
+
+# Find the section that currently looks like:
+# # Authentication and authorization
+# --------------------------------
+
+# auth_hooks = [
+# 	"all_trails.auth.validate"
+# ]
+
+# And replace it with:
+# Authentication and authorization
+# --------------------------------
+
+# auth_hooks = [
+# 	"all_trails.auth.validate"
+# ]
+
+# Session Management
+# ------------------
+# Custom session creation hook to redirect to all-trails after login
+on_session_creation = [
+	"frappe_devsecops_dashboard.login_redirect.on_session_creation"
+]
+
+# Custom login redirect
+auth_hooks = [
+	"frappe_devsecops_dashboard.login_redirect.get_login_redirect"
+]

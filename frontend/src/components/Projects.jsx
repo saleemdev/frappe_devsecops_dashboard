@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Row, Col, Card, Spin, Empty, Button, Space, Typography, theme, Input, Select, Table, Tag, Progress, Tooltip, Avatar, Descriptions, Popconfirm, message, Segmented } from 'antd'
-import { PlusOutlined, SearchOutlined, FilterOutlined, ProjectOutlined, ReloadOutlined, TableOutlined, AppstoreOutlined, CalendarOutlined, UserOutlined, TeamOutlined, PrinterOutlined, BarChartOutlined, EditOutlined, CloseCircleOutlined, RightOutlined, DownOutlined } from '@ant-design/icons'
+import { Row, Col, Card, Spin, Empty, Button, Space, Typography, theme, Input, Select, Table, Tag, Progress, Tooltip, Avatar, Descriptions, Popconfirm, message, Segmented, Collapse, Badge } from 'antd'
+import { PlusOutlined, SearchOutlined, FilterOutlined, ProjectOutlined, ReloadOutlined, TableOutlined, AppstoreOutlined, CalendarOutlined, UserOutlined, TeamOutlined, PrinterOutlined, BarChartOutlined, EditOutlined, CloseCircleOutlined, RightOutlined, DownOutlined, ClearOutlined, SettingOutlined } from '@ant-design/icons'
 import ProjectCard from './ProjectCard'
 import SprintReportDialog from './SprintReportDialog'
 import api from '../services/api'
@@ -8,6 +8,10 @@ import { useResponsive } from '../hooks/useResponsive'
 import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 
 const { Title, Text } = Typography
+const { Panel } = Collapse
+
+// LocalStorage key for persisting filters
+const FILTERS_STORAGE_KEY = 'devsecops_project_filters'
 
 /**
  * Projects Component
@@ -27,6 +31,17 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
   const [selectedProjectForReport, setSelectedProjectForReport] = useState(null)
   const [viewMode, setViewMode] = useState('table') // 'table' or 'cards'
   const [cancellingProjectId, setCancellingProjectId] = useState(null)
+  
+  // Advanced filters state
+  const [filterSoftwareProducts, setFilterSoftwareProducts] = useState([])
+  const [filterPriority, setFilterPriority] = useState([])
+  const [filterProjectType, setFilterProjectType] = useState([])
+  const [filterDepartment, setFilterDepartment] = useState([])
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  
+  // Software Products for filter dropdown
+  const [softwareProducts, setSoftwareProducts] = useState([])
+  const [loadingProducts, setLoadingProducts] = useState(false)
 
   // Initialize collapsed state for all projects when they load
   useEffect(() => {
@@ -40,9 +55,43 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
     }
   }, [projects.length])
 
+  // Load filters from localStorage on mount
+  useEffect(() => {
+    const savedFilters = localStorage.getItem(FILTERS_STORAGE_KEY)
+    if (savedFilters) {
+      try {
+        const filters = JSON.parse(savedFilters)
+        if (filters.filterSoftwareProducts) setFilterSoftwareProducts(filters.filterSoftwareProducts)
+        if (filters.filterPriority) setFilterPriority(filters.filterPriority)
+        if (filters.filterProjectType) setFilterProjectType(filters.filterProjectType)
+        if (filters.filterDepartment) setFilterDepartment(filters.filterDepartment)
+        if (filters.searchText) setSearchText(filters.searchText)
+        if (filters.filterStatus) setFilterStatus(filters.filterStatus)
+        if (filters.viewMode) setViewMode(filters.viewMode)
+      } catch (err) {
+        console.error('Error loading filters from localStorage:', err)
+      }
+    }
+  }, [])
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    const filters = {
+      filterSoftwareProducts,
+      filterPriority,
+      filterProjectType,
+      filterDepartment,
+      searchText,
+      filterStatus,
+      viewMode
+    }
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters))
+  }, [filterSoftwareProducts, filterPriority, filterProjectType, filterDepartment, searchText, filterStatus, viewMode])
+
   // Fetch projects on mount
   useEffect(() => {
     fetchProjects()
+    fetchSoftwareProducts()
   }, [])
 
   const fetchProjects = async () => {
@@ -67,22 +116,91 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
     }
   }
 
-  // Filter projects based on search and status
+  // Fetch Software Products for filter dropdown
+  const fetchSoftwareProducts = async () => {
+    try {
+      setLoadingProducts(true)
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.software_product.get_products?fields=["name","product_name"]&limit_page_length=100', {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const payload = data.message || data
+        if (payload && Array.isArray(payload)) {
+          setSoftwareProducts(payload.map(p => ({ label: p.product_name || p.name, value: p.name })))
+        } else if (payload && payload.data && Array.isArray(payload.data)) {
+          setSoftwareProducts(payload.data.map(p => ({ label: p.product_name || p.name, value: p.name })))
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching software products:', err)
+    } finally {
+      setLoadingProducts(false)
+    }
+  }
+
+  // Filter projects based on search, status, and advanced filters
   const filteredProjects = projects.filter(project => {
+    // Search filter
     const matchesSearch = !searchText ||
       (project.name && project.name.toLowerCase().includes(searchText.toLowerCase())) ||
       (project.project_name && project.project_name.toLowerCase().includes(searchText.toLowerCase()))
 
+    // Status filter - handle both project_status and status fields
+    const projectStatus = project.project_status || project.status
     const matchesStatus = filterStatus === 'all' ||
-      (project.project_status && project.project_status.toLowerCase() === filterStatus.toLowerCase())
+      (projectStatus && projectStatus.toLowerCase() === filterStatus.toLowerCase())
 
-    return matchesSearch && matchesStatus
+    // Software Product filter (multi-select)
+    const matchesSoftwareProduct = filterSoftwareProducts.length === 0 ||
+      (project.custom_software_product && filterSoftwareProducts.includes(project.custom_software_product))
+
+    // Priority filter (multi-select)
+    const matchesPriority = filterPriority.length === 0 ||
+      (project.priority && filterPriority.includes(project.priority))
+
+    // Project Type filter (multi-select)
+    const matchesProjectType = filterProjectType.length === 0 ||
+      (project.project_type && filterProjectType.includes(project.project_type))
+
+    // Department filter (multi-select)
+    const matchesDepartment = filterDepartment.length === 0 ||
+      (project.department && filterDepartment.includes(project.department))
+
+    return matchesSearch && matchesStatus && matchesSoftwareProduct && matchesPriority && matchesProjectType && matchesDepartment
   })
 
-  // Get unique project statuses for filter
+  // Get unique values for filter options
+  const priorityOptions = Array.from(new Set(projects.map(p => p.priority).filter(Boolean))).map(p => ({ label: p, value: p }))
+  const projectTypeOptions = Array.from(new Set(projects.map(p => p.project_type).filter(Boolean))).map(t => ({ label: t, value: t }))
+  const departmentOptions = Array.from(new Set(projects.map(p => p.department).filter(Boolean))).map(d => ({ label: d, value: d }))
+
+  // Count active filters
+  const activeFilterCount = 
+    (filterSoftwareProducts.length > 0 ? 1 : 0) +
+    (filterPriority.length > 0 ? 1 : 0) +
+    (filterProjectType.length > 0 ? 1 : 0) +
+    (filterDepartment.length > 0 ? 1 : 0)
+
+  // Clear all advanced filters
+  const handleClearFilters = () => {
+    setFilterSoftwareProducts([])
+    setFilterPriority([])
+    setFilterProjectType([])
+    setFilterDepartment([])
+    setSearchText('')
+    setFilterStatus('all')
+  }
+
+  // Get unique project statuses for filter - handle both project_status and status fields
   const statusOptions = [
     { label: 'All Statuses', value: 'all' },
-    ...Array.from(new Set(projects.map(p => p.project_status || 'Unknown')))
+    ...Array.from(new Set(projects.map(p => p.project_status || p.status || 'Unknown')))
       .map(status => ({ label: status, value: status.toLowerCase() }))
   ]
 
@@ -260,23 +378,26 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
       key: 'status',
       width: 120,
       align: 'center',
-      render: (status) => (
-        <Tag
-          color={getStatusColor(status)}
-          style={{
-            margin: 0,
-            fontWeight: 500,
-            fontSize: '12px',
-            padding: '3px 12px',
-            borderRadius: '6px'
-          }}
-        >
-          {status || 'Unknown'}
-        </Tag>
-      ),
-      filters: Array.from(new Set(projects.map(p => p.project_status || 'Unknown')))
+      render: (status, record) => {
+        const displayStatus = status || record.status || 'Unknown'
+        return (
+          <Tag
+            color={getStatusColor(displayStatus)}
+            style={{
+              margin: 0,
+              fontWeight: 500,
+              fontSize: '12px',
+              padding: '3px 12px',
+              borderRadius: '6px'
+            }}
+          >
+            {displayStatus}
+          </Tag>
+        )
+      },
+      filters: Array.from(new Set(projects.map(p => p.project_status || p.status || 'Unknown')))
         .map(status => ({ text: status, value: status })),
-      onFilter: (value, record) => (record.project_status || 'Unknown') === value,
+      onFilter: (value, record) => (record.project_status || record.status || 'Unknown') === value,
     },
     {
       title: <Text strong style={{ fontSize: '13px' }}>Priority</Text>,
@@ -366,6 +487,58 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
           <Text type="secondary" style={{ fontSize: '12px' }}>Not assigned</Text>
         )
       ),
+    },
+    {
+      title: <Text strong style={{ fontSize: '13px' }}>Zenhub Detail</Text>,
+      key: 'zenhub',
+      width: 200,
+      render: (_, record) => {
+        const workspaceId = record.custom_zenhub_workspace_id
+        const projectId = record.custom_zenhub_project_id
+        
+        if (!workspaceId && !projectId) {
+          return <Text type="secondary" style={{ fontSize: '12px' }}>Not configured</Text>
+        }
+        
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px 0' }}>
+            {workspaceId && (
+              <Tooltip title="Zenhub Workspace ID">
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '2px 8px',
+                  backgroundColor: token.colorInfoBg,
+                  borderRadius: '4px',
+                  border: `1px solid ${token.colorInfoBorder}`
+                }}>
+                  <Text style={{ fontSize: '10px', color: token.colorInfo, fontWeight: 500 }}>
+                    WS: {workspaceId.substring(0, 8)}...
+                  </Text>
+                </div>
+              </Tooltip>
+            )}
+            {projectId && (
+              <Tooltip title="Zenhub Project ID">
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '2px 8px',
+                  backgroundColor: token.colorSuccessBg,
+                  borderRadius: '4px',
+                  border: `1px solid ${token.colorSuccessBorder}`
+                }}>
+                  <Text style={{ fontSize: '10px', color: token.colorSuccess, fontWeight: 500 }}>
+                    PRJ: {projectId.substring(0, 8)}...
+                  </Text>
+                </div>
+              </Tooltip>
+            )}
+          </div>
+        )
+      },
     },
     {
       title: <Text strong style={{ fontSize: '13px' }}>Timeline</Text>,
@@ -557,15 +730,15 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
             onConfirm={() => handleCancelProject(record.id || record.name)}
             okText="Yes"
             cancelText="No"
-            disabled={record.project_status === 'Cancelled'}
+            disabled={(record.project_status || record.status) === 'Cancelled'}
           >
-            <Tooltip title={record.project_status === 'Cancelled' ? 'Already cancelled' : 'Cancel Project'}>
+            <Tooltip title={(record.project_status || record.status) === 'Cancelled' ? 'Already cancelled' : 'Cancel Project'}>
               <Button
                 type="text"
                 size="middle"
                 danger
                 icon={<CloseCircleOutlined />}
-                disabled={record.project_status === 'Cancelled'}
+                disabled={(record.project_status || record.status) === 'Cancelled'}
                 loading={cancellingProjectId === (record.id || record.name)}
               />
             </Tooltip>
@@ -600,6 +773,12 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
           </Descriptions.Item>
           <Descriptions.Item label="Software Product" span={2}>
             {record.custom_software_product || '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Zenhub Workspace ID">
+            {record.custom_zenhub_workspace_id || '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Zenhub Project ID">
+            {record.custom_zenhub_project_id || '-'}
           </Descriptions.Item>
           {record.notes && (
             <Descriptions.Item label="Notes" span={4}>
@@ -673,7 +852,7 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
       {/* Filters */}
       <Card style={{ marginBottom: '16px' }}>
         <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={24} sm={12} md={6}>
             <Input
               placeholder="Search projects..."
               prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
@@ -682,7 +861,7 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
               allowClear
             />
           </Col>
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={24} sm={12} md={6}>
             <Select
               value={filterStatus}
               onChange={setFilterStatus}
@@ -691,18 +870,54 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
               placeholder="Filter by status"
             />
           </Col>
-          <Col xs={24} sm={24} md={8} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Col xs={24} sm={12} md={6}>
+            <Select
+              mode="multiple"
+              placeholder="Filter by Software Product"
+              value={filterSoftwareProducts}
+              onChange={setFilterSoftwareProducts}
+              options={softwareProducts}
+              style={{ width: '100%' }}
+              loading={loadingProducts}
+              allowClear
+              maxTagCount="responsive"
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6} style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <Button
+              icon={<FilterOutlined />}
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              type={showAdvancedFilters ? 'primary' : 'default'}
+            >
+              <Badge count={activeFilterCount} offset={[8, 0]}>
+                Advanced
+              </Badge>
+            </Button>
+            {activeFilterCount > 0 && (
+              <Button
+                icon={<ClearOutlined />}
+                onClick={handleClearFilters}
+                type="text"
+                danger
+              >
+                Clear
+              </Button>
+            )}
             <Segmented
               value={viewMode}
               onChange={setViewMode}
               options={[
                 {
-                  label: 'Table View',
+                  label: 'Table',
                   value: 'table',
                   icon: <TableOutlined />
                 },
                 {
-                  label: 'Card View',
+                  label: 'Cards',
                   value: 'cards',
                   icon: <AppstoreOutlined />
                 }
@@ -710,6 +925,59 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
             />
           </Col>
         </Row>
+
+        {/* Advanced Filters Panel */}
+        {showAdvancedFilters && (
+          <Collapse
+            activeKey={['filters']}
+            ghost
+            style={{ marginTop: '16px' }}
+          >
+            <Panel header={<Text strong>Advanced Filters</Text>} key="filters">
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12} md={6}>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: '8px', fontSize: '12px' }}>Priority</Text>
+                  <Select
+                    mode="multiple"
+                    placeholder="Select priorities"
+                    value={filterPriority}
+                    onChange={setFilterPriority}
+                    options={priorityOptions}
+                    style={{ width: '100%' }}
+                    allowClear
+                    maxTagCount="responsive"
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: '8px', fontSize: '12px' }}>Project Type</Text>
+                  <Select
+                    mode="multiple"
+                    placeholder="Select project types"
+                    value={filterProjectType}
+                    onChange={setFilterProjectType}
+                    options={projectTypeOptions}
+                    style={{ width: '100%' }}
+                    allowClear
+                    maxTagCount="responsive"
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: '8px', fontSize: '12px' }}>Department</Text>
+                  <Select
+                    mode="multiple"
+                    placeholder="Select departments"
+                    value={filterDepartment}
+                    onChange={setFilterDepartment}
+                    options={departmentOptions}
+                    style={{ width: '100%' }}
+                    allowClear
+                    maxTagCount="responsive"
+                  />
+                </Col>
+              </Row>
+            </Panel>
+          </Collapse>
+        )}
       </Card>
 
       {/* Projects Display */}
@@ -759,7 +1027,7 @@ function Projects({ navigateToRoute, showProjectDetail, selectedProjectId }) {
                 />
               )
             }}
-            scroll={{ x: 1400 }}
+            scroll={{ x: 1600 }}
             size="middle"
             bordered={false}
             rowClassName={(record, index) =>

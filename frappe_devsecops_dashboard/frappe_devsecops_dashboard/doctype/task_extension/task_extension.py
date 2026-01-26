@@ -17,19 +17,21 @@ def create_zenhub_epic_issue(
     task_id: str,
     task_name: str,
     parent_issue_id: str,
-    repository_id: str
+    repository_id: str,
+    project_id: str
 ) -> Optional[str]:
     """
     Create a Zenhub Issue of type Epic.
 
     In Zenhub, "Epic" is an issue type (level 1).
-    Issue format: {task_id}-{task_name}
+    Issue format: {project_id}-{task_name}
 
     Args:
         task_id: Frappe Task ID (name)
         task_name: Task display name (subject)
         parent_issue_id: Parent Zenhub Issue ID (the Project issue)
         repository_id: Zenhub Repository ID (required for creating issues)
+        project_id: Frappe Project ID (used in issue title)
 
     Returns:
         str: Zenhub Issue ID if successful, None otherwise
@@ -46,7 +48,8 @@ def create_zenhub_epic_issue(
 
         # Zenhub Epic issue type ID (level 1)
         # This is the ID for issues of type "Epic"
-        EPIC_ISSUE_TYPE_ID = "Z2lkOi8vcmFwdG9yL0lzc3VlVHlwZS8yMzY4MTI"
+        # Note: 236811 = Epic (Level 1), 236812 = Initiative (Level 0), 236813 = Project (Level 2)
+        EPIC_ISSUE_TYPE_ID = "Z2lkOi8vcmFwdG9yL0lzc3VlVHlwZS8yMzY4MTE"
 
         # GraphQL mutation to create issue of type Epic with parent
         mutation = """
@@ -61,7 +64,7 @@ def create_zenhub_epic_issue(
         }
         """
 
-        issue_title = f"{task_id}-{task_name}"
+        issue_title = f"{project_id}-{task_name}"
 
         variables = {
             "input": {
@@ -233,7 +236,7 @@ def create_zenhub_epic_issue_async(task_id: str, task_name: str, project_id: str
             return
 
         # Create the Epic issue
-        zenhub_issue_id = create_zenhub_epic_issue(task_id, task_name, parent_issue_id, repository_id)
+        zenhub_issue_id = create_zenhub_epic_issue(task_id, task_name, parent_issue_id, repository_id, project_id)
 
         if zenhub_issue_id:
             # Update the task with the Epic ID
@@ -393,7 +396,8 @@ def generate_zenhub_epic_id(task_id: str) -> dict:
             task_id,
             task_name,
             parent_project_id,
-            repository_id
+            repository_id,
+            project_id
         )
 
         if zenhub_epic_id:

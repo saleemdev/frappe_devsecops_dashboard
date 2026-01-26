@@ -16,7 +16,8 @@ import {
   Collapse,
   Divider,
   Timeline,
-  theme
+  theme,
+  Badge
 } from 'antd'
 import {
   PlusOutlined,
@@ -30,13 +31,19 @@ import {
   UserOutlined,
   LockOutlined,
   FilePdfOutlined,
-  PrinterOutlined
+  PrinterOutlined,
+  FilterOutlined,
+  ClearOutlined
 } from '@ant-design/icons'
 import useAuthStore from '../stores/authStore'
 import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
+import api from '../services/api'
 
 const { Title, Text } = Typography
-const { Option } = Select
+const { Panel } = Collapse
+
+// LocalStorage key for persisting filters
+const FILTERS_STORAGE_KEY = 'devsecops_change_request_filters'
 
 const ChangeRequests = () => {
   const { token } = theme.useToken()
@@ -53,6 +60,18 @@ const ChangeRequests = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [total, setTotal] = useState(0)
+  
+  // Advanced filters state
+  const [filterSoftwareProducts, setFilterSoftwareProducts] = useState([])
+  const [filterProjects, setFilterProjects] = useState([])
+  const [filterWorkflowState, setFilterWorkflowState] = useState([])
+  const [filterDowntime, setFilterDowntime] = useState('all')
+  
+  // Options for filters
+  const [softwareProducts, setSoftwareProducts] = useState([])
+  const [projects, setProjects] = useState([])
+  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [loadingProjects, setLoadingProjects] = useState(false)
 
   // Build whitelisted API call parameters
   const buildApiParams = () => {
@@ -85,6 +104,45 @@ const ChangeRequests = () => {
     }
   }
 
+  // Load filters from localStorage on mount
+  useEffect(() => {
+    try {
+      const storedFilters = localStorage.getItem(FILTERS_STORAGE_KEY)
+      if (storedFilters) {
+        const filters = JSON.parse(storedFilters)
+        if (filters.filterSoftwareProducts) setFilterSoftwareProducts(filters.filterSoftwareProducts)
+        if (filters.filterProjects) setFilterProjects(filters.filterProjects)
+        if (filters.filterWorkflowState) setFilterWorkflowState(filters.filterWorkflowState)
+        if (filters.filterDowntime) setFilterDowntime(filters.filterDowntime)
+        if (filters.searchText) setSearchText(filters.searchText)
+        if (filters.statusFilter) setStatusFilter(filters.statusFilter)
+        if (filters.categoryFilter) setCategoryFilter(filters.categoryFilter)
+      }
+    } catch (err) {
+      console.error('Error loading filters from localStorage:', err)
+    }
+  }, [])
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    const filters = {
+      filterSoftwareProducts,
+      filterProjects,
+      filterWorkflowState,
+      filterDowntime,
+      searchText,
+      statusFilter,
+      categoryFilter
+    }
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters))
+  }, [filterSoftwareProducts, filterProjects, filterWorkflowState, filterDowntime, searchText, statusFilter, categoryFilter])
+
+  // Fetch software products and projects on mount
+  useEffect(() => {
+    fetchSoftwareProducts()
+    fetchProjects()
+  }, [])
+
   useEffect(() => {
     loadChangeRequests()
     // re-fetch when filters/pagination/search change, and on mount
@@ -110,6 +168,44 @@ const ChangeRequests = () => {
 
     checkPermissions()
   }, [hasWritePermission])
+
+  const fetchSoftwareProducts = async () => {
+    try {
+      setLoadingProducts(true)
+      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.software_product.get_products?fields=["name","product_name"]&limit_page_length=100', {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Frappe-CSRF-Token': window.csrf_token || ''
+        },
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.message && Array.isArray(data.message)) {
+          setSoftwareProducts(data.message.map(p => ({ label: p.product_name || p.name, value: p.name })))
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching software products:', err)
+    } finally {
+      setLoadingProducts(false)
+    }
+  }
+
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true)
+      const response = await api.projects.getProjects?.()
+      if (response?.success && response?.data) {
+        const uniqueProjects = Array.from(new Set(response.data.map(p => p.name || p.id).filter(Boolean)))
+        setProjects(uniqueProjects.map(p => ({ label: p, value: p })))
+      }
+    } catch (err) {
+      console.error('Error fetching projects:', err)
+    } finally {
+      setLoadingProjects(false)
+    }
+  }
 
   const loadChangeRequests = async () => {
     setLoading(true)
@@ -153,7 +249,7 @@ const ChangeRequests = () => {
         : list
 
       setChangeRequests(filtered)
-      // Frappe list API doesn’t include total; approximate with filtered length
+      // Frappe list API doesn't include total; approximate with filtered length
       setTotal(filtered.length)
     } catch (error) {
       message.error('Unable to connect to server')
@@ -252,14 +348,63 @@ const ChangeRequests = () => {
   }
 
   const filteredData = changeRequests.filter(item => {
-    const matchesSearch = item.title?.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.system_affected?.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.cr_number?.toLowerCase().includes(searchText.toLowerCase())
+    // Search filter
+    const matchesSearch = !searchText ||
+      (item.title || '').toLowerCase().includes(searchText.toLowerCase()) ||
+      (item.system_affected || '').toLowerCase().includes(searchText.toLowerCase()) ||
+      (item.cr_number || '').toLowerCase().includes(searchText.toLowerCase()) ||
+      (item.name || '').toLowerCase().includes(searchText.toLowerCase())
+
+    // Status filter
     const matchesStatus = statusFilter === 'all' || item.approval_status === statusFilter
+
+    // Category filter
     const matchesCategory = categoryFilter === 'all' || item.change_category === categoryFilter
 
-    return matchesSearch && matchesStatus && matchesCategory
+    // Software Product filter (multi-select)
+    const matchesSoftwareProduct = filterSoftwareProducts.length === 0 ||
+      (item.system_affected && filterSoftwareProducts.includes(item.system_affected))
+
+    // Project filter (multi-select)
+    const matchesProject = filterProjects.length === 0 ||
+      (item.project && filterProjects.includes(item.project))
+
+    // Workflow State filter (multi-select)
+    const matchesWorkflowState = filterWorkflowState.length === 0 ||
+      (item.workflow_state && filterWorkflowState.includes(item.workflow_state))
+
+    // Downtime filter
+    const matchesDowntime = filterDowntime === 'all' ||
+      (filterDowntime === 'yes' && item.downtime_expected) ||
+      (filterDowntime === 'no' && !item.downtime_expected)
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesSoftwareProduct && matchesProject && matchesWorkflowState && matchesDowntime
   })
+
+  // Count active advanced filters
+  const activeAdvancedFiltersCount = 
+    (filterSoftwareProducts.length > 0 ? 1 : 0) +
+    (filterProjects.length > 0 ? 1 : 0) +
+    (filterWorkflowState.length > 0 ? 1 : 0) +
+    (filterDowntime !== 'all' ? 1 : 0)
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setFilterSoftwareProducts([])
+    setFilterProjects([])
+    setFilterWorkflowState([])
+    setFilterDowntime('all')
+    setSearchText('')
+    setStatusFilter('all')
+    setCategoryFilter('all')
+  }
+
+  // Get unique workflow states for filter
+  const workflowStateOptions = [
+    { label: 'All States', value: 'all' },
+    ...Array.from(new Set(changeRequests.map(cr => cr.workflow_state).filter(Boolean)))
+      .map(state => ({ label: state, value: state }))
+  ]
 
   const columns = [
     {
@@ -291,6 +436,14 @@ const ChangeRequests = () => {
       key: 'system_affected',
       width: 180,
       ellipsis: true
+    },
+    {
+      title: 'Project',
+      dataIndex: 'project',
+      key: 'project',
+      width: 180,
+      ellipsis: true,
+      render: (project) => project || '-'
     },
     {
       title: 'Category',
@@ -432,7 +585,7 @@ const ChangeRequests = () => {
 
       {/* Filters */}
       <Card style={{ marginBottom: '16px' }}>
-        <Row gutter={[16, 16]}>
+        <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={12} md={8}>
             <Input
               placeholder="Search by title, CR number, or system..."
@@ -449,13 +602,13 @@ const ChangeRequests = () => {
               onChange={setStatusFilter}
               style={{ width: '100%' }}
             >
-              <Option value="all">All Status</Option>
-              <Option value="Pending Review">Pending Review</Option>
-              <Option value="Rework">Rework</Option>
-              <Option value="Not Accepted">Not Accepted</Option>
-              <Option value="Withdrawn">Withdrawn</Option>
-              <Option value="Deferred">Deferred</Option>
-              <Option value="Approved for Implementation">Approved for Implementation</Option>
+              <Select.Option value="all">All Status</Select.Option>
+              <Select.Option value="Pending Review">Pending Review</Select.Option>
+              <Select.Option value="Rework">Rework</Select.Option>
+              <Select.Option value="Not Accepted">Not Accepted</Select.Option>
+              <Select.Option value="Withdrawn">Withdrawn</Select.Option>
+              <Select.Option value="Deferred">Deferred</Select.Option>
+              <Select.Option value="Approved for Implementation">Approved for Implementation</Select.Option>
             </Select>
           </Col>
           <Col xs={12} sm={6} md={5}>
@@ -465,14 +618,103 @@ const ChangeRequests = () => {
               onChange={setCategoryFilter}
               style={{ width: '100%' }}
             >
-              <Option value="all">All Categories</Option>
-              <Option value="Major Change">Major Change</Option>
-              <Option value="Minor Change">Minor Change</Option>
-              <Option value="Standard Change">Standard Change</Option>
-              <Option value="Emergency Change">Emergency Change</Option>
+              <Select.Option value="all">All Categories</Select.Option>
+              <Select.Option value="Major Change">Major Change</Select.Option>
+              <Select.Option value="Minor Change">Minor Change</Select.Option>
+              <Select.Option value="Standard Change">Standard Change</Select.Option>
+              <Select.Option value="Emergency Change">Emergency Change</Select.Option>
             </Select>
           </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Space>
+              <Button
+                icon={<ClearOutlined />}
+                onClick={handleClearFilters}
+                disabled={activeAdvancedFiltersCount === 0 && !searchText && statusFilter === 'all' && categoryFilter === 'all'}
+              >
+                Clear Filters
+              </Button>
+            </Space>
+          </Col>
         </Row>
+        <Collapse ghost expandIconPosition="end" style={{ marginTop: '16px' }}>
+          <Panel 
+            header={
+              <Space>
+                <FilterOutlined />
+                <Text strong>Advanced Filters</Text>
+                {activeAdvancedFiltersCount > 0 && (
+                  <Badge count={activeAdvancedFiltersCount} style={{ backgroundColor: token.colorPrimary }} />
+                )}
+              </Space>
+            } 
+            key="1"
+          >
+            <Row gutter={[16, 16]}>
+              <Col xs={24} sm={12} md={8}>
+                <Select
+                  mode="multiple"
+                  value={filterSoftwareProducts}
+                  onChange={setFilterSoftwareProducts}
+                  options={softwareProducts}
+                  style={{ width: '100%' }}
+                  placeholder="Filter by Software Product"
+                  loading={loadingProducts}
+                  allowClear
+                  maxTagCount="responsive"
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Select
+                  mode="multiple"
+                  value={filterProjects}
+                  onChange={setFilterProjects}
+                  options={projects}
+                  style={{ width: '100%' }}
+                  placeholder="Filter by Project"
+                  loading={loadingProjects}
+                  allowClear
+                  maxTagCount="responsive"
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Select
+                  mode="multiple"
+                  value={filterWorkflowState}
+                  onChange={setFilterWorkflowState}
+                  options={Array.from(new Set(changeRequests.map(cr => cr.workflow_state).filter(Boolean)))
+                    .map(state => ({ label: state, value: state }))}
+                  style={{ width: '100%' }}
+                  placeholder="Filter by Workflow State"
+                  allowClear
+                  maxTagCount="responsive"
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Select
+                  value={filterDowntime}
+                  onChange={setFilterDowntime}
+                  options={[
+                    { label: 'All', value: 'all' },
+                    { label: 'Downtime Expected', value: 'yes' },
+                    { label: 'No Downtime', value: 'no' }
+                  ]}
+                  style={{ width: '100%' }}
+                  placeholder="Filter by Downtime"
+                  allowClear
+                />
+              </Col>
+            </Row>
+          </Panel>
+        </Collapse>
       </Card>
 
       <Card>
@@ -481,7 +723,7 @@ const ChangeRequests = () => {
           dataSource={filteredData}
           rowKey="name"
           loading={loading}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1400 }}
           pagination={{
             current: page,
             pageSize,

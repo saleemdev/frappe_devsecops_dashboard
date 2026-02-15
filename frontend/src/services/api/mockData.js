@@ -630,6 +630,104 @@ export const mockZenhubSprintReport = (projectId = 'PROJ-0001') => ({
   ]
 })
 
+// Mock TOIL Timesheets Data
+export const mockTimesheets = [
+  {
+    id: 'TS-001',
+    name: 'TS-001',
+    employee: 'EMP-001',
+    employee_name: 'John Smith',
+    from_date: '2026-02-01',
+    to_date: '2026-02-07',
+    total_hours: 40.0,
+    total_toil_hours: 16.0,
+    toil_days: 2.0,
+    toil_status: 'Accrued',
+    toil_allocation: 'LEAVE-ALLOC-001',
+    docstatus: 1,
+    modified: '2026-02-07 18:30:00',
+    time_logs: [
+      { date: '2026-02-03', hours: 8.0, is_billable: false, activity: 'Training', description: 'Security training workshop' },
+      { date: '2026-02-04', hours: 8.0, is_billable: false, activity: 'Documentation', description: 'Technical documentation' }
+    ]
+  },
+  {
+    id: 'TS-002',
+    name: 'TS-002',
+    employee: 'EMP-002',
+    employee_name: 'Sarah Johnson',
+    from_date: '2026-02-08',
+    to_date: '2026-02-14',
+    total_hours: 44.0,
+    total_toil_hours: 12.0,
+    toil_days: 1.5,
+    toil_status: 'Pending Accrual',
+    toil_allocation: null,
+    docstatus: 0,
+    modified: '2026-02-14 17:00:00',
+    time_logs: [
+      { date: '2026-02-10', hours: 6.0, is_billable: false, activity: 'Meeting', description: 'Project planning meeting' },
+      { date: '2026-02-11', hours: 6.0, is_billable: false, activity: 'Documentation', description: 'API documentation' }
+    ]
+  },
+  {
+    id: 'TS-003',
+    name: 'TS-003',
+    employee: 'EMP-001',
+    employee_name: 'John Smith',
+    from_date: '2026-02-08',
+    to_date: '2026-02-14',
+    total_hours: 40.0,
+    total_toil_hours: 8.0,
+    toil_days: 1.0,
+    toil_status: 'Partially Used',
+    toil_allocation: 'LEAVE-ALLOC-002',
+    docstatus: 1,
+    modified: '2026-02-14 18:00:00',
+    time_logs: [
+      { date: '2026-02-12', hours: 8.0, is_billable: false, activity: 'Training', description: 'DevSecOps training' }
+    ]
+  },
+  {
+    id: 'TS-004',
+    name: 'TS-004',
+    employee: 'EMP-003',
+    employee_name: 'Mike Chen',
+    from_date: '2026-01-15',
+    to_date: '2026-01-21',
+    total_hours: 40.0,
+    total_toil_hours: 24.0,
+    toil_days: 3.0,
+    toil_status: 'Fully Used',
+    toil_allocation: 'LEAVE-ALLOC-003',
+    docstatus: 1,
+    modified: '2026-01-21 16:45:00',
+    time_logs: [
+      { date: '2026-01-16', hours: 8.0, is_billable: false, activity: 'Support', description: 'Production incident support' },
+      { date: '2026-01-17', hours: 8.0, is_billable: false, activity: 'Support', description: 'Production incident support' },
+      { date: '2026-01-18', hours: 8.0, is_billable: false, activity: 'Support', description: 'Production incident support' }
+    ]
+  },
+  {
+    id: 'TS-005',
+    name: 'TS-005',
+    employee: 'EMP-004',
+    employee_name: 'Lisa Wang',
+    from_date: '2026-02-01',
+    to_date: '2026-02-07',
+    total_hours: 40.0,
+    total_toil_hours: 4.0,
+    toil_days: 0.5,
+    toil_status: 'Pending Accrual',
+    toil_allocation: null,
+    docstatus: 0,
+    modified: '2026-02-07 15:30:00',
+    time_logs: [
+      { date: '2026-02-05', hours: 4.0, is_billable: false, activity: 'Meeting', description: 'Sprint planning' }
+    ]
+  }
+]
+
 export { simulateDelay }
 
 // Default export
@@ -640,5 +738,6 @@ export default {
   mockChangeRequests,
   mockDashboardMetrics,
   mockSwaggerCollections,
+  mockTimesheets,
   simulateDelay
 }

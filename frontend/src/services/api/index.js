@@ -10,6 +10,7 @@ import swaggerCollectionsService from './swaggerCollections.js'
 import zenhubService from './zenhub.js'
 import permissionsService from './permissions.js'
 import productKPIService from './productKPI.js'
+import toilService from './toil.js'
 
 // Projects service
 import projectsService from './projects.js'
@@ -369,6 +370,7 @@ class ApiService {
     this.auth = authService
     this.permissions = permissionsService
     this.productKPI = productKPIService
+    this.toil = toilService
   }
 
   /**
@@ -455,7 +457,8 @@ export {
   changeRequestsService,
   authService,
   permissionsService,
-  productKPIService
+  productKPIService,
+  toilService
 }
 
 // Configuration exports

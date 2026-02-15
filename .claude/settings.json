@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/salim/.local/share/uv/tools/frappe-bench/bin/bench:*)"
+    ]
+  }
+}

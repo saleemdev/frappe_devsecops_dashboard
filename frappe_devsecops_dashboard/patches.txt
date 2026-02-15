@@ -1,1 +1,2 @@
 frappe_devsecops_dashboard.patches.v1_0.add_incident_calendar_fields
+frappe_devsecops_dashboard.patches.v1_0.setup_toil

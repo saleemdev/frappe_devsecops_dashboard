@@ -27,6 +27,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   CopyOutlined,
+  FileTextOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
   ShareAltOutlined,
@@ -66,6 +67,8 @@ const PasswordVault = ({ navigateToRoute }) => {
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [userOptions, setUserOptions] = useState([])
   const [stats, setStats] = useState({ owned: 0, shared: 0, total: 0 })
+  const [copyingPassword, setCopyingPassword] = useState({})
+  const [sharingEntry, setSharingEntry] = useState(null)
 
   // Load password entries when filters change
   useEffect(() => {
@@ -122,6 +125,7 @@ const PasswordVault = ({ navigateToRoute }) => {
   }
 
   const handleCopyPassword = async (entry) => {
+    setCopyingPassword(prev => ({ ...prev, [entry.name]: true }))
     try {
       const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entry?name=${entry.name}`, {
         headers: {
@@ -129,22 +133,32 @@ const PasswordVault = ({ navigateToRoute }) => {
         }
       })
 
-      if (!response.ok) throw new Error('Failed to fetch entry')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || errorData.error || `Server error: ${response.status}`)
+      }
 
       const result = await response.json()
       const data = result.message || result.data || result
+      const entryData = data.data || data
 
-      if (data && data.password) {
-        await navigator.clipboard.writeText(data.password)
+      const password = entryData.password
+      if (password) {
+        await navigator.clipboard.writeText(password)
         message.success('Password copied to clipboard')
+      } else {
+        message.error('Password not found in response')
       }
     } catch (error) {
       console.error('[PasswordVault] Error copying password:', error)
-      message.error('Failed to copy password')
+      message.error(error.message || 'Failed to copy password')
+    } finally {
+      setCopyingPassword(prev => ({ ...prev, [entry.name]: false }))
     }
   }
 
   const handleCopyCredentials = async (entry) => {
+    setCopyingPassword(prev => ({ ...prev, [`${entry.name}-all`]: true }))
     try {
       const response = await fetch(`/api/method/frappe_devsecops_dashboard.api.password_vault.get_vault_entry?name=${entry.name}`, {
         headers: {
@@ -152,19 +166,25 @@ const PasswordVault = ({ navigateToRoute }) => {
         }
       })
 
-      if (!response.ok) throw new Error('Failed to fetch entry')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || errorData.error || `Server error: ${response.status}`)
+      }
 
       const result = await response.json()
       const data = result.message || result.data || result
+      const entryData = data.data || data
 
-      if (data) {
-        const credentialsText = `Username: ${data.username || 'N/A'}\nPassword: ${data.password || 'N/A'}${data.url ? `\nURL: ${data.url}` : ''}`
+      if (entryData) {
+        const credentialsText = `Username: ${entryData.username || 'N/A'}\nPassword: ${entryData.password || 'N/A'}${entryData.url ? `\nURL: ${entryData.url}` : ''}`
         await navigator.clipboard.writeText(credentialsText)
         message.success('Credentials copied to clipboard')
       }
     } catch (error) {
       console.error('[PasswordVault] Error copying credentials:', error)
-      message.error('Failed to copy credentials')
+      message.error(error.message || 'Failed to copy credentials')
+    } finally {
+      setCopyingPassword(prev => ({ ...prev, [`${entry.name}-all`]: false }))
     }
   }
 
@@ -179,7 +199,10 @@ const PasswordVault = ({ navigateToRoute }) => {
         body: JSON.stringify({ name: entry.name })
       })
 
-      if (!response.ok) throw new Error('Failed to delete entry')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || errorData.error || `Server error: ${response.status}`)
+      }
 
       const result = await response.json()
       const data = result.message || result.data || result
@@ -187,10 +210,12 @@ const PasswordVault = ({ navigateToRoute }) => {
       if (data && (data.success || data.message)) {
         message.success('Password deleted successfully')
         loadEntries()
+      } else {
+        throw new Error(data.error || 'Delete failed')
       }
     } catch (error) {
       console.error('[PasswordVault] Error deleting password:', error)
-      message.error('Failed to delete password')
+      message.error(error.message || 'Failed to delete password')
     }
   }
 
@@ -255,6 +280,7 @@ const PasswordVault = ({ navigateToRoute }) => {
 
   const handleShareSubmit = async (values) => {
     if (!selectedEntry) return
+    setSharingEntry(selectedEntry.name)
     try {
       const response = await fetch('/api/method/frappe_devsecops_dashboard.api.password_vault.share_password_entry', {
         method: 'POST',
@@ -264,12 +290,15 @@ const PasswordVault = ({ navigateToRoute }) => {
         },
         body: JSON.stringify({
           name: selectedEntry.name,
-          assign_to_users: values.users || [],
+          emails: values.emails || [],
           description: values.description || ''
         })
       })
 
-      if (!response.ok) throw new Error('Failed to share password')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || errorData.error || `Server error: ${response.status}`)
+      }
 
       const result = await response.json()
       const data = result.message || result.data || result
@@ -284,7 +313,9 @@ const PasswordVault = ({ navigateToRoute }) => {
       }
     } catch (error) {
       console.error('[PasswordVault] Error sharing password:', error)
-      message.error('Failed to share password')
+      message.error(error.message || 'Failed to share password')
+    } finally {
+      setSharingEntry(null)
     }
   }
 
@@ -584,23 +615,38 @@ const PasswordVault = ({ navigateToRoute }) => {
                 }}
                 bodyStyle={{ padding: '20px' }}
                 actions={[
+                  <Tooltip title="Copy All Credentials">
+                    {copyingPassword[`${entry.name}-all`] ? (
+                      <Spin key="copy-all-loading" size="small" />
+                    ) : (
+                      <FileTextOutlined
+                        key="copy-all"
+                        onClick={() => handleCopyCredentials(entry)}
+                        style={{ fontSize: 16, color: token.colorSuccess }}
+                      />
+                    )}
+                  </Tooltip>,
                   <Tooltip title="Copy Password">
-                    <CopyOutlined 
-                      key="copy" 
-                      onClick={() => handleCopyPassword(entry)}
-                      style={{ fontSize: 16 }}
-                    />
+                    {copyingPassword[entry.name] ? (
+                      <Spin key="copy-loading" size="small" />
+                    ) : (
+                      <CopyOutlined
+                        key="copy"
+                        onClick={() => handleCopyPassword(entry)}
+                        style={{ fontSize: 16 }}
+                      />
+                    )}
                   </Tooltip>,
                   <Tooltip title="Edit">
-                    <EditOutlined 
-                      key="edit" 
+                    <EditOutlined
+                      key="edit"
                       onClick={() => handleEdit(entry)}
                       style={{ fontSize: 16 }}
                     />
                   </Tooltip>,
                   <Tooltip title="Share">
-                    <ShareAltOutlined 
-                      key="share" 
+                    <ShareAltOutlined
+                      key="share"
                       onClick={() => handleSharePassword(entry)}
                       style={{ fontSize: 16, color: entry.is_shared ? token.colorSuccess : undefined }}
                     />
@@ -614,7 +660,7 @@ const PasswordVault = ({ navigateToRoute }) => {
                     key="delete"
                   >
                     <Tooltip title="Delete">
-                      <DeleteOutlined 
+                      <DeleteOutlined
                         style={{ fontSize: 16, color: token.colorError }}
                       />
                     </Tooltip>
@@ -747,10 +793,20 @@ const PasswordVault = ({ navigateToRoute }) => {
                 </Col>
                 <Col xs={24} sm={4} md={9} style={{ textAlign: 'right' }}>
                   <Space>
+                    <Tooltip title="Copy All Credentials">
+                      <Button
+                        type="text"
+                        icon={<FileTextOutlined />}
+                        loading={copyingPassword[`${entry.name}-all`]}
+                        onClick={() => handleCopyCredentials(entry)}
+                        style={{ color: token.colorSuccess }}
+                      />
+                    </Tooltip>
                     <Tooltip title="Copy Password">
                       <Button
                         type="text"
                         icon={<CopyOutlined />}
+                        loading={copyingPassword[entry.name]}
                         onClick={() => handleCopyPassword(entry)}
                       />
                     </Tooltip>
@@ -813,21 +869,35 @@ const PasswordVault = ({ navigateToRoute }) => {
           onFinish={handleShareSubmit}
         >
           <Form.Item
-            label="Share with Users"
-            name="users"
-            rules={[{ required: true, message: 'Please select at least one user' }]}
-            tooltip="Select users to share this password with. They will receive a ToDo notification."
+            label="Share with Email Addresses"
+            name="emails"
+            validateTrigger={['onChange', 'onBlur']}
+            rules={[
+              { required: true, message: 'Please enter at least one email address' },
+              {
+                validator: (_, value) => {
+                  if (!value || value.length === 0) {
+                    return Promise.reject('At least one email address is required')
+                  }
+                  // Validate each email
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                  const invalidEmails = value.filter(email => !emailRegex.test(email))
+                  if (invalidEmails.length > 0) {
+                    return Promise.reject(`Invalid email(s): ${invalidEmails.join(', ')}`)
+                  }
+                  return Promise.resolve()
+                }
+              }
+            ]}
+            tooltip="Enter email addresses to share this password with. Press Enter after each email."
           >
             <Select
-              mode="multiple"
-              placeholder="Select users..."
-              showSearch
-              loading={loadingUsers}
-              onSearch={handleUserSearch}
-              filterOption={false}
-              options={userOptions}
+              mode="tags"
+              placeholder="Type email addresses and press Enter..."
+              tokenSeparators={[',', ';', ' ']}
               size="large"
-              notFoundContent={loadingUsers ? <Spin size="small" /> : 'No users found'}
+              notFoundContent={null}
+              dropdownStyle={{ display: 'none' }}
               style={{ width: '100%' }}
             />
           </Form.Item>
@@ -843,8 +913,15 @@ const PasswordVault = ({ navigateToRoute }) => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" block size="large">
-              <UserAddOutlined /> Share Password
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              size="large"
+              loading={sharingEntry !== null}
+              icon={<UserAddOutlined />}
+            >
+              Share Password
             </Button>
           </Form.Item>
         </Form>

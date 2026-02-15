@@ -479,73 +479,123 @@ def copy_vault_entry(name):
 
 
 @frappe.whitelist()
-def share_password_entry(name, assign_to_users=None, description=""):
+def share_password_entry(name, emails=None, description=""):
 	"""
-	Share password entry with users using Frappe ToDo/document assignment
-	
+	Share password entry with users via email addresses
+	Creates DocShare, logs comment, and sends email notification
+
 	Args:
 		name: Password entry name
-		assign_to_users: List of user emails/usernames to share with
-		description: Optional description for the assignment
-	
+		emails: List of email addresses to share with
+		description: Optional description for the sharing action
+
 	Returns:
-		dict: Success response
+		dict: Success response with shared users and notification status
 	"""
 	try:
+		import re
+		from frappe.share import add as share_add
+
 		doctype_name = _get_doctype_name()
 		entry = frappe.get_doc(doctype_name, name)
-		
+
 		# Check if user is the owner or System Manager
 		if entry.created_by_user != frappe.session.user and not frappe.has_role("System Manager"):
 			frappe.throw("You don't have permission to share this password entry")
-		
-		# Parse assign_to_users if it's a JSON string
-		if isinstance(assign_to_users, str):
-			assign_to_users = json.loads(assign_to_users)
-		
-		if not assign_to_users or not isinstance(assign_to_users, list):
-			return {"success": False, "error": "assign_to_users must be a list of user emails"}
-		
+
+		# Parse emails if it's a JSON string
+		if isinstance(emails, str):
+			try:
+				emails = json.loads(emails)
+			except (json.JSONDecodeError, ValueError) as e:
+				return {"success": False, "error": f"Invalid JSON format for emails: {str(e)}"}
+
+		if emails is None or not isinstance(emails, list):
+			return {"success": False, "error": "emails must be a list of email addresses"}
+
+		if len(emails) == 0:
+			return {"success": False, "error": "emails list cannot be empty"}
+
+		# Validate email format
+		email_regex = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+		invalid_emails = [email for email in emails if not email_regex.match(email)]
+		if invalid_emails:
+			return {
+				"success": False,
+				"error": f"Invalid email addresses: {', '.join(invalid_emails)}"
+			}
+
 		shared_users = []
 		failed_users = []
-		
-		# Use Frappe's assign_to functionality
-		from frappe.desk.form import assign_to
-		
-		for user_email in assign_to_users:
+		new_users = []  # Track users who don't exist in system
+
+		for email in emails:
 			try:
-				# Verify user exists
-				if not frappe.db.exists("User", user_email):
-					failed_users.append(user_email)
+				# Check if user exists
+				user_exists = frappe.db.exists("User", email)
+
+				if not user_exists:
+					# Email doesn't correspond to existing user
+					# We'll track this but still "share" by sending email
+					new_users.append(email)
+					shared_users.append(email)
 					continue
-				
-				# Create assignment using Frappe's assign_to.add
-				assign_to.add({
-					"assign_to": [user_email],
-					"doctype": doctype_name,
-					"name": name,
-					"description": description or f"Shared password: {entry.title}",
-					"priority": "Medium"
-				})
-				
-				shared_users.append(user_email)
-				
+
+				# Share document using Frappe's share system
+				share_add(
+					doctype=doctype_name,
+					name=name,
+					user=email,
+					read=1,
+					write=0,
+					share=0,
+					notify=0  # We'll send custom notification
+				)
+
+				shared_users.append(email)
+
 			except Exception as e:
-				frappe.log_error(f"Error sharing with {user_email}: {str(e)}", "Password Vault")
-				failed_users.append(user_email)
-		
+				frappe.log_error(f"Error sharing with {email}: {str(e)}", "Password Vault Share")
+				failed_users.append(email)
+
+		# Log sharing action in comments
+		if shared_users:
+			comment_text = f"Shared with: {', '.join(shared_users)}"
+			if description:
+				comment_text += f"\n\nNote: {description}"
+
+			entry.add_comment("Comment", text=comment_text)
+
+		# Enqueue email notifications (after commit)
+		if shared_users:
+			frappe.enqueue_doc(
+				doctype_name,
+				name,
+				'_send_share_notifications',
+				emails=shared_users,
+				description=description,
+				queue='default',
+				timeout=300,
+				now=False,
+				enqueue_after_commit=True
+			)
+
 		result = {
 			"success": True,
 			"shared_with": shared_users,
-			"message": f"Password shared with {len(shared_users)} user(s)"
+			"message": f"Password shared with {len(shared_users)} user(s). Email notifications will be sent."
 		}
-		
+
 		if failed_users:
 			result["failed"] = failed_users
-			result["message"] += f", {len(failed_users)} failed"
-		
+			result["message"] += f" {len(failed_users)} failed."
+
+		if new_users:
+			result["new_users"] = new_users
+			result["message"] += f" Note: {len(new_users)} email(s) are not registered users but will receive notification."
+
 		return result
-		
+
 	except frappe.DoesNotExistError:
 		return {"success": False, "error": f"Password entry {name} not found"}
 	except Exception as e:

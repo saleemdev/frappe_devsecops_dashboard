@@ -18,7 +18,8 @@ import {
   RiseOutlined,
   FileProtectOutlined,
   BarChartOutlined,
-  TeamOutlined
+  TeamOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
@@ -68,6 +69,9 @@ import WikiPageEdit from './components/WikiPageEdit'
 import ProductKPIDashboard from './components/ProductKPIDashboard'
 import ChangeManagementTeams from './components/ChangeManagementTeams'
 import ChangeManagementTeamForm from './components/ChangeManagementTeamForm'
+import TOILDetail from './components/TOILDetail'
+import ErrorBoundary from './components/ErrorBoundary'
+import TOILPage from './pages/TOILPage'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -129,6 +133,10 @@ function App() {
     showAPIRouteForm = false,
     selectedWikiSpaceSlug = null,
     selectedWikiPageSlug = null,
+    selectedTimesheetId = null,
+    showTOILDetail = false,
+    showTimesheetForm = false,
+    showLeaveApplicationForm = false,
     isMobile = false,
     mobileMenuVisible = false,
     navigateToRoute = () => { },
@@ -380,6 +388,8 @@ function AppContent({
   selectedRACITemplateId,
   selectedWikiSpaceSlug,
   selectedWikiPageSlug,
+  selectedTimesheetId,
+  showTOILDetail,
   getUserInitials
 }) {
   const { token } = theme.useToken()
@@ -405,6 +415,14 @@ function AppContent({
 
     if (showSoftwareProductDetail === true && selectedSoftwareProductId) {
       return <SoftwareProductDetail productId={selectedSoftwareProductId} navigateToRoute={navigateToRoute} />
+    }
+
+    if (showTOILDetail === true && selectedTimesheetId) {
+      return (
+        <ErrorBoundary>
+          <TOILDetail timesheetId={selectedTimesheetId} navigateToRoute={navigateToRoute} />
+        </ErrorBoundary>
+      )
     }
 
     // Handle main routes
@@ -639,6 +657,27 @@ function AppContent({
           />
         )
 
+      case 'timesheet-toil':
+        return (
+          <ErrorBoundary>
+            <TOILPage navigateToRoute={navigateToRoute} initialTab="timesheets" />
+          </ErrorBoundary>
+        )
+
+      case 'toil-timesheet-new':
+        return (
+          <ErrorBoundary>
+            <TOILPage navigateToRoute={navigateToRoute} initialTab="timesheets" />
+          </ErrorBoundary>
+        )
+
+      case 'toil-leave-new':
+        return (
+          <ErrorBoundary>
+            <TOILPage navigateToRoute={navigateToRoute} initialTab="leave" />
+          </ErrorBoundary>
+        )
+
       case 'dashboard':
       default:
         return (
@@ -739,6 +778,11 @@ function AppContent({
         {
           key: 'incidents',
           label: 'Incidents'
+        },
+        {
+          key: 'timesheet-toil',
+          icon: <ClockCircleOutlined />,
+          label: 'Timesheet (TOIL Record)'
         },
         {
           key: 'monitoring-dashboards',

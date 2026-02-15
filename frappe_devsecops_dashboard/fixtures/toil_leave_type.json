@@ -1,0 +1,16 @@
+[
+  {
+    "doctype": "Leave Type",
+    "name": "Time Off in Lieu",
+    "leave_type_name": "Time Off in Lieu",
+    "max_leaves_allowed": 0,
+    "allow_negative": 0,
+    "is_carry_forward": 1,
+    "maximum_carry_forwarded_leaves": 30,
+    "expire_carry_forwarded_leaves_after_days": 180,
+    "allow_encashment": 0,
+    "earned_leave": 0,
+    "is_compensatory": 0,
+    "description": "Time Off in Lieu (TOIL) - earned from non-billable overtime work"
+  }
+]

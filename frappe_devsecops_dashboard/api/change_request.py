@@ -917,3 +917,369 @@ def get_software_products(search_term: str = '', limit: int = 50) -> Dict[str, A
 			'error': 'An error occurred while fetching software products',
 			'data': []
 		}
+
+
+@frappe.whitelist()
+def get_my_approval_status_batch(change_request_names: str) -> Dict[str, Any]:
+	"""
+	Get current user's approval status for multiple Change Requests.
+	Used to enrich list view with user-specific approval data.
+
+	Args:
+		change_request_names: JSON array of CR names
+
+	Returns:
+		Dict mapping CR name to {status, business_function, is_approver}
+	"""
+	try:
+		import json
+
+		# Parse CR names
+		if isinstance(change_request_names, str):
+			try:
+				cr_names = json.loads(change_request_names)
+			except json.JSONDecodeError:
+				return {
+					'success': False,
+					'error': 'Invalid JSON format',
+					'data': {}
+				}
+		else:
+			cr_names = change_request_names
+
+		# Validate array input
+		if not isinstance(cr_names, list):
+			return {
+				'success': False,
+				'error': 'Expected array of Change Request names',
+				'data': {}
+			}
+
+		if len(cr_names) == 0:
+			return {
+				'success': True,
+				'data': {}
+			}
+
+		# Enforce maximum batch size to prevent DoS attacks
+		MAX_BATCH_SIZE = 100
+		if len(cr_names) > MAX_BATCH_SIZE:
+			return {
+				'success': False,
+				'error': f'Batch size exceeds maximum of {MAX_BATCH_SIZE}',
+				'data': {}
+			}
+
+		# Validate each CR name and check if exists
+		validated_cr_names = []
+		for cr_name in cr_names:
+			if not isinstance(cr_name, str):
+				continue  # Skip invalid entries
+
+			# Basic format validation
+			if not cr_name or len(cr_name) > 140:  # Frappe name field limit
+				continue
+
+			# Check if document exists
+			if frappe.db.exists('Change Request', cr_name):
+				validated_cr_names.append(cr_name)
+
+		if not validated_cr_names:
+			return {
+				'success': True,
+				'data': {}
+			}
+
+		# Get current user
+		current_user = frappe.session.user
+
+		# CRITICAL SECURITY FIX: Validate read permissions for each CR
+		accessible_crs = []
+		for cr_name in validated_cr_names:
+			if frappe.has_permission('Change Request', 'read', cr_name):
+				accessible_crs.append(cr_name)
+
+		if not accessible_crs:
+			return {
+				'success': True,
+				'data': {}
+			}
+
+		# Query child table for current user's approval status across accessible CRs
+		# Using a single SQL query for performance
+		approvals = frappe.db.sql("""
+			SELECT
+				parent as change_request,
+				user,
+				business_function,
+				approval_status,
+				approval_datetime,
+				idx
+			FROM `tabChange Request Approver`
+			WHERE parent IN %s
+				AND user = %s
+			ORDER BY parent, idx ASC
+		""", [tuple(accessible_crs), current_user], as_dict=True)
+
+		# Build result mapping only for accessible CRs
+		result = {}
+		for cr_name in accessible_crs:
+			# Default: user is not an approver
+			result[cr_name] = {
+				'is_approver': False,
+				'status': None,
+				'business_function': None
+			}
+
+		# FIXED: Handle multiple approver entries properly
+		# Group approvals by CR and show the most critical pending status
+		from collections import defaultdict
+		approvals_by_cr = defaultdict(list)
+
+		for approval in approvals:
+			approvals_by_cr[approval['change_request']].append(approval)
+
+		for cr_name, cr_approvals in approvals_by_cr.items():
+			if len(cr_approvals) == 1:
+				# Single role: simple case
+				approval = cr_approvals[0]
+				result[cr_name] = {
+					'is_approver': True,
+					'status': approval['approval_status'],
+					'business_function': approval['business_function'],
+					'approval_datetime': approval.get('approval_datetime')
+				}
+			else:
+				# Multiple roles: prioritize pending status
+				# Priority: Pending > Rejected > Approved
+				pending_approval = None
+				rejected_approval = None
+				approved_approval = None
+
+				for approval in cr_approvals:
+					if approval['approval_status'] == 'Pending':
+						pending_approval = approval
+						break  # Pending has highest priority
+					elif approval['approval_status'] == 'Rejected':
+						rejected_approval = approval
+					elif approval['approval_status'] == 'Approved':
+						approved_approval = approval
+
+				# Use highest priority status
+				selected_approval = pending_approval or rejected_approval or approved_approval
+
+				if selected_approval:
+					result[cr_name] = {
+						'is_approver': True,
+						'status': selected_approval['approval_status'],
+						'business_function': selected_approval['business_function'],
+						'approval_datetime': selected_approval.get('approval_datetime'),
+						'multiple_roles': len(cr_approvals) > 1,
+						'total_roles': len(cr_approvals)
+					}
+
+		return {
+			'success': True,
+			'data': result
+		}
+
+	except Exception as e:
+		error_msg = f"Error fetching approval status batch: {str(e)}"
+		frappe.logger().error(f"[Approval Status Batch] {error_msg}")
+		frappe.log_error(error_msg, "Approval Status Batch API")
+		return {
+			'success': False,
+			'error': 'An error occurred while fetching approval status',
+			'data': {}
+		}
+
+
+@frappe.whitelist()
+def get_change_requests_filtered(
+	special_filter: Optional[str] = None,
+	filters: Optional[str] = None,
+	limit_start: int = 0,
+	limit_page_length: int = 20,
+	order_by: str = 'submission_date desc'
+) -> Dict[str, Any]:
+	"""
+	Enhanced list API with special filters for user-specific approval status.
+
+	Args:
+		special_filter: Special filter ('pending_my_action' or 'approved_by_me')
+		filters: JSON string of additional filters in Frappe format
+		limit_start: Starting index for pagination
+		limit_page_length: Number of records per page
+		order_by: Sort order (default: "submission_date desc")
+
+	Returns:
+		Dict with 'data' (list of records) and 'total' (count)
+	"""
+	try:
+		import json
+
+		# INPUT VALIDATION: Validate special_filter parameter
+		if special_filter and special_filter not in ['pending_my_action', 'approved_by_me']:
+			return {
+				'success': False,
+				'error': 'Invalid special_filter value',
+				'data': [],
+				'total': 0
+			}
+
+		# INPUT VALIDATION: Validate pagination parameters
+		try:
+			limit_start = int(limit_start)
+			limit_page_length = int(limit_page_length)
+		except (ValueError, TypeError):
+			return {
+				'success': False,
+				'error': 'Invalid pagination parameters',
+				'data': [],
+				'total': 0
+			}
+
+		# INPUT VALIDATION: Enforce reasonable limits
+		if limit_start < 0:
+			limit_start = 0
+
+		if limit_page_length < 1:
+			limit_page_length = 20
+		elif limit_page_length > 500:  # Prevent DoS with huge page sizes
+			limit_page_length = 500
+
+		# INPUT VALIDATION: Validate order_by to prevent SQL injection
+		# Only allow specific field names and direction
+		valid_order_fields = [
+			'name', 'submission_date', 'cr_number', 'title', 'approval_status',
+			'workflow_state', 'project', 'originator_name', 'change_category',
+			'implementation_date', 'creation', 'modified'
+		]
+
+		# Parse order_by and validate
+		if order_by:
+			order_parts = order_by.strip().lower().split()
+			if len(order_parts) == 0:
+				order_by = 'submission_date desc'
+			else:
+				field_name = order_parts[0]
+				direction = order_parts[1] if len(order_parts) > 1 else 'desc'
+
+				# Validate field name
+				if field_name not in valid_order_fields:
+					order_by = 'submission_date desc'
+				# Validate direction
+				elif direction not in ['asc', 'desc']:
+					order_by = f'{field_name} desc'
+		else:
+			order_by = 'submission_date desc'
+
+		# Get current user
+		current_user = frappe.session.user
+
+		# Parse additional filters
+		filter_list = []
+		if filters:
+			try:
+				filter_list = json.loads(filters) if isinstance(filters, str) else filters
+				# Validate filter_list is a list
+				if not isinstance(filter_list, list):
+					filter_list = []
+			except (json.JSONDecodeError, TypeError):
+				filter_list = []
+
+		# Apply special filters using subquery
+		if special_filter == 'pending_my_action':
+			# Get CRs where current user has Pending approval
+			pending_crs = frappe.db.sql("""
+				SELECT DISTINCT parent
+				FROM `tabChange Request Approver`
+				WHERE user = %s
+					AND approval_status = 'Pending'
+			""", [current_user], as_dict=False)
+
+			# Extract CR names from query result
+			pending_cr_names = [row[0] for row in pending_crs]
+
+			if not pending_cr_names:
+				# No pending CRs, return empty result
+				return {
+					'success': True,
+					'data': [],
+					'total': 0
+				}
+
+			# Add to filters
+			filter_list.append(['name', 'in', pending_cr_names])
+
+		elif special_filter == 'approved_by_me':
+			# Get CRs where current user has Approved
+			approved_crs = frappe.db.sql("""
+				SELECT DISTINCT parent
+				FROM `tabChange Request Approver`
+				WHERE user = %s
+					AND approval_status = 'Approved'
+			""", [current_user], as_dict=False)
+
+			# Extract CR names from query result
+			approved_cr_names = [row[0] for row in approved_crs]
+
+			if not approved_cr_names:
+				# No approved CRs, return empty result
+				return {
+					'success': True,
+					'data': [],
+					'total': 0
+				}
+
+			# Add to filters
+			filter_list.append(['name', 'in', approved_cr_names])
+
+		# Define fields to return
+		field_list = [
+			'name', 'title', 'cr_number', 'prepared_for', 'submission_date',
+			'system_affected', 'originator_name', 'originator_organization',
+			'originators_manager', 'change_category', 'downtime_expected',
+			'detailed_description', 'release_notes', 'implementation_date',
+			'implementation_time', 'testing_plan', 'rollback_plan',
+			'approval_status', 'workflow_state', 'project', 'incident'
+		]
+
+		# Get records with permission check
+		records = frappe.get_list(
+			'Change Request',
+			fields=field_list,
+			filters=filter_list,
+			limit_start=int(limit_start),
+			limit_page_length=int(limit_page_length),
+			order_by=order_by
+		)
+
+		# Get total count with same filters
+		total = frappe.db.count('Change Request', filters=filter_list)
+
+		# Ensure the frontend receives the document identifier in cr_number
+		for r in records:
+			try:
+				r['cr_number'] = r.get('name') or r.get('cr_number')
+			except Exception:
+				pass
+
+		return {
+			'success': True,
+			'data': records,
+			'total': total
+		}
+
+	except frappe.PermissionError:
+		frappe.throw(_('You do not have permission to read Change Requests'), frappe.PermissionError)
+	except Exception as e:
+		error_msg = f"Error fetching filtered Change Requests: {str(e)}"
+		frappe.logger().error(f"[Change Requests Filtered] {error_msg}")
+		frappe.log_error(error_msg, "Change Requests Filtered API")
+		return {
+			'success': False,
+			'error': str(e),
+			'data': [],
+			'total': 0
+		}

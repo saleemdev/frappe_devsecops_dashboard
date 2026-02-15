@@ -33,3 +33,38 @@ class PasswordVaultEntry(Document):
 		for link in share_links:
 			frappe.delete_doc("Password Share Link", link, force=True)
 
+	def _send_share_notifications(self, emails, description=""):
+		"""
+		Send email notifications to users who received share access
+		This method is called by background worker via frappe.enqueue_doc
+
+		Args:
+			emails: List of email addresses to notify
+			description: Optional description from the sharer
+		"""
+		try:
+			from frappe_devsecops_dashboard.api.password_vault_notifications import send_share_notifications
+
+			frappe.logger().info(f"[Password Vault] Sending share notifications for {self.name}")
+			result = send_share_notifications(
+				password_entry_name=self.name,
+				emails=emails,
+				description=description
+			)
+
+			if result.get('success'):
+				frappe.logger().info(
+					f"[Password Vault] Share notifications completed: "
+					f"{result.get('sent_count')} sent, {result.get('failed_count')} failed"
+				)
+			else:
+				frappe.logger().error(
+					f"[Password Vault] Share notifications failed: {result.get('error')}"
+				)
+		except Exception as e:
+			frappe.logger().error(f"[Password Vault] Error in _send_share_notifications: {str(e)}")
+			frappe.log_error(
+				f"Failed to send share notifications for {self.name}: {str(e)}",
+				"Password Vault Share Notification"
+			)
+

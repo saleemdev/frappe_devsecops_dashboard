@@ -54,6 +54,12 @@ const useNavigationStore = create(
       // Change Management Team state
       selectedChangeManagementTeamId: null,
 
+      // TOIL state
+      selectedTimesheetId: null,
+      showTOILDetail: false,
+      showTimesheetForm: false,
+      showLeaveApplicationForm: false,
+
       // Wiki state
       selectedWikiSpaceSlug: null,
       selectedWikiPageSlug: null,
@@ -79,9 +85,9 @@ const useNavigationStore = create(
       /**
        * Navigate to a specific route
        */
-      navigateToRoute: (route, projectId = null, appId = null, softwareProductId = null, passwordVaultEntryId = null) => {
+      navigateToRoute: (route, projectId = null, appId = null, softwareProductId = null, passwordVaultEntryId = null, timesheetId = null) => {
         const state = get()
-        console.log('[Navigation] navigateToRoute called with:', { route, projectId, appId, softwareProductId, passwordVaultEntryId })
+        console.log('[Navigation] navigateToRoute called with:', { route, projectId, appId, softwareProductId, passwordVaultEntryId, timesheetId })
 
         // Set software product ID if provided
         if (softwareProductId) {
@@ -381,6 +387,7 @@ const useNavigationStore = create(
             set({
               currentRoute: 'password-vault-edit',
               showPasswordVaultForm: true,
+              selectedPasswordVaultEntryId: passwordVaultEntryId,
               selectedProjectId: null,
               showProjectDetail: false,
               selectedAppId: null,
@@ -649,6 +656,84 @@ const useNavigationStore = create(
               showSwaggerDetail: false
             })
             window.location.hash = 'ask-ai'
+            break
+
+          case 'timesheet-toil':
+            set({
+              currentRoute: 'timesheet-toil',
+              selectedTimesheetId: null,
+              showTOILDetail: false,
+              showTimesheetForm: false,
+              showLeaveApplicationForm: false,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'timesheet-toil'
+            break
+
+          case 'timesheet-toil-detail':
+            if (timesheetId) {
+              set({
+                currentRoute: 'timesheet-toil',
+                selectedTimesheetId: timesheetId,
+                showTOILDetail: true,
+                showTimesheetForm: false,
+                showLeaveApplicationForm: false,
+                selectedProjectId: null,
+                showProjectDetail: false,
+                selectedAppId: null,
+                showAppDetail: false,
+                selectedIncidentId: null,
+                showIncidentDetail: false,
+                selectedSwaggerId: null,
+                showSwaggerDetail: false
+              })
+              window.location.hash = `timesheet-toil/${timesheetId}`
+            }
+            break
+
+          case 'toil-timesheet-new':
+            set({
+              currentRoute: 'toil-timesheet-new',
+              selectedTimesheetId: null,
+              showTOILDetail: false,
+              showTimesheetForm: true,
+              showLeaveApplicationForm: false,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'toil/timesheet/new'
+            break
+
+          case 'toil-leave-new':
+            set({
+              currentRoute: 'toil-leave-new',
+              selectedTimesheetId: null,
+              showTOILDetail: false,
+              showTimesheetForm: false,
+              showLeaveApplicationForm: true,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'toil/leave/new'
             break
 
 
@@ -932,6 +1017,24 @@ const useNavigationStore = create(
           return
         }
         get().navigateToRoute('incident-edit', null, incidentId)
+      },
+
+      /**
+       * Navigate to TOIL list
+       */
+      goToTOILList: () => {
+        get().navigateToRoute('timesheet-toil')
+      },
+
+      /**
+       * Navigate to timesheet detail view
+       */
+      viewTimesheet: (timesheetId) => {
+        if (!timesheetId) {
+          console.warn('[Navigation] viewTimesheet called without timesheetId')
+          return
+        }
+        get().navigateToRoute('timesheet-toil-detail', null, null, null, null, timesheetId)
       },
 
       /**
@@ -1472,6 +1575,15 @@ const useNavigationStore = create(
             selectedSwaggerId: null,
             showSwaggerDetail: false
           })
+        } else if (hash === 'timesheet-toil') {
+          get().navigateToRoute('timesheet-toil')
+        } else if (hash === 'toil/timesheet/new') {
+          get().navigateToRoute('toil-timesheet-new')
+        } else if (hash === 'toil/leave/new') {
+          get().navigateToRoute('toil-leave-new')
+        } else if (hash.startsWith('timesheet-toil/')) {
+          const timesheetId = hash.split('/')[1]
+          get().navigateToRoute('timesheet-toil-detail', null, null, null, null, timesheetId)
         } else {
           console.warn('[Navigation] Unknown match for hash:', hash, 'falling back to dashboard')
           // Default to dashboard
@@ -1740,6 +1852,20 @@ const useNavigationStore = create(
                 { title: 'Wiki', onClick: () => get().navigateToRoute('wiki') },
                 { title: 'Edit Page' }
               )
+              break
+            case 'timesheet-toil':
+              if (state.showTOILDetail && state.selectedTimesheetId) {
+                items.push(
+                  { title: 'Ops' },
+                  { title: 'Timesheet (TOIL Record)', onClick: () => get().goToTOILList() },
+                  { title: state.selectedTimesheetId }
+                )
+              } else {
+                items.push(
+                  { title: 'Ops' },
+                  { title: 'Timesheet (TOIL Record)' }
+                )
+              }
               break
             default:
               items.push({ title: 'Dashboard' })

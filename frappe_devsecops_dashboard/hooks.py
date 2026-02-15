@@ -125,11 +125,25 @@ doc_events = {
 	},
 	"Task": {
 		"before_save": "frappe_devsecops_dashboard.frappe_devsecops_dashboard.doctype.task_extension.task_extension.on_task_before_save"
+	},
+	"Timesheet": {
+		"before_save": "frappe_devsecops_dashboard.overrides.timesheet.recalculate_toil",
+		"validate": "frappe_devsecops_dashboard.overrides.timesheet.validate_timesheet",
+		"before_submit": "frappe_devsecops_dashboard.overrides.timesheet.before_submit_timesheet",
+		"on_submit": "frappe_devsecops_dashboard.overrides.timesheet.enqueue_toil_allocation",
+		"before_cancel": "frappe_devsecops_dashboard.overrides.timesheet.before_cancel_timesheet",
+		"on_cancel": "frappe_devsecops_dashboard.overrides.timesheet.cancel_toil_allocation"
+	},
+	"Leave Application": {
+		"validate": "frappe_devsecops_dashboard.overrides.leave_application.validate_toil_balance",
+		"on_submit": "frappe_devsecops_dashboard.overrides.leave_application.track_toil_consumption",
+		"on_cancel": "frappe_devsecops_dashboard.overrides.leave_application.restore_toil_balance"
 	}
 }
 
 # Scheduled Tasks
 # ---------------
+# NOTE: TOIL expiry tasks are configured via system cron (see TOIL_CRON_SETUP.md)
 
 scheduler_events = {
 	"cron": {
@@ -137,6 +151,10 @@ scheduler_events = {
 			"frappe_devsecops_dashboard.api.change_request_reminders.send_approval_reminders"
 		]
 	}
+	# TOIL tasks moved to system cron for better control:
+	# - expire_toil_allocations (daily)
+	# - send_expiry_reminders (weekly)
+	# See: apps/frappe_devsecops_dashboard/TOIL_CRON_SETUP.md
 }
 
 # Testing
@@ -230,7 +248,27 @@ whitelisted_methods = [
 	"frappe_devsecops_dashboard.api.zenhub_workspace_api.get_workspace_summary_with_filters",
 	# ZenHub Project Creation Methods
 	"frappe_devsecops_dashboard.api.zenhub_workspace_setup.setup_product_workspace",
-	"frappe_devsecops_dashboard.api.zenhub_workspace_setup.test_create_project_in_workspace"
+	"frappe_devsecops_dashboard.api.zenhub_workspace_setup.test_create_project_in_workspace",
+	# TOIL API Methods
+	"frappe_devsecops_dashboard.api.toil.validation_api.validate_employee_setup",
+	"frappe_devsecops_dashboard.api.toil.validation_api.get_user_role",
+	"frappe_devsecops_dashboard.api.toil.timesheet_api.get_my_timesheets",
+	"frappe_devsecops_dashboard.api.toil.timesheet_api.get_timesheets_to_approve",
+	"frappe_devsecops_dashboard.api.toil.timesheet_api.get_timesheet",
+	"frappe_devsecops_dashboard.api.toil.timesheet_api.create_timesheet",
+	"frappe_devsecops_dashboard.api.toil.timesheet_api.submit_timesheet_for_approval",
+	"frappe_devsecops_dashboard.api.toil.timesheet_api.set_timesheet_approval",
+	"frappe_devsecops_dashboard.api.toil.timesheet_api.calculate_toil_preview",
+	"frappe_devsecops_dashboard.api.toil.timesheet_api.get_toil_breakdown",
+	"frappe_devsecops_dashboard.api.toil.leave_api.get_my_leave_applications",
+	"frappe_devsecops_dashboard.api.toil.leave_api.create_leave_application",
+	"frappe_devsecops_dashboard.api.toil.leave_api.submit_leave_for_approval",
+	"frappe_devsecops_dashboard.api.toil.balance_api.get_toil_balance_for_leave",
+	"frappe_devsecops_dashboard.api.toil.balance_api.get_toil_balance",
+	"frappe_devsecops_dashboard.api.toil.balance_api.get_toil_summary",
+	"frappe_devsecops_dashboard.api.toil.balance_api.get_balance_summary",
+	"frappe_devsecops_dashboard.api.toil.balance_api.get_leave_ledger",
+	"frappe_devsecops_dashboard.api.simple_toil.save_timesheet"
 ]
 
 # Build hooks for frontend assets

@@ -116,7 +116,8 @@ const API_CONFIG = {
       changeRequests: true,
       swaggerCollections: true,
       dashboard: false,       // ✓ Use real ERPNext data for dashboard
-      zenhub: false           // Use real Zenhub API by default
+      zenhub: false,          // Use real Zenhub API by default
+      toil: false             // Use real backend API for TOIL
     },
     enableCaching: true,
     enableRetry: true

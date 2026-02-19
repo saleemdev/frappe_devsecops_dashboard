@@ -1,0 +1,140 @@
+/**
+ * GlassForm Component Styles
+ * Additional styles specific to GlassForm component
+ */
+
+/* Form section styling */
+.glass-form-sectioned {
+  display: flex;
+  flex-direction: column;
+  gap: var(--glass-padding-lg);
+}
+
+/* Form section */
+.glass-form-section {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+  border-radius: var(--glass-radius-md);
+  padding: var(--glass-padding-lg);
+  margin-bottom: var(--glass-padding-md);
+}
+
+.glass-form-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--glass-padding-sm);
+  margin-bottom: var(--glass-padding-md);
+  padding-bottom: var(--glass-padding-sm);
+  border-bottom: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+}
+
+.glass-form-section-icon {
+  font-size: 20px;
+  color: var(--ant-color-primary);
+  display: flex;
+  align-items: center;
+}
+
+.glass-form-section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ant-color-text);
+}
+
+.glass-form-section-description {
+  margin: 0 0 var(--glass-padding-md) 0;
+  font-size: 14px;
+  color: var(--ant-color-text-secondary);
+  line-height: 1.5;
+}
+
+.glass-form-section-content {
+  /* Content area */
+}
+
+/* Form field group */
+.glass-form-field-group {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+  border-radius: var(--glass-radius-sm);
+  padding: var(--glass-padding-md);
+  margin-bottom: var(--glass-padding-sm);
+}
+
+.glass-form-field-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ant-color-text);
+  margin-bottom: var(--glass-padding-sm);
+  padding-bottom: var(--glass-padding-xs);
+  border-bottom: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+}
+
+.glass-form-field-group-content {
+  /* Field group content */
+}
+
+/* Form items within glass form */
+.glass-form .ant-form-item {
+  margin-bottom: var(--glass-padding-md);
+}
+
+.glass-form .ant-form-item-label > label {
+  color: var(--ant-color-text);
+  font-weight: 500;
+}
+
+/* Form inputs with glass effect */
+.glass-form .ant-input,
+.glass-form .ant-input-number,
+.glass-form .ant-select-selector,
+.glass-form .ant-picker {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border-color: var(--glass-border-subtle);
+  transition: all var(--glass-transition-normal);
+}
+
+.glass-form .ant-input:hover,
+.glass-form .ant-input-number:hover,
+.glass-form .ant-select:hover .ant-select-selector,
+.glass-form .ant-picker:hover {
+  border-color: var(--glass-border-default);
+  box-shadow: var(--glass-shadow-sm);
+}
+
+.glass-form .ant-input:focus,
+.glass-form .ant-input-number:focus,
+.glass-form .ant-select-focused .ant-select-selector,
+.glass-form .ant-picker-focused {
+  border-color: var(--ant-color-primary);
+  box-shadow: var(--glass-shadow-primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .glass-form-section {
+    padding: var(--glass-padding-md);
+  }
+  
+  .glass-form-field-group {
+    padding: var(--glass-padding-sm);
+  }
+}
+
+@media (max-width: 576px) {
+  .glass-form-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .glass-form-section-title {
+    font-size: 16px;
+  }
+}

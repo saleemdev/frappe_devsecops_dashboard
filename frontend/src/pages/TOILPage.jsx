@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   Col,
+  Collapse,
   Descriptions,
   Empty,
   Grid,
@@ -34,7 +35,8 @@ import {
   ReloadOutlined,
   TeamOutlined,
   UpOutlined,
-  UserOutlined
+  UserOutlined,
+  CrownOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import '../styles/toilPage.css'
@@ -93,11 +95,11 @@ function TOILPage({ navigateToRoute }) {
   const [setupRetrying, setSetupRetrying] = useState(false)
 
   const {
-    employeeSetup, toilBalance, leaveLedger, timesheets, supervisorTimesheets,
-    setupLoading, balanceLoading, timesheetsLoading, supervisorLoading, ledgerLoading,
+    employeeSetup, toilBalance, leaveLedger, timesheets, supervisorTimesheets, teamMembers,
+    setupLoading, balanceLoading, timesheetsLoading, supervisorLoading, ledgerLoading, teamLoading,
     userRole,
     validateSetup, initialize,
-    fetchTOILBalance, fetchLeaveLedger, fetchMyTimesheets, fetchSupervisorTimesheets
+    fetchTOILBalance, fetchLeaveLedger, fetchMyTimesheets, fetchSupervisorTimesheets, fetchMyTeam
   } = useToilStore()
 
   const availableBalance = Number(toilBalance?.available || 0)
@@ -139,7 +141,8 @@ function TOILPage({ navigateToRoute }) {
         await initialize()
         await Promise.all([
           fetchTOILBalance(), fetchLeaveLedger(), fetchMyTimesheets(),
-          fetchSupervisorTimesheets().catch(() => {})
+          fetchSupervisorTimesheets().catch(() => {}),
+          fetchMyTeam().catch(() => {})
         ])
       } catch (err) {
         notification.error({ message: 'Initialization failed', description: formatError(err), duration: 6 })
@@ -153,13 +156,14 @@ function TOILPage({ navigateToRoute }) {
     try {
       await Promise.all([
         fetchTOILBalance(), fetchLeaveLedger(), fetchMyTimesheets(),
-        fetchSupervisorTimesheets().catch(() => {})
+        fetchSupervisorTimesheets().catch(() => {}),
+        fetchMyTeam().catch(() => {})
       ])
       notification.success({ message: 'Data refreshed', duration: 2 })
     } catch (err) {
       notification.error({ message: 'Refresh failed', description: formatError(err) })
     }
-  }, [fetchTOILBalance, fetchLeaveLedger, fetchMyTimesheets, fetchSupervisorTimesheets])
+  }, [fetchTOILBalance, fetchLeaveLedger, fetchMyTimesheets, fetchSupervisorTimesheets, fetchMyTeam])
 
   const retrySetup = async () => {
     try {
@@ -168,7 +172,8 @@ function TOILPage({ navigateToRoute }) {
       await initialize()
       await Promise.all([
         fetchTOILBalance(), fetchLeaveLedger(), fetchMyTimesheets(),
-        fetchSupervisorTimesheets().catch(() => {})
+        fetchSupervisorTimesheets().catch(() => {}),
+        fetchMyTeam().catch(() => {})
       ])
       notification.success({ message: 'Setup validated' })
     } catch (err) {
@@ -301,6 +306,152 @@ function TOILPage({ navigateToRoute }) {
           </Col>
         </Row>
       </Card>
+
+      {/* ─── Supervisor Card ─── */}
+      {employeeSetup?.valid && employeeSetup?.supervisor_name && (
+        <Card className="toil-glass-card" style={{ marginBottom: 16, ...GLASS, border: `2px solid ${token.colorPrimary}20`, background: 'linear-gradient(145deg, rgba(255,255,255,0.75), rgba(255,255,255,0.50))' }}>
+          <Row align="middle" gutter={[16, 12]}>
+            <Col xs={24} sm={24} md={6} style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start' }}>
+              <div style={{ position: 'relative' }}>
+                <div style={{ width: 64, height: 64, borderRadius: 16, background: `linear-gradient(145deg, ${token.colorPrimary}15, ${token.colorPrimary}08)`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${token.colorPrimary}30` }}>
+                  <CrownOutlined style={{ fontSize: 32, color: token.colorPrimary }} />
+                </div>
+                <div style={{ position: 'absolute', bottom: -4, right: -4, width: 24, height: 24, borderRadius: '50%', background: token.colorSuccess, border: '3px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+                  <CheckCircleOutlined style={{ fontSize: 12, color: 'white' }} />
+                </div>
+              </div>
+            </Col>
+            <Col xs={24} sm={24} md={18}>
+              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Your Reporting Manager</Text>
+                </div>
+                <div>
+                  <Title level={4} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <TeamOutlined style={{ color: token.colorPrimary, fontSize: 20 }} />
+                    {employeeSetup.supervisor_name}
+                  </Title>
+                </div>
+                <div>
+                  <Space size={8}>
+                    <MailOutlined style={{ color: token.colorTextSecondary, fontSize: 14 }} />
+                    <Text type="secondary" style={{ fontSize: 13 }}>{employeeSetup.supervisor_user || 'No email configured'}</Text>
+                  </Space>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <Tag color="processing" icon={<CheckCircleOutlined />} style={{ fontSize: 12 }}>
+                    Approves your TOIL timesheets and leave applications
+                  </Tag>
+                </div>
+              </Space>
+            </Col>
+          </Row>
+        </Card>
+      )}
+
+      {/* ─── My Team ─── */}
+      {teamMembers && teamMembers.length > 0 && (
+        <Card className="toil-glass-card" style={{ marginBottom: 16, ...GLASS, padding: 0 }}>
+          <Collapse
+            items={[{
+              key: 'team',
+              label: (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: 8 }}>
+                  <Space size={8}>
+                    <TeamOutlined style={{ color: token.colorPrimary, fontSize: 16 }} />
+                    <Title level={5} style={{ margin: 0, fontSize: 15 }}>My Team</Title>
+                    <Badge count={teamMembers.length} showZero color="#1677ff" style={{ boxShadow: 'none' }} />
+                  </Space>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {teamMembers.length} {teamMembers.length === 1 ? 'member' : 'members'}
+                  </Text>
+                </div>
+              ),
+              children: (
+                <div style={{ paddingTop: 8 }}>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
+                    Team members who report to you. You approve their TOIL timesheets and leave applications.
+                  </Text>
+                  {teamLoading ? (
+                    <div style={{ textAlign: 'center', padding: 40 }}>
+                      <Spin />
+                    </div>
+                  ) : (
+                    <Row gutter={[8, 8]}>
+                      {teamMembers.map((member) => (
+                        <Col xs={24} sm={12} md={8} lg={6} xl={4} key={member.name}>
+                          <div
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.7)',
+                              border: `1px solid ${token.colorBorderSecondary}`,
+                              borderRadius: 8,
+                              padding: 12,
+                              height: '100%',
+                              transition: 'all 0.2s ease',
+                              cursor: 'default'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)'
+                              e.currentTarget.style.borderColor = token.colorPrimary
+                              e.currentTarget.style.boxShadow = `0 2px 8px ${token.colorPrimary}15`
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.7)'
+                              e.currentTarget.style.borderColor = token.colorBorderSecondary
+                              e.currentTarget.style.boxShadow = 'none'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                              <div style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 8,
+                                background: `linear-gradient(145deg, ${token.colorPrimary}15, ${token.colorPrimary}08)`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: `1px solid ${token.colorPrimary}20`,
+                                flexShrink: 0
+                              }}>
+                                <UserOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <Text strong style={{ fontSize: 13, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+                                  {member.employee_name}
+                                </Text>
+                                {member.designation && (
+                                  <Text type="secondary" style={{ fontSize: 11, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                                    {member.designation}
+                                  </Text>
+                                )}
+                                {member.department && (
+                                  <Tag color="default" style={{ fontSize: 10, marginTop: 4, padding: '0 6px', height: 18, lineHeight: '18px' }}>
+                                    {member.department}
+                                  </Tag>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </Col>
+                      ))}
+                    </Row>
+                  )}
+                </div>
+              ),
+              style: {
+                background: 'transparent',
+                border: 'none',
+                borderRadius: 0
+              }
+            }]}
+            ghost
+            style={{
+              background: 'transparent'
+            }}
+            defaultActiveKey={[]}
+          />
+        </Card>
+      )}
 
       {/* ─── Balance Metrics ─── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>

@@ -32,6 +32,7 @@ const useToilStore = create(
       selectedTimesheet: null,  // Current detail view
       leaveApplications: [],    // Leave applications
       selectedLeaveApplication: null,
+      teamMembers: [],          // Team members (subordinates)
 
       // CONFIGURATION
       employeeSetup: null,      // Employee validation data (supervisor info)
@@ -46,6 +47,7 @@ const useToilStore = create(
       supervisorLeaveLoading: false,
       ledgerLoading: false,
       setupLoading: false,
+      teamLoading: false,
       submitting: false,        // Form submissions
       error: null,
 
@@ -505,6 +507,25 @@ const useToilStore = create(
           }
         } catch (error) {
           set({ supervisorLeaveApplications: [], error: error.message, supervisorLeaveLoading: false })
+          throw error
+        }
+      },
+
+      /**
+       * Fetch team members (subordinates)
+       */
+      fetchMyTeam: async () => {
+        set({ teamLoading: true, error: null })
+        try {
+          const response = await apiService.toil.getMyTeam()
+          if (response.success) {
+            set({ teamMembers: response.data || [], teamLoading: false })
+            return response.data || []
+          } else {
+            throw new Error(response.message || 'Failed to fetch team members')
+          }
+        } catch (error) {
+          set({ teamMembers: [], error: error.message, teamLoading: false })
           throw error
         }
       },

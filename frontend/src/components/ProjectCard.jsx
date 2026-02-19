@@ -44,6 +44,7 @@ import {
   CloseCircleOutlined
 } from '@ant-design/icons'
 import './ProjectCard.css'
+import { GlassCard } from './design-system'
 import MentionDropdown from './MentionDropdown'
 import {
   getProjectFiles,
@@ -982,7 +983,9 @@ const ProjectCard = ({
   }
 
   return (
-    <Card
+    <GlassCard
+      variant="default"
+      elevation={2}
       className="project-card-enhanced"
       style={{ marginBottom: 16 }}
       loading={loading}
@@ -1012,7 +1015,7 @@ const ProjectCard = ({
           }
         ]}
       />
-    </Card>
+    </GlassCard>
   )
 }
 

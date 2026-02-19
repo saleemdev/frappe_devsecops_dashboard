@@ -1,0 +1,54 @@
+/**
+ * GlassCard Component Styles
+ * Additional styles specific to GlassCard component
+ */
+
+/* Ensure Card content is transparent for glass effect */
+.glass-card .ant-card-head,
+.glass-card .ant-card-body,
+.glass-card .ant-card-extra,
+.glass-card .ant-card-actions {
+  background: transparent;
+}
+
+/* Card hover effect */
+.glass-card.ant-card-hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-lg);
+  border-color: var(--glass-border-prominent);
+}
+
+/* Loading state */
+.glass-card.ant-card-loading .ant-card-body {
+  background: transparent;
+}
+
+/* Card with cover image */
+.glass-card .ant-card-cover {
+  border-radius: var(--glass-radius-lg) var(--glass-radius-lg) 0 0;
+  overflow: hidden;
+}
+
+/* Card actions */
+.glass-card .ant-card-actions {
+  border-top: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+  background: var(--glass-bg-subtle);
+}
+
+/* Card head */
+.glass-card .ant-card-head {
+  border-bottom: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .glass-card {
+    border-radius: var(--glass-radius-md);
+  }
+}
+
+@media (max-width: 576px) {
+  .glass-card {
+    border-radius: var(--glass-radius-sm);
+  }
+}

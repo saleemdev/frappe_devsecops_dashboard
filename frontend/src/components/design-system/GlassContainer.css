@@ -1,0 +1,22 @@
+/**
+ * GlassContainer Component Styles
+ * Additional styles specific to GlassContainer component
+ */
+
+/* Container content */
+.glass-container > * {
+  /* Ensure children don't interfere with glass effect */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .glass-container {
+    border-radius: var(--glass-radius-md);
+  }
+}
+
+@media (max-width: 576px) {
+  .glass-container {
+    border-radius: var(--glass-radius-sm);
+  }
+}

@@ -1,0 +1,87 @@
+/**
+ * GlassModal Component Styles
+ * Additional styles specific to GlassModal component
+ */
+
+/* Modal content */
+.glass-modal .ant-modal-content {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border: var(--glass-border-width-default) solid var(--glass-border-default);
+  border-radius: var(--glass-radius-xl);
+  box-shadow: var(--glass-shadow-xl);
+}
+
+.glass-modal-subtle .ant-modal-content {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border-color: var(--glass-border-subtle);
+  box-shadow: var(--glass-shadow-lg);
+}
+
+.glass-modal-prominent .ant-modal-content {
+  background: var(--glass-bg-prominent);
+  backdrop-filter: blur(var(--glass-blur-prominent));
+  -webkit-backdrop-filter: blur(var(--glass-blur-prominent));
+  border-color: var(--glass-border-prominent);
+  box-shadow: var(--glass-shadow-2xl);
+}
+
+/* Modal header */
+.glass-modal .ant-modal-header {
+  background: transparent;
+  border-bottom: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+  padding: var(--glass-padding-lg);
+}
+
+.glass-modal .ant-modal-title {
+  color: var(--ant-color-text);
+  font-weight: 600;
+}
+
+/* Modal body */
+.glass-modal .ant-modal-body {
+  background: transparent;
+  padding: var(--glass-padding-lg);
+}
+
+/* Modal footer */
+.glass-modal .ant-modal-footer {
+  background: transparent;
+  border-top: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+  padding: var(--glass-padding-md) var(--glass-padding-lg);
+}
+
+/* Modal mask/backdrop */
+.glass-modal-mask {
+  background: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .glass-modal .ant-modal-content {
+    border-radius: var(--glass-radius-lg);
+    margin: var(--glass-padding-md);
+  }
+  
+  .glass-modal .ant-modal-body {
+    padding: var(--glass-padding-md);
+  }
+}
+
+@media (max-width: 576px) {
+  .glass-modal .ant-modal-content {
+    border-radius: var(--glass-radius-md);
+    margin: var(--glass-padding-sm);
+  }
+  
+  .glass-modal .ant-modal-header,
+  .glass-modal .ant-modal-body,
+  .glass-modal .ant-modal-footer {
+    padding: var(--glass-padding-sm);
+  }
+}

@@ -1,0 +1,36 @@
+/**
+ * Glassmorphism Design System
+ * Main entry point for the glassmorphism design system
+ * 
+ * Import order matters:
+ * 1. Tokens (variables) - includes typography tokens
+ * 2. Typography (font system)
+ * 3. Components (reusable classes)
+ * 4. Utilities (helper classes)
+ * 5. Overrides (Ant Design overrides)
+ */
+
+/* ============================================
+   DESIGN TOKENS (includes typography tokens)
+   ============================================ */
+@import url('./design-system/glassmorphism-tokens.css');
+
+/* ============================================
+   TYPOGRAPHY SYSTEM
+   ============================================ */
+@import url('./design-system/glassmorphism-typography.css');
+
+/* ============================================
+   COMPONENT CLASSES
+   ============================================ */
+@import url('./design-system/glassmorphism-components.css');
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+@import url('./design-system/glassmorphism-utilities.css');
+
+/* ============================================
+   ANT DESIGN OVERRIDES
+   ============================================ */
+@import url('./design-system/glassmorphism-overrides.css');

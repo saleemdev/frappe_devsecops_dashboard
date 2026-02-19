@@ -251,7 +251,7 @@ function App() {
       borderRadius: 8,
       borderRadiusLG: 12,
       borderRadiusXS: 4,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      fontFamily: 'var(--glass-font-family)',
       fontSize: 12,
       fontSizeLG: 14,
       fontSizeXL: 18,
@@ -967,6 +967,7 @@ function AppContent({
   return (
     <Layout style={{ minHeight: '100vh', backgroundColor: token.colorBgLayout }}>
       <Header
+        className="glass-header glass-header-sticky"
         style={{
           backgroundColor: token.colorBgContainer,
           borderBottom: 'none',

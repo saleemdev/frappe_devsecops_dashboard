@@ -1,0 +1,280 @@
+/**
+ * Glassmorphism Typography System
+ * Centralized typography styles optimized for glassmorphism design
+ */
+
+/* ============================================
+   GLOBAL TYPOGRAPHY SETUP
+   ============================================ */
+
+/* Apply glassmorphism font to body */
+body {
+  font-family: var(--glass-font-family);
+  font-weight: var(--glass-font-weight-regular);
+  font-size: var(--glass-font-size-base);
+  line-height: var(--glass-line-height-normal);
+  letter-spacing: var(--glass-letter-spacing-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Code elements */
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--glass-font-family-mono);
+  font-size: var(--glass-font-size-sm);
+}
+
+/* ============================================
+   HEADING STYLES
+   ============================================ */
+
+/* H1 - Large Display */
+h1,
+.glass-heading-1 {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-4xl);
+  font-weight: var(--glass-font-weight-bold);
+  line-height: var(--glass-line-height-tight);
+  letter-spacing: var(--glass-letter-spacing-tight);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* H2 - Section Headers */
+h2,
+.glass-heading-2 {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-3xl);
+  font-weight: var(--glass-font-weight-bold);
+  line-height: var(--glass-line-height-snug);
+  letter-spacing: var(--glass-letter-spacing-tight);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* H3 - Subsection Headers */
+h3,
+.glass-heading-3 {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-2xl);
+  font-weight: var(--glass-font-weight-semibold);
+  line-height: var(--glass-line-height-snug);
+  letter-spacing: var(--glass-letter-spacing-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* H4 - Card Titles */
+h4,
+.glass-heading-4 {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-xl);
+  font-weight: var(--glass-font-weight-semibold);
+  line-height: var(--glass-line-height-normal);
+  letter-spacing: var(--glass-letter-spacing-normal);
+}
+
+/* H5 - Small Headers */
+h5,
+.glass-heading-5 {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-lg);
+  font-weight: var(--glass-font-weight-semibold);
+  line-height: var(--glass-line-height-normal);
+  letter-spacing: var(--glass-letter-spacing-normal);
+}
+
+/* H6 - Tiny Headers */
+h6,
+.glass-heading-6 {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-md);
+  font-weight: var(--glass-font-weight-semibold);
+  line-height: var(--glass-line-height-normal);
+  letter-spacing: var(--glass-letter-spacing-wide);
+}
+
+/* ============================================
+   BODY TEXT STYLES
+   ============================================ */
+
+/* Base Paragraph */
+p,
+.glass-text {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-base);
+  font-weight: var(--glass-font-weight-regular);
+  line-height: var(--glass-line-height-relaxed);
+  letter-spacing: var(--glass-letter-spacing-normal);
+}
+
+/* Small Text */
+small,
+.glass-text-sm {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-sm);
+  font-weight: var(--glass-font-weight-regular);
+  line-height: var(--glass-line-height-normal);
+}
+
+/* Extra Small Text */
+.glass-text-xs {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-xs);
+  font-weight: var(--glass-font-weight-regular);
+  line-height: var(--glass-line-height-normal);
+}
+
+/* Large Text */
+.glass-text-lg {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-lg);
+  font-weight: var(--glass-font-weight-regular);
+  line-height: var(--glass-line-height-relaxed);
+}
+
+/* Extra Large Text */
+.glass-text-xl {
+  font-family: var(--glass-font-family);
+  font-size: var(--glass-font-size-xl);
+  font-weight: var(--glass-font-weight-regular);
+  line-height: var(--glass-line-height-relaxed);
+}
+
+/* ============================================
+   FONT WEIGHT UTILITIES
+   ============================================ */
+
+.glass-font-light {
+  font-weight: var(--glass-font-weight-light);
+}
+
+.glass-font-regular {
+  font-weight: var(--glass-font-weight-regular);
+}
+
+.glass-font-medium {
+  font-weight: var(--glass-font-weight-medium);
+}
+
+.glass-font-semibold {
+  font-weight: var(--glass-font-weight-semibold);
+}
+
+.glass-font-bold {
+  font-weight: var(--glass-font-weight-bold);
+}
+
+.glass-font-extrabold {
+  font-weight: var(--glass-font-weight-extrabold);
+}
+
+/* ============================================
+   TEXT STYLES FOR GLASSMORPHISM
+   ============================================ */
+
+/* Text optimized for glass backgrounds */
+.glass-text-on-glass {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Text for dark glass backgrounds */
+[data-theme='dark'] .glass-text-on-glass {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Text for light glass backgrounds */
+.glass-text-on-glass-light {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================
+   ANT DESIGN TYPOGRAPHY OVERRIDES
+   ============================================ */
+
+/* Apply glassmorphism font to Ant Design Typography */
+.ant-typography {
+  font-family: var(--glass-font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ant-typography h1,
+.ant-typography h2,
+.ant-typography h3,
+.ant-typography h4,
+.ant-typography h5,
+.ant-typography h6 {
+  font-family: var(--glass-font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ant Design Text component */
+.ant-typography {
+  font-family: var(--glass-font-family);
+}
+
+/* ============================================
+   RESPONSIVE TYPOGRAPHY
+   ============================================ */
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  :root {
+    --glass-font-size-4xl: 28px;
+    --glass-font-size-3xl: 24px;
+    --glass-font-size-2xl: 20px;
+    --glass-font-size-xl: 18px;
+    --glass-font-size-lg: 16px;
+    --glass-font-size-base: 14px;
+  }
+}
+
+@media (max-width: 576px) {
+  :root {
+    --glass-font-size-4xl: 24px;
+    --glass-font-size-3xl: 20px;
+    --glass-font-size-2xl: 18px;
+    --glass-font-size-xl: 16px;
+    --glass-font-size-lg: 15px;
+    --glass-font-size-base: 14px;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+/* Ensure sufficient contrast for glass backgrounds */
+.glass-text {
+  color: var(--ant-color-text);
+}
+
+.glass-text-secondary {
+  color: var(--ant-color-text-secondary);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass-text-on-glass {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+  
+  [data-theme='dark'] .glass-text-on-glass {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  body {
+    text-rendering: auto;
+  }
+}

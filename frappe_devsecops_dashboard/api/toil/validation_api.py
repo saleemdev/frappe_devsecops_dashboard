@@ -406,3 +406,57 @@ def get_subordinates(supervisor: str = None) -> List[Dict[str, Any]]:
     """, {"supervisor": supervisor}, as_dict=True)
 
     return subordinates
+
+
+@frappe.whitelist()
+def get_my_team() -> Dict[str, Any]:
+    """
+    Get list of team members (subordinates) for the current user.
+    
+    Returns all employees where reports_to equals the current user's employee record.
+
+    Returns:
+        {
+            "success": true,
+            "data": [
+                {
+                    "name": "EMP-001",
+                    "employee_name": "John Doe",
+                    "department": "Engineering",
+                    "designation": "Software Engineer",
+                    "status": "Active"
+                },
+                ...
+            ],
+            "total": 5
+        }
+    """
+    try:
+        current_employee = get_current_employee()
+        if not current_employee:
+            return {
+                "success": False,
+                "error": {
+                    "code": "NO_EMPLOYEE_RECORD",
+                    "message": _("No employee record found for current user"),
+                    "field": None
+                }
+            }
+
+        subordinates = get_subordinates(current_employee)
+        
+        return {
+            "success": True,
+            "data": subordinates,
+            "total": len(subordinates)
+        }
+    except Exception as e:
+        frappe.log_error(f"Error fetching team members: {str(e)}", "TOIL API")
+        return {
+            "success": False,
+            "error": {
+                "code": "FETCH_ERROR",
+                "message": _("An error occurred while fetching team members: {0}").format(str(e)),
+                "field": None
+            }
+        }

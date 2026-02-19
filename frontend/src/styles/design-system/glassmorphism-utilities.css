@@ -1,0 +1,353 @@
+/**
+ * Glassmorphism Utility Classes
+ * Utility classes for quick glassmorphism styling
+ */
+
+/* ============================================
+   BACKGROUND UTILITIES
+   ============================================ */
+
+.glass-bg {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+}
+
+.glass-bg-subtle {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+}
+
+.glass-bg-prominent {
+  background: var(--glass-bg-prominent);
+  backdrop-filter: blur(var(--glass-blur-prominent));
+  -webkit-backdrop-filter: blur(var(--glass-blur-prominent));
+}
+
+.glass-bg-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur-strong));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong));
+}
+
+/* ============================================
+   BLUR UTILITIES
+   ============================================ */
+
+.glass-blur-subtle {
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+}
+
+.glass-blur-default {
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+}
+
+.glass-blur-prominent {
+  backdrop-filter: blur(var(--glass-blur-prominent));
+  -webkit-backdrop-filter: blur(var(--glass-blur-prominent));
+}
+
+.glass-blur-strong {
+  backdrop-filter: blur(var(--glass-blur-strong));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong));
+}
+
+/* ============================================
+   BORDER UTILITIES
+   ============================================ */
+
+.glass-border {
+  border: var(--glass-border-width-default) solid var(--glass-border-default);
+}
+
+.glass-border-subtle {
+  border: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+}
+
+.glass-border-prominent {
+  border: var(--glass-border-width-default) solid var(--glass-border-prominent);
+}
+
+.glass-border-strong {
+  border: var(--glass-border-width-thick) solid var(--glass-border-strong);
+}
+
+.glass-border-top {
+  border-top: var(--glass-border-width-default) solid var(--glass-border-default);
+}
+
+.glass-border-bottom {
+  border-bottom: var(--glass-border-width-default) solid var(--glass-border-default);
+}
+
+.glass-border-left {
+  border-left: var(--glass-border-width-default) solid var(--glass-border-default);
+}
+
+.glass-border-right {
+  border-right: var(--glass-border-width-default) solid var(--glass-border-default);
+}
+
+/* ============================================
+   SHADOW UTILITIES
+   ============================================ */
+
+.glass-shadow-xs {
+  box-shadow: var(--glass-shadow-xs);
+}
+
+.glass-shadow-sm {
+  box-shadow: var(--glass-shadow-sm);
+}
+
+.glass-shadow-md {
+  box-shadow: var(--glass-shadow-md);
+}
+
+.glass-shadow-lg {
+  box-shadow: var(--glass-shadow-lg);
+}
+
+.glass-shadow-xl {
+  box-shadow: var(--glass-shadow-xl);
+}
+
+.glass-shadow-2xl {
+  box-shadow: var(--glass-shadow-2xl);
+}
+
+.glass-shadow-primary {
+  box-shadow: var(--glass-shadow-primary);
+}
+
+.glass-shadow-success {
+  box-shadow: var(--glass-shadow-success);
+}
+
+.glass-shadow-warning {
+  box-shadow: var(--glass-shadow-warning);
+}
+
+.glass-shadow-error {
+  box-shadow: var(--glass-shadow-error);
+}
+
+/* ============================================
+   BORDER RADIUS UTILITIES
+   ============================================ */
+
+.glass-radius-xs {
+  border-radius: var(--glass-radius-xs);
+}
+
+.glass-radius-sm {
+  border-radius: var(--glass-radius-sm);
+}
+
+.glass-radius-md {
+  border-radius: var(--glass-radius-md);
+}
+
+.glass-radius-lg {
+  border-radius: var(--glass-radius-lg);
+}
+
+.glass-radius-xl {
+  border-radius: var(--glass-radius-xl);
+}
+
+.glass-radius-2xl {
+  border-radius: var(--glass-radius-2xl);
+}
+
+.glass-radius-full {
+  border-radius: var(--glass-radius-full);
+}
+
+/* ============================================
+   PADDING UTILITIES
+   ============================================ */
+
+.glass-p-xs {
+  padding: var(--glass-padding-xs);
+}
+
+.glass-p-sm {
+  padding: var(--glass-padding-sm);
+}
+
+.glass-p-md {
+  padding: var(--glass-padding-md);
+}
+
+.glass-p-lg {
+  padding: var(--glass-padding-lg);
+}
+
+.glass-p-xl {
+  padding: var(--glass-padding-xl);
+}
+
+.glass-p-2xl {
+  padding: var(--glass-padding-2xl);
+}
+
+.glass-px-xs {
+  padding-left: var(--glass-padding-xs);
+  padding-right: var(--glass-padding-xs);
+}
+
+.glass-px-sm {
+  padding-left: var(--glass-padding-sm);
+  padding-right: var(--glass-padding-sm);
+}
+
+.glass-px-md {
+  padding-left: var(--glass-padding-md);
+  padding-right: var(--glass-padding-md);
+}
+
+.glass-px-lg {
+  padding-left: var(--glass-padding-lg);
+  padding-right: var(--glass-padding-lg);
+}
+
+.glass-py-xs {
+  padding-top: var(--glass-padding-xs);
+  padding-bottom: var(--glass-padding-xs);
+}
+
+.glass-py-sm {
+  padding-top: var(--glass-padding-sm);
+  padding-bottom: var(--glass-padding-sm);
+}
+
+.glass-py-md {
+  padding-top: var(--glass-padding-md);
+  padding-bottom: var(--glass-padding-md);
+}
+
+.glass-py-lg {
+  padding-top: var(--glass-padding-lg);
+  padding-bottom: var(--glass-padding-lg);
+}
+
+/* ============================================
+   TRANSITION UTILITIES
+   ============================================ */
+
+.glass-transition-fast {
+  transition: all var(--glass-transition-fast);
+}
+
+.glass-transition-normal {
+  transition: all var(--glass-transition-normal);
+}
+
+.glass-transition-slow {
+  transition: all var(--glass-transition-slow);
+}
+
+/* ============================================
+   INTERACTIVE UTILITIES
+   ============================================ */
+
+.glass-interactive {
+  cursor: pointer;
+  transition: all var(--glass-transition-normal);
+}
+
+.glass-interactive:hover {
+  transform: var(--glass-hover-lift);
+  box-shadow: var(--glass-shadow-lg);
+}
+
+.glass-interactive:active {
+  transform: scale(0.98);
+}
+
+.glass-interactive:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   GRADIENT UTILITIES
+   ============================================ */
+
+.glass-gradient-subtle {
+  background: var(--glass-gradient-subtle);
+}
+
+.glass-gradient-default {
+  background: var(--glass-gradient-default);
+}
+
+.glass-gradient-prominent {
+  background: var(--glass-gradient-prominent);
+}
+
+/* ============================================
+   COMPOSITE UTILITIES
+   ============================================ */
+
+/* Quick glass card */
+.glass-card-quick {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border: var(--glass-border-width-default) solid var(--glass-border-default);
+  border-radius: var(--glass-radius-lg);
+  box-shadow: var(--glass-shadow-md);
+  padding: var(--glass-padding-lg);
+  transition: all var(--glass-transition-normal);
+}
+
+/* Quick glass container */
+.glass-container-quick {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+  border-radius: var(--glass-radius-md);
+  box-shadow: var(--glass-shadow-sm);
+  padding: var(--glass-padding-md);
+}
+
+/* Quick glass panel */
+.glass-panel-quick {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+  border-radius: var(--glass-radius-sm);
+  padding: var(--glass-padding-sm);
+  box-shadow: var(--glass-shadow-xs);
+}
+
+/* ============================================
+   RESPONSIVE UTILITIES
+   ============================================ */
+
+@media (max-width: 768px) {
+  .glass-card-quick,
+  .glass-container-quick {
+    padding: var(--glass-padding-md);
+    border-radius: var(--glass-radius-md);
+  }
+  
+  .glass-panel-quick {
+    padding: var(--glass-padding-xs);
+  }
+}
+
+@media (max-width: 576px) {
+  .glass-card-quick,
+  .glass-container-quick {
+    padding: var(--glass-padding-sm);
+    border-radius: var(--glass-radius-sm);
+  }
+}

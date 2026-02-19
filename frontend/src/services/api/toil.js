@@ -12,6 +12,7 @@ const methodPath = {
   getTimesheet: '/api/method/frappe_devsecops_dashboard.api.toil.timesheet_api.get_timesheet',
   setTimesheetApproval: '/api/method/frappe_devsecops_dashboard.api.toil.timesheet_api.set_timesheet_approval',
   getUserRole: '/api/method/frappe_devsecops_dashboard.api.toil.validation_api.get_user_role',
+  getMyTeam: '/api/method/frappe_devsecops_dashboard.api.toil.validation_api.get_my_team',
   calculateTOILPreview: '/api/method/frappe_devsecops_dashboard.api.toil.timesheet_api.calculate_toil_preview',
   getSupervisorTimesheets: '/api/method/frappe_devsecops_dashboard.api.toil.timesheet_api.get_timesheets_to_approve',
   getTOILBreakdown: '/api/method/frappe_devsecops_dashboard.api.toil.timesheet_api.get_toil_breakdown',
@@ -321,6 +322,22 @@ class TOILService {
     return {
       success: true,
       data: result.data || result,
+      message: result.message
+    }
+  }
+
+  async getMyTeam() {
+    const result = await withRetry(() => this.request(methodPath.getMyTeam, {
+      method: 'GET',
+      fallbackMessage: 'Failed to fetch team members'
+    }))
+
+    if (!result.success) return result
+
+    return {
+      success: true,
+      data: result.data || [],
+      total: result.total || 0,
       message: result.message
     }
   }

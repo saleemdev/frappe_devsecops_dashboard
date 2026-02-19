@@ -1,0 +1,437 @@
+/**
+ * Glassmorphism Ant Design Overrides
+ * Overrides Ant Design component styles to apply glassmorphism
+ */
+
+/* ============================================
+   ANT DESIGN CARD OVERRIDES
+   ============================================ */
+
+/* Apply glass effect to ALL Ant Design Cards by default */
+.ant-card {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border-color: var(--glass-border-default);
+  box-shadow: var(--glass-shadow-md);
+  transition: all var(--glass-transition-normal);
+}
+
+/* Apply glass effect to Ant Design Cards with explicit classes */
+.ant-card.glass-card,
+.ant-card.glass-card-subtle,
+.ant-card.glass-card-default,
+.ant-card.glass-card-prominent {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border-color: var(--glass-border-default);
+  box-shadow: var(--glass-shadow-md);
+}
+
+.ant-card.glass-card-subtle {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border-color: var(--glass-border-subtle);
+  box-shadow: var(--glass-shadow-sm);
+}
+
+.ant-card.glass-card-prominent {
+  background: var(--glass-bg-prominent);
+  backdrop-filter: blur(var(--glass-blur-prominent));
+  -webkit-backdrop-filter: blur(var(--glass-blur-prominent));
+  border-color: var(--glass-border-prominent);
+  box-shadow: var(--glass-shadow-lg);
+}
+
+/* Card hover effects */
+.ant-card.glass-card:hover,
+.ant-card.glass-card-subtle:hover,
+.ant-card.glass-card-default:hover,
+.ant-card.glass-card-prominent:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow-lg);
+  border-color: var(--glass-border-prominent);
+}
+
+/* Card head (title area) */
+.ant-card.glass-card .ant-card-head,
+.ant-card.glass-card-subtle .ant-card-head,
+.ant-card.glass-card-prominent .ant-card-head {
+  background: transparent;
+  border-bottom-color: var(--glass-border-subtle);
+}
+
+/* Card body */
+.ant-card.glass-card .ant-card-body,
+.ant-card.glass-card-subtle .ant-card-body,
+.ant-card.glass-card-prominent .ant-card-body {
+  background: transparent;
+}
+
+/* ============================================
+   ANT DESIGN FORM OVERRIDES
+   ============================================ */
+
+/* Apply subtle glass effect to Form containers */
+.ant-form {
+  background: transparent;
+}
+
+/* Form container with explicit glass effect */
+.ant-form.glass-form {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border: var(--glass-border-width-default) solid var(--glass-border-default);
+  border-radius: var(--glass-radius-lg);
+  padding: var(--glass-padding-xl);
+  box-shadow: var(--glass-shadow-md);
+}
+
+/* Form sections */
+.glass-form-section {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border: var(--glass-border-width-thin) solid var(--glass-border-subtle);
+  border-radius: var(--glass-radius-md);
+  padding: var(--glass-padding-lg);
+  margin-bottom: var(--glass-padding-md);
+}
+
+/* Form items */
+.ant-form-item.glass-form-item {
+  margin-bottom: var(--glass-padding-md);
+}
+
+/* Form labels */
+.ant-form-item-label > label.glass-label {
+  color: var(--ant-color-text);
+  font-weight: 500;
+}
+
+/* Input fields with subtle glass effect */
+.ant-input.glass-input,
+.ant-input-number.glass-input,
+.ant-select.glass-select .ant-select-selector,
+.ant-picker.glass-picker {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border-color: var(--glass-border-subtle);
+  transition: all var(--glass-transition-normal);
+}
+
+.ant-input.glass-input:hover,
+.ant-input-number.glass-input:hover,
+.ant-select.glass-select:hover .ant-select-selector,
+.ant-picker.glass-picker:hover {
+  border-color: var(--glass-border-default);
+  box-shadow: var(--glass-shadow-sm);
+}
+
+.ant-input.glass-input:focus,
+.ant-input-number.glass-input:focus,
+.ant-select.glass-select .ant-select-selector:focus,
+.ant-picker.glass-picker:focus {
+  border-color: var(--ant-color-primary);
+  box-shadow: var(--glass-shadow-primary);
+}
+
+/* ============================================
+   ANT DESIGN MODAL OVERRIDES
+   ============================================ */
+
+/* Modal content */
+.ant-modal-content.glass-modal {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border: var(--glass-border-width-default) solid var(--glass-border-default);
+  border-radius: var(--glass-radius-xl);
+  box-shadow: var(--glass-shadow-xl);
+}
+
+.ant-modal-content.glass-modal .ant-modal-header {
+  background: transparent;
+  border-bottom-color: var(--glass-border-subtle);
+}
+
+.ant-modal-content.glass-modal .ant-modal-body {
+  background: transparent;
+}
+
+.ant-modal-content.glass-modal .ant-modal-footer {
+  background: transparent;
+  border-top-color: var(--glass-border-subtle);
+}
+
+/* Modal mask/backdrop */
+.ant-modal-mask.glass-modal-mask {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ============================================
+   ANT DESIGN DRAWER OVERRIDES
+   ============================================ */
+
+/* Drawer content */
+.ant-drawer-content.glass-drawer {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+}
+
+.ant-drawer-content.glass-drawer .ant-drawer-header {
+  background: transparent;
+  border-bottom-color: var(--glass-border-subtle);
+}
+
+.ant-drawer-content.glass-drawer .ant-drawer-body {
+  background: transparent;
+}
+
+/* Drawer mask */
+.ant-drawer-mask.glass-drawer-mask {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ============================================
+   ANT DESIGN LAYOUT OVERRIDES
+   ============================================ */
+
+/* Header with glass effect */
+.ant-layout-header.glass-header {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border-bottom: var(--glass-border-width-default) solid var(--glass-border-default);
+  box-shadow: var(--glass-shadow-sm);
+}
+
+/* Content area with glass effect */
+.ant-layout-content.glass-content {
+  background: transparent;
+}
+
+/* Sider with glass effect */
+.ant-layout-sider.glass-sider {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border-right: var(--glass-border-width-default) solid var(--glass-border-default);
+  box-shadow: var(--glass-shadow-sm);
+}
+
+/* ============================================
+   ANT DESIGN TABLE OVERRIDES
+   ============================================ */
+
+/* Table with glass effect */
+.ant-table-wrapper.glass-table .ant-table {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+}
+
+.ant-table-wrapper.glass-table .ant-table-thead > tr > th {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border-bottom-color: var(--glass-border-default);
+}
+
+.ant-table-wrapper.glass-table .ant-table-tbody > tr > td {
+  background: transparent;
+  border-bottom-color: var(--glass-border-subtle);
+}
+
+.ant-table-wrapper.glass-table .ant-table-tbody > tr:hover > td {
+  background: var(--glass-bg-subtle);
+}
+
+/* ============================================
+   ANT DESIGN TABS OVERRIDES
+   ============================================ */
+
+/* Tabs with glass effect */
+.ant-tabs.glass-tabs .ant-tabs-nav {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(var(--glass-blur-subtle));
+  -webkit-backdrop-filter: blur(var(--glass-blur-subtle));
+  border-radius: var(--glass-radius-md);
+  padding: var(--glass-padding-sm);
+  margin-bottom: var(--glass-padding-md);
+}
+
+.ant-tabs.glass-tabs .ant-tabs-tab {
+  background: transparent;
+  border-radius: var(--glass-radius-sm);
+  transition: all var(--glass-transition-normal);
+}
+
+.ant-tabs.glass-tabs .ant-tabs-tab:hover {
+  background: var(--glass-bg-default);
+}
+
+.ant-tabs.glass-tabs .ant-tabs-tab-active {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  box-shadow: var(--glass-shadow-sm);
+}
+
+.ant-tabs.glass-tabs .ant-tabs-content-holder {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border-radius: var(--glass-radius-lg);
+  padding: var(--glass-padding-lg);
+  box-shadow: var(--glass-shadow-md);
+}
+
+/* ============================================
+   ANT DESIGN BUTTON OVERRIDES
+   ============================================ */
+
+/* Buttons with glass effect */
+.ant-btn.glass-btn {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border-color: var(--glass-border-default);
+  box-shadow: var(--glass-shadow-xs);
+  transition: all var(--glass-transition-normal);
+}
+
+.ant-btn.glass-btn:hover {
+  background: var(--glass-bg-prominent);
+  border-color: var(--glass-border-prominent);
+  box-shadow: var(--glass-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.ant-btn.glass-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--glass-shadow-xs);
+}
+
+/* Primary button glass variant */
+.ant-btn-primary.glass-btn-primary {
+  background: var(--ant-color-primary);
+  border-color: var(--ant-color-primary);
+  box-shadow: var(--glass-shadow-primary);
+}
+
+.ant-btn-primary.glass-btn-primary:hover {
+  background: var(--ant-color-primary-hover);
+  border-color: var(--ant-color-primary-hover);
+  box-shadow: var(--glass-shadow-primary-lg);
+}
+
+/* ============================================
+   ANT DESIGN COLLAPSE OVERRIDES
+   ============================================ */
+
+/* Collapse with glass effect */
+.ant-collapse.glass-collapse {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border-color: var(--glass-border-default);
+  border-radius: var(--glass-radius-md);
+}
+
+.ant-collapse.glass-collapse > .ant-collapse-item {
+  border-color: var(--glass-border-subtle);
+}
+
+.ant-collapse.glass-collapse > .ant-collapse-item > .ant-collapse-header {
+  background: transparent;
+}
+
+.ant-collapse.glass-collapse > .ant-collapse-item-active > .ant-collapse-header {
+  background: var(--glass-bg-subtle);
+}
+
+.ant-collapse.glass-collapse > .ant-collapse-item > .ant-collapse-content {
+  background: var(--glass-bg-subtle);
+  border-top-color: var(--glass-border-subtle);
+}
+
+/* ============================================
+   ANT DESIGN SELECT OVERRIDES
+   ============================================ */
+
+/* Select dropdown with glass effect */
+.ant-select-dropdown.glass-select-dropdown {
+  background: var(--glass-bg-default);
+  backdrop-filter: blur(var(--glass-blur-default));
+  -webkit-backdrop-filter: blur(var(--glass-blur-default));
+  border-color: var(--glass-border-default);
+  box-shadow: var(--glass-shadow-lg);
+  border-radius: var(--glass-radius-md);
+}
+
+.ant-select-dropdown.glass-select-dropdown .ant-select-item {
+  background: transparent;
+}
+
+.ant-select-dropdown.glass-select-dropdown .ant-select-item:hover {
+  background: var(--glass-bg-subtle);
+}
+
+.ant-select-dropdown.glass-select-dropdown .ant-select-item-selected {
+  background: var(--glass-bg-prominent);
+}
+
+/* ============================================
+   DARK MODE SPECIFIC OVERRIDES
+   ============================================ */
+
+[data-theme='dark'] {
+  /* Enhanced glass effects for dark mode */
+  .ant-card.glass-card,
+  .ant-card.glass-card-subtle,
+  .ant-card.glass-card-prominent {
+    box-shadow: var(--glass-shadow-md);
+  }
+  
+  .ant-modal-content.glass-modal {
+    box-shadow: var(--glass-shadow-xl);
+  }
+  
+  .ant-table-wrapper.glass-table .ant-table-thead > tr > th {
+    background: var(--glass-bg-default);
+  }
+}
+
+/* ============================================
+   BROWSER FALLBACKS
+   ============================================ */
+
+@supports not (backdrop-filter: blur(10px)) {
+  .ant-card.glass-card,
+  .ant-card.glass-card-subtle,
+  .ant-card.glass-card-prominent,
+  .ant-form.glass-form,
+  .ant-modal-content.glass-modal,
+  .ant-drawer-content.glass-drawer {
+    background: var(--glass-bg-fallback-light);
+  }
+  
+  [data-theme='dark'] .ant-card.glass-card,
+  [data-theme='dark'] .ant-card.glass-card-subtle,
+  [data-theme='dark'] .ant-card.glass-card-prominent,
+  [data-theme='dark'] .ant-form.glass-form,
+  [data-theme='dark'] .ant-modal-content.glass-modal,
+  [data-theme='dark'] .ant-drawer-content.glass-drawer {
+    background: var(--glass-bg-fallback-dark);
+  }
+}

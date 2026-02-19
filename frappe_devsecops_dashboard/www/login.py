@@ -148,18 +148,26 @@ _PROVIDER_SVG_ICONS = {
 
 
 def _get_provider_icon(provider):
-	"""Build icon HTML for a social login provider, with SVG fallback for FontAwesome refs."""
+	"""
+	Build icon HTML for a social login provider using Frappe's get_icon_html().
+	Replaces FontAwesome icons with inline SVGs since we don't load FontAwesome.
+	"""
+	# If no icon configured, use our SVG fallback
 	if not provider.icon:
 		return _PROVIDER_SVG_ICONS.get(provider.name.lower())
 
-	# FontAwesome class reference (e.g. "fa fa-windows") — replace with inline SVG
-	if provider.icon.startswith("fa "):
-		return _PROVIDER_SVG_ICONS.get(
-			provider.name.lower(),
-			f"<img src={escape_html(provider.icon)!r} alt={escape_html(provider.provider_name)!r}>",
-		)
+	# Use Frappe's get_icon_html() for all providers (matches Frappe core behavior)
+	icon_html = get_icon_html(provider.icon, small=True)
 
-	if provider.provider_name == "Custom":
-		return get_icon_html(provider.icon, small=True)
+	# If get_icon_html returned a FontAwesome <i> tag, replace with our SVG fallback
+	# (since we don't load FontAwesome in our custom login page)
+	if icon_html.startswith('<i class='):
+		# Check if we have an SVG fallback for this provider
+		svg_fallback = _PROVIDER_SVG_ICONS.get(provider.name.lower())
+		if svg_fallback:
+			return svg_fallback
+		# If no fallback, return empty string (button will still work without icon)
+		return ""
 
-	return f"<img src={escape_html(provider.icon)!r} alt={escape_html(provider.provider_name)!r}>"
+	# For image URLs, get_icon_html returns <img> tag - return as is
+	return icon_html

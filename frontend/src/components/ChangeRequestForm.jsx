@@ -50,6 +50,7 @@ import ApprovalTrackingComponent from './ApprovalTrackingComponent'
 import ApprovalActionModal from './ApprovalActionModal'
 import ApproversTable from './ApproversTable'
 import { getChangeRequestActivity } from '../utils/projectAttachmentsApi'
+import { GlassForm, GlassContainer, GlassCard } from './design-system'
 import '../styles/changeRequestFormEnhanced.css'
 
 // Extend dayjs with relativeTime plugin
@@ -1151,19 +1152,19 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
 
   if (notFound) {
     return (
-      <Card>
+      <GlassCard variant="default" elevation={2}>
         <Space direction="vertical">
           <Title level={4}>Change Request not found</Title>
           <Button type="primary" onClick={() => navigateToRoute('change-requests')}>Back to List</Button>
         </Space>
-      </Card>
+      </GlassCard>
     )
   }
 
   return (
-    <div className="cr-form-container">
+    <GlassContainer variant="subtle" className="cr-form-container">
       {/* Sticky Header */}
-        <Card loading={loading} className="cr-form-card cr-form-sticky-header" bordered={false}>
+        <GlassCard variant="prominent" elevation={3} loading={loading} className="cr-form-card cr-form-sticky-header" bordered={false}>
           <div className="cr-form-header">
           <Space align="center" style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <Space>
@@ -1249,7 +1250,9 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
         const currentUserApprover = approvers[approverIndex]
 
         return (
-          <Card
+          <GlassCard
+            variant="prominent"
+            elevation={3}
             style={{
               marginTop: 16,
               marginBottom: 16,
@@ -1323,13 +1326,15 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
                 </Space>
               </div>
             </Space>
-          </Card>
+          </GlassCard>
         )
       })()}
 
       {/* Read-Only Notice - Show when form is locked due to no pending approvals */}
       {mode === 'edit' && isFormReadOnly && (
-        <Card
+        <GlassCard
+          variant="subtle"
+          elevation={1}
           style={{
             marginTop: 16,
             marginBottom: 16,
@@ -1351,7 +1356,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
               </div>
             </div>
           </Space>
-        </Card>
+        </GlassCard>
       )}
       {/* End Sticky Header */}
 
@@ -1391,7 +1396,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
 
         {/* Main Form Content */}
         <div className="cr-form-main">
-      <Form form={form} layout="vertical" onFinish={onSubmit} onFinishFailed={onFinishFailed} validateTrigger="onSubmit" disabled={isFormReadOnly}>
+      <GlassForm variant="default" form={form} layout="vertical" onFinish={onSubmit} onFinishFailed={onFinishFailed} validateTrigger="onSubmit" disabled={isFormReadOnly}>
             {/* Section: Core Details */}
             <div id="section-basic" className="cr-section-header">
               <ExclamationCircleFilled className="cr-section-header-icon" />
@@ -1785,13 +1790,15 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
             )}
           </Space>
         </Form.Item>
-      </Form>
+      </GlassForm>
         </div>
       </div>
 
       {/* Activity Log Section - Only in edit mode */}
       {mode === 'edit' && (
-        <Card
+        <GlassCard
+          variant="default"
+          elevation={2}
           title="Activity Log"
           style={{
             marginTop: '24px',
@@ -1831,7 +1838,7 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           ) : (
             <Empty description="No activity recorded yet" />
           )}
-        </Card>
+        </GlassCard>
       )}
 
       {/* Approval Action Modal */}
@@ -1905,8 +1912,8 @@ export default function ChangeRequestForm({ mode = 'create', id = null }) {
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
-    </div>
+    </GlassCard>
+    </GlassContainer>
   )
 }
 

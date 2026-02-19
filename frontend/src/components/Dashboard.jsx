@@ -14,6 +14,7 @@ import {
   List,
   Empty
 } from 'antd'
+import { GlassCard } from './design-system'
 import {
   ProjectOutlined,
   AlertOutlined,
@@ -133,9 +134,9 @@ function Dashboard({ navigateToRoute }) {
     <div style={{ padding: isMobile ? '16px' : '24px', backgroundColor: token.colorBgLayout, minHeight: '100vh' }}>
       {/* Error State */}
       {error && (
-        <Card style={{ marginBottom: '24px', borderColor: token.colorError, borderLeft: `4px solid ${token.colorError}` }}>
+        <GlassCard variant="default" elevation={2} style={{ marginBottom: '24px', borderColor: token.colorError, borderLeft: `4px solid ${token.colorError}` }}>
           <Text type="danger">{error}</Text>
-        </Card>
+        </GlassCard>
       )}
 
       {/* Section 1: Executive Summary - KPI Cards */}
@@ -146,7 +147,7 @@ function Dashboard({ navigateToRoute }) {
         <Row gutter={[16, 16]}>
           {/* Active Projects */}
           <Col xs={24} sm={12} lg={6}>
-            <Card hoverable style={{ textAlign: 'center', borderRadius: '8px' }}>
+            <GlassCard variant="default" elevation={2} hoverable style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: '12px' }}>
                 <ProjectOutlined style={{ fontSize: '32px', color: token.colorPrimary }} />
               </div>
@@ -157,12 +158,12 @@ function Dashboard({ navigateToRoute }) {
               <div style={{ marginTop: '8px', fontSize: '12px', color: token.colorTextTertiary }}>
                 of {metrics.projects.total} total
               </div>
-            </Card>
+            </GlassCard>
           </Col>
 
           {/* Open Incidents */}
           <Col xs={24} sm={12} lg={6}>
-            <Card hoverable style={{ textAlign: 'center', borderRadius: '8px' }}>
+            <GlassCard variant="default" elevation={2} hoverable style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: '12px' }}>
                 <BugOutlined style={{ fontSize: '32px', color: metrics.incidents.critical > 0 ? token.colorError : token.colorWarning }} />
               </div>
@@ -175,12 +176,12 @@ function Dashboard({ navigateToRoute }) {
                   🔴 {metrics.incidents.critical} Critical
                 </div>
               )}
-            </Card>
+            </GlassCard>
           </Col>
 
           {/* Pending Change Requests */}
           <Col xs={24} sm={12} lg={6}>
-            <Card hoverable style={{ textAlign: 'center', borderRadius: '8px' }}>
+            <GlassCard variant="default" elevation={2} hoverable style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: '12px' }}>
                 <FileTextOutlined style={{ fontSize: '32px', color: token.colorWarning }} />
               </div>
@@ -191,12 +192,12 @@ function Dashboard({ navigateToRoute }) {
               <div style={{ marginTop: '8px', fontSize: '12px', color: token.colorTextTertiary }}>
                 of {metrics.changeRequests.total} total
               </div>
-            </Card>
+            </GlassCard>
           </Col>
 
           {/* Tasks Overview */}
           <Col xs={24} sm={12} lg={6}>
-            <Card hoverable style={{ textAlign: 'center', borderRadius: '8px' }}>
+            <GlassCard variant="default" elevation={2} hoverable style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: '12px' }}>
                 <CheckSquareOutlined style={{ fontSize: '32px', color: metrics.tasks.open > 0 ? token.colorWarning : token.colorSuccess }} />
               </div>
@@ -207,7 +208,7 @@ function Dashboard({ navigateToRoute }) {
               <div style={{ marginTop: '8px', fontSize: '12px', color: token.colorTextTertiary }}>
                 of {metrics.tasks.total} total
               </div>
-            </Card>
+            </GlassCard>
           </Col>
         </Row>
       </div>
@@ -277,7 +278,7 @@ function Dashboard({ navigateToRoute }) {
         <Row gutter={[16, 16]}>
           {/* Projects Status */}
           <Col xs={24} md={12} lg={8}>
-            <Card>
+            <GlassCard variant="subtle" elevation={1}>
               <div style={{ marginBottom: '12px' }}>
                 <Text strong>Projects by Status</Text>
               </div>
@@ -292,12 +293,12 @@ function Dashboard({ navigateToRoute }) {
               <div style={{ marginTop: '12px', fontSize: '12px', color: token.colorTextSecondary, textAlign: 'center' }}>
                 <div>{metrics.projects.active} active of {metrics.projects.total} total</div>
               </div>
-            </Card>
+            </GlassCard>
           </Col>
 
           {/* Incidents by Severity */}
           <Col xs={24} md={12} lg={8}>
-            <Card>
+            <GlassCard variant="subtle" elevation={1}>
               <div style={{ marginBottom: '12px' }}>
                 <Text strong>Incidents by Severity</Text>
               </div>
@@ -316,12 +317,12 @@ function Dashboard({ navigateToRoute }) {
                   <Text type="secondary" style={{ fontSize: '12px' }}>Open</Text>
                 </div>
               </div>
-            </Card>
+            </GlassCard>
           </Col>
 
           {/* Change Requests Status */}
           <Col xs={24} md={12} lg={8}>
-            <Card>
+            <GlassCard variant="subtle" elevation={1}>
               <div style={{ marginBottom: '12px' }}>
                 <Text strong>Change Requests</Text>
               </div>
@@ -336,7 +337,7 @@ function Dashboard({ navigateToRoute }) {
               <div style={{ marginTop: '12px', fontSize: '12px', color: token.colorTextSecondary, textAlign: 'center' }}>
                 <div>{metrics.changeRequests.pending} pending approval</div>
               </div>
-            </Card>
+            </GlassCard>
           </Col>
         </Row>
       </div>
@@ -349,7 +350,7 @@ function Dashboard({ navigateToRoute }) {
         <Row gutter={[16, 16]}>
           {/* Recent Incidents */}
           <Col xs={24} lg={12}>
-            <Card title="Recent Incidents" size="small">
+            <GlassCard variant="default" elevation={2} title="Recent Incidents" size="small">
               {loading ? (
                 <Spin />
               ) : recentIncidents.length === 0 ? (
@@ -388,12 +389,12 @@ function Dashboard({ navigateToRoute }) {
                   )}
                 />
               )}
-            </Card>
+            </GlassCard>
           </Col>
 
           {/* Recent Change Requests */}
           <Col xs={24} lg={12}>
-            <Card title="Pending Approvals" size="small">
+            <GlassCard variant="default" elevation={2} title="Pending Approvals" size="small">
               {loading ? (
                 <Spin />
               ) : recentChangeRequests.filter(cr => (cr.approval_status || '').toLowerCase() === 'pending').length === 0 ? (
@@ -430,7 +431,7 @@ function Dashboard({ navigateToRoute }) {
                   )}
                 />
               )}
-            </Card>
+            </GlassCard>
           </Col>
         </Row>
       </div>

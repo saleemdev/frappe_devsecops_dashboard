@@ -1,0 +1,276 @@
+/**
+ * Glassmorphism Design Tokens
+ * Centralized CSS variables for glassmorphism effects across the application
+ */
+
+/* ============================================
+   TYPOGRAPHY - GLASSMORPHISM FONT SYSTEM
+   ============================================ */
+
+/* Import Inter font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* ============================================
+     TYPOGRAPHY TOKENS
+     ============================================ */
+  
+  /* Font Family - Inter (optimized for glassmorphism) */
+  --glass-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  
+  /* Font Family - Monospace (for code) */
+  --glass-font-family-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 
+    'Source Code Pro', 'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+  
+  /* Font Weights */
+  --glass-font-weight-light: 300;
+  --glass-font-weight-regular: 400;
+  --glass-font-weight-medium: 500;
+  --glass-font-weight-semibold: 600;
+  --glass-font-weight-bold: 700;
+  --glass-font-weight-extrabold: 800;
+  
+  /* Font Sizes - Responsive Scale */
+  --glass-font-size-xs: 11px;
+  --glass-font-size-sm: 12px;
+  --glass-font-size-base: 14px;
+  --glass-font-size-md: 16px;
+  --glass-font-size-lg: 18px;
+  --glass-font-size-xl: 20px;
+  --glass-font-size-2xl: 24px;
+  --glass-font-size-3xl: 30px;
+  --glass-font-size-4xl: 36px;
+  --glass-font-size-5xl: 48px;
+  
+  /* Line Heights */
+  --glass-line-height-tight: 1.25;
+  --glass-line-height-snug: 1.375;
+  --glass-line-height-normal: 1.5;
+  --glass-line-height-relaxed: 1.625;
+  --glass-line-height-loose: 2;
+  
+  /* Letter Spacing */
+  --glass-letter-spacing-tighter: -0.05em;
+  --glass-letter-spacing-tight: -0.025em;
+  --glass-letter-spacing-normal: 0;
+  --glass-letter-spacing-wide: 0.025em;
+  --glass-letter-spacing-wider: 0.05em;
+  --glass-letter-spacing-widest: 0.1em;
+  
+  /* Font Smoothing (for better readability with glass effects) */
+  --glass-font-smoothing: antialiased;
+  --glass-font-smoothing-webkit: -webkit-font-smoothing: antialiased;
+  --glass-font-smoothing-moz: -moz-osx-font-smoothing: grayscale;
+  
+  /* Text Rendering (optimized for glassmorphism) */
+  --glass-text-rendering: optimizeLegibility;
+  
+  /* ============================================
+     GLASS BACKGROUND COLORS
+     ============================================ */
+  /* ============================================
+     GLASS BACKGROUND COLORS
+     ============================================ */
+  
+  /* Light Mode Glass Backgrounds */
+  --glass-bg-light-subtle: rgba(255, 255, 255, 0.1);
+  --glass-bg-light-default: rgba(255, 255, 255, 0.15);
+  --glass-bg-light-prominent: rgba(255, 255, 255, 0.25);
+  --glass-bg-light-strong: rgba(255, 255, 255, 0.35);
+  
+  /* Dark Mode Glass Backgrounds */
+  --glass-bg-dark-subtle: rgba(0, 0, 0, 0.15);
+  --glass-bg-dark-default: rgba(0, 0, 0, 0.2);
+  --glass-bg-dark-prominent: rgba(0, 0, 0, 0.3);
+  --glass-bg-dark-strong: rgba(0, 0, 0, 0.4);
+  
+  /* Fallback solid backgrounds (for browsers without backdrop-filter) */
+  --glass-bg-fallback-light: rgba(255, 255, 255, 0.95);
+  --glass-bg-fallback-dark: rgba(31, 31, 31, 0.95);
+
+  /* ============================================
+     BACKDROP BLUR VALUES
+     ============================================ */
+  
+  --glass-blur-subtle: 8px;
+  --glass-blur-default: 12px;
+  --glass-blur-prominent: 16px;
+  --glass-blur-strong: 20px;
+  --glass-blur-ultra: 24px;
+
+  /* ============================================
+     BORDER COLORS & STYLES
+     ============================================ */
+  
+  /* Light Mode Borders */
+  --glass-border-light-subtle: rgba(255, 255, 255, 0.2);
+  --glass-border-light-default: rgba(255, 255, 255, 0.3);
+  --glass-border-light-prominent: rgba(255, 255, 255, 0.4);
+  --glass-border-light-strong: rgba(255, 255, 255, 0.5);
+  
+  /* Dark Mode Borders */
+  --glass-border-dark-subtle: rgba(255, 255, 255, 0.08);
+  --glass-border-dark-default: rgba(255, 255, 255, 0.12);
+  --glass-border-dark-prominent: rgba(255, 255, 255, 0.18);
+  --glass-border-dark-strong: rgba(255, 255, 255, 0.25);
+  
+  /* Border Width */
+  --glass-border-width-thin: 1px;
+  --glass-border-width-default: 1.5px;
+  --glass-border-width-thick: 2px;
+
+  /* ============================================
+     SHADOWS (for depth and elevation)
+     ============================================ */
+  
+  --glass-shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --glass-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --glass-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --glass-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+  --glass-shadow-xl: 0 12px 48px rgba(0, 0, 0, 0.18);
+  --glass-shadow-2xl: 0 16px 64px rgba(0, 0, 0, 0.2);
+  
+  /* Colored shadows (for interactive elements) */
+  --glass-shadow-primary: 0 4px 16px rgba(24, 144, 255, 0.2);
+  --glass-shadow-primary-lg: 0 8px 32px rgba(24, 144, 255, 0.25);
+  --glass-shadow-success: 0 4px 16px rgba(82, 196, 26, 0.2);
+  --glass-shadow-warning: 0 4px 16px rgba(250, 173, 20, 0.2);
+  --glass-shadow-error: 0 4px 16px rgba(255, 77, 79, 0.2);
+
+  /* ============================================
+     GRADIENTS (subtle depth effects)
+     ============================================ */
+  
+  /* Light Mode Gradients */
+  --glass-gradient-light-subtle: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  --glass-gradient-light-default: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+  --glass-gradient-light-prominent: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.12) 100%);
+  
+  /* Dark Mode Gradients */
+  --glass-gradient-dark-subtle: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  --glass-gradient-dark-default: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+  --glass-gradient-dark-prominent: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
+
+  /* ============================================
+     BORDER RADIUS
+     ============================================ */
+  
+  --glass-radius-xs: 4px;
+  --glass-radius-sm: 6px;
+  --glass-radius-md: 8px;
+  --glass-radius-lg: 12px;
+  --glass-radius-xl: 16px;
+  --glass-radius-2xl: 20px;
+  --glass-radius-full: 9999px;
+
+  /* ============================================
+     SPACING (for glass containers)
+     ============================================ */
+  
+  --glass-padding-xs: 8px;
+  --glass-padding-sm: 12px;
+  --glass-padding-md: 16px;
+  --glass-padding-lg: 24px;
+  --glass-padding-xl: 32px;
+  --glass-padding-2xl: 48px;
+
+  /* ============================================
+     TRANSITIONS & ANIMATIONS
+     ============================================ */
+  
+  --glass-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --glass-transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --glass-transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Hover effects */
+  --glass-hover-lift: translateY(-2px);
+  --glass-hover-scale: scale(1.02);
+
+  /* ============================================
+     Z-INDEX LAYERS
+     ============================================ */
+  
+  --glass-z-base: 1;
+  --glass-z-elevated: 10;
+  --glass-z-sticky: 100;
+  --glass-z-dropdown: 1000;
+  --glass-z-modal: 1050;
+  --glass-z-tooltip: 1100;
+  --glass-z-notification: 1150;
+}
+
+/* ============================================
+   DARK MODE OVERRIDES
+   ============================================ */
+
+[data-theme='dark'] {
+  /* Use dark mode glass backgrounds */
+  --glass-bg-subtle: var(--glass-bg-dark-subtle);
+  --glass-bg-default: var(--glass-bg-dark-default);
+  --glass-bg-prominent: var(--glass-bg-dark-prominent);
+  --glass-bg-strong: var(--glass-bg-dark-strong);
+  
+  /* Use dark mode borders */
+  --glass-border-subtle: var(--glass-border-dark-subtle);
+  --glass-border-default: var(--glass-border-dark-default);
+  --glass-border-prominent: var(--glass-border-dark-prominent);
+  --glass-border-strong: var(--glass-border-dark-strong);
+  
+  /* Use dark mode gradients */
+  --glass-gradient-subtle: var(--glass-gradient-dark-subtle);
+  --glass-gradient-default: var(--glass-gradient-dark-default);
+  --glass-gradient-prominent: var(--glass-gradient-dark-prominent);
+  
+  /* Enhanced shadows for dark mode */
+  --glass-shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --glass-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --glass-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --glass-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --glass-shadow-xl: 0 12px 48px rgba(0, 0, 0, 0.7);
+  --glass-shadow-2xl: 0 16px 64px rgba(0, 0, 0, 0.8);
+}
+
+/* ============================================
+   LIGHT MODE DEFAULTS
+   ============================================ */
+
+:root:not([data-theme='dark']) {
+  /* Use light mode glass backgrounds */
+  --glass-bg-subtle: var(--glass-bg-light-subtle);
+  --glass-bg-default: var(--glass-bg-light-default);
+  --glass-bg-prominent: var(--glass-bg-light-prominent);
+  --glass-bg-strong: var(--glass-bg-light-strong);
+  
+  /* Use light mode borders */
+  --glass-border-subtle: var(--glass-border-light-subtle);
+  --glass-border-default: var(--glass-border-light-default);
+  --glass-border-prominent: var(--glass-border-light-prominent);
+  --glass-border-strong: var(--glass-border-light-strong);
+  
+  /* Use light mode gradients */
+  --glass-gradient-subtle: var(--glass-gradient-light-subtle);
+  --glass-gradient-default: var(--glass-gradient-light-default);
+  --glass-gradient-prominent: var(--glass-gradient-light-prominent);
+}
+
+/* ============================================
+   BROWSER SUPPORT FALLBACKS
+   ============================================ */
+
+/* Fallback for browsers without backdrop-filter support */
+@supports not (backdrop-filter: blur(10px)) {
+  :root {
+    --glass-bg-subtle: var(--glass-bg-fallback-light);
+    --glass-bg-default: var(--glass-bg-fallback-light);
+    --glass-bg-prominent: var(--glass-bg-fallback-light);
+    --glass-bg-strong: var(--glass-bg-fallback-light);
+  }
+  
+  [data-theme='dark'] {
+    --glass-bg-subtle: var(--glass-bg-fallback-dark);
+    --glass-bg-default: var(--glass-bg-fallback-dark);
+    --glass-bg-prominent: var(--glass-bg-fallback-dark);
+    --glass-bg-strong: var(--glass-bg-fallback-dark);
+  }
+}

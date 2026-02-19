@@ -736,7 +736,24 @@ const useNavigationStore = create(
             window.location.hash = 'toil/leave/new'
             break
 
-
+          case 'toil-approvals':
+            set({
+              currentRoute: 'toil-approvals',
+              selectedTimesheetId: null,
+              showTOILDetail: false,
+              showTimesheetForm: false,
+              showLeaveApplicationForm: false,
+              selectedProjectId: null,
+              showProjectDetail: false,
+              selectedAppId: null,
+              showAppDetail: false,
+              selectedIncidentId: null,
+              showIncidentDetail: false,
+              selectedSwaggerId: null,
+              showSwaggerDetail: false
+            })
+            window.location.hash = 'toil/approvals'
+            break
 
           case 'project-detail':
             if (projectId) {
@@ -1581,6 +1598,8 @@ const useNavigationStore = create(
           get().navigateToRoute('toil-timesheet-new')
         } else if (hash === 'toil/leave/new') {
           get().navigateToRoute('toil-leave-new')
+        } else if (hash === 'toil/approvals') {
+          get().navigateToRoute('toil-approvals')
         } else if (hash.startsWith('timesheet-toil/')) {
           const timesheetId = hash.split('/')[1]
           get().navigateToRoute('timesheet-toil-detail', null, null, null, null, timesheetId)

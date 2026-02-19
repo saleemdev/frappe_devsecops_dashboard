@@ -67,12 +67,12 @@ const API_CONFIG = {
       export: '/api/method/frappe_devsecops_dashboard.api.swagger_collections.export_swagger_collection'
     },
 
-    	// Zenhub (sprints, issues)
-    	zenhub: {
-    	  sprintData: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_sprint_data',
-    	  stakeholderReport: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_stakeholder_sprint_report',
-    	  workspaceIssues: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_workspace_issues'
-    	},
+    // Zenhub (sprints, issues)
+    zenhub: {
+      sprintData: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_sprint_data',
+      stakeholderReport: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_stakeholder_sprint_report',
+      workspaceIssues: '/api/method/frappe_devsecops_dashboard.api.zenhub.get_workspace_issues'
+    },
 
 
     // Dashboard
@@ -287,11 +287,21 @@ const withCache = async (key, apiCall) => {
  * Clear cache for specific key or all cache
  */
 const clearCache = (key = null) => {
-  if (key) {
-    cache.delete(key)
-  } else {
+  if (!key) {
     cache.clear()
+    return
   }
+
+  if (key instanceof RegExp) {
+    for (const existingKey of cache.keys()) {
+      if (key.test(existingKey)) {
+        cache.delete(existingKey)
+      }
+    }
+    return
+  }
+
+  cache.delete(key)
 }
 
 // Helper to determine if mock is enabled for a specific service

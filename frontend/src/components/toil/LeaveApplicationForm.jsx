@@ -1,69 +1,86 @@
-import { useEffect } from 'react'
-import { Form, Card, Row, Col, DatePicker, Input, Button, Space, Modal, message, Spin, Typography, theme, Alert } from 'antd'
-import { CalendarOutlined, SendOutlined, ArrowLeftOutlined, WarningOutlined } from '@ant-design/icons'
+/**
+ * TOIL Leave Application Form
+ * Complete in-app leave application creation with balance validation
+ * No redirects to Desk - full functionality within TOIL interface
+ * Leverages Frappe document submit workflow
+ */
+
+import { useState, useEffect } from 'react'
+import {
+  Card,
+  Form,
+  Input,
+  InputNumber,
+  DatePicker,
+  Button,
+  Space,
+  Typography,
+  Alert,
+  Divider,
+  Row,
+  Col,
+  Statistic,
+  Tag,
+  notification,
+  Popconfirm
+} from 'antd'
+import {
+  CalendarOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  SendOutlined,
+  InfoCircleOutlined
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import useToilStore from '../../stores/toilStore'
-import SupervisorInfoCard from './SupervisorInfoCard'
-import ConfigurationWarning from './ConfigurationWarning'
-import TOILBalanceCard from './TOILBalanceCard'
-import { getHeaderBannerStyle } from '../../utils/themeUtils'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
 
-/**
- * LeaveApplicationForm Component
- * Create leave application with TOIL balance check
- * Pattern: Zustand-only state management (no local useState)
- */
-function LeaveApplicationForm({ navigateToRoute }) {
-  const { token } = theme.useToken()
+const LeaveApplicationForm = ({ onSuccess, onCancel }) => {
   const [form] = Form.useForm()
+  const [selectedDates, setSelectedDates] = useState([])
+  const [businessDays, setBusinessDays] = useState(0)
+  const [balanceCheck, setBalanceCheck] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  // All state from Zustand store
   const {
-    employeeSetup,
     toilBalance,
-    loading,
-    submitting,
-    error,
     createLeaveApplication,
     submitLeaveForApproval,
-    initializeLeaveForm,
-    clearError
+    fetchTOILBalance,
+    loading: storeLoading
   } = useToilStore()
 
-  // Initialize on mount - Zustand actions are stable, no deps needed
   useEffect(() => {
-    const init = async () => {
-      try {
-        await initializeLeaveForm()
-      } catch (err) {
-        Modal.error({
-          title: 'Configuration Required',
-          content: employeeSetup?.issues?.join('\n') || err.message,
-          okText: 'Contact HR',
-          onOk: () => navigateToRoute && navigateToRoute('timesheet-toil')
-        })
-      }
+    if (toilBalance) {
+      checkBalance()
     }
-    init()
-    return () => clearError()
-  }, [])
+  }, [toilBalance, businessDays])
 
-  const calculateLeaveDays = (fromDate, toDate) => {
+  const checkBalance = () => {
+    const available = parseFloat(toilBalance?.available || 0)
+    const requested = businessDays
+    
+    if (requested > 0) {
+      setBalanceCheck({
+        sufficient: requested <= available,
+        available,
+        requested,
+        shortfall: Math.max(0, requested - available)
+      })
+    } else {
+      setBalanceCheck(null)
+    }
+  }
+
+  const countBusinessDays = (fromDate, toDate) => {
     if (!fromDate || !toDate) return 0
 
-    const start = dayjs(fromDate)
-    const end = dayjs(toDate)
-
-    if (end.isBefore(start)) return 0
-
-    // Calculate business days (exclude weekends)
     let days = 0
-    let current = start
+    let current = fromDate.clone()
 
-    while (current.isSameOrBefore(end)) {
+    while (current.isSameOrBefore(toDate, 'day')) {
       const dayOfWeek = current.day()
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         days++
@@ -74,260 +91,281 @@ function LeaveApplicationForm({ navigateToRoute }) {
     return days
   }
 
-  const handleDateChange = () => {
-    const fromDate = form.getFieldValue('from_date')
-    const toDate = form.getFieldValue('to_date')
-
-    if (fromDate && toDate) {
-      const days = calculateLeaveDays(fromDate, toDate)
-      form.setFieldsValue({ total_leave_days: days })
+  const handleDateRangeChange = (dates) => {
+    if (dates && dates.length === 2) {
+      const [from, to] = dates
+      const days = countBusinessDays(from, to)
+      setSelectedDates([from, to])
+      setBusinessDays(days)
+      form.setFieldsValue({
+        from_date: from,
+        to_date: to,
+        total_leave_days: days
+      })
+    } else {
+      setSelectedDates([])
+      setBusinessDays(0)
+      form.setFieldsValue({ total_leave_days: 0 })
     }
   }
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      const totalDays = form.getFieldValue('total_leave_days') || 0
-
-      if (totalDays === 0) {
-        message.warning('Please select valid dates')
-        return
-      }
-
-      if (totalDays > (toilBalance?.available || 0)) {
-        Modal.error({
-          title: 'Insufficient Balance',
-          content: `You only have ${toilBalance?.available || 0} days available. You cannot apply for ${totalDays} days.`,
-          okText: 'Understood'
+      
+      if (businessDays <= 0) {
+        notification.warning({
+          message: 'Invalid date range',
+          description: 'Please select a valid date range with at least one business day.',
+          duration: 4
         })
         return
       }
 
+      if (!balanceCheck?.sufficient) {
+        notification.error({
+          message: 'Insufficient TOIL balance',
+          description: `You have ${balanceCheck?.available.toFixed(2)} days available, but need ${balanceCheck?.requested.toFixed(2)} days.`,
+          duration: 6
+        })
+        return
+      }
+
+      setSubmitting(true)
+
       const leaveData = {
-        leave_type: 'TOIL',
+        leave_type: 'Time Off in Lieu',
         from_date: values.from_date.format('YYYY-MM-DD'),
         to_date: values.to_date.format('YYYY-MM-DD'),
-        total_leave_days: totalDays,
-        description: values.description || '',
-        half_day: false
+        total_leave_days: businessDays,
+        description: values.reason || 'TOIL leave request'
       }
 
-      const createdLeave = await createLeaveApplication(leaveData)
-      await submitLeaveForApproval(createdLeave.name)
-
-      message.success('Leave application submitted for approval')
-
-      if (navigateToRoute) {
-        navigateToRoute('timesheet-toil')
+      const created = await createLeaveApplication(leaveData)
+      
+      if (created?.name) {
+        // Submit using Frappe document workflow
+        const submitResult = await submitLeaveForApproval(created.name)
+        
+        if (submitResult) {
+          notification.success({
+            message: 'Leave application submitted',
+            description: `Your request for ${businessDays} day(s) has been submitted using Frappe workflow. Supervisor approval is required.`,
+            duration: 6,
+            placement: 'topRight'
+          })
+          
+          // Refresh balance
+          await fetchTOILBalance()
+          
+          if (onSuccess) {
+            onSuccess(created)
+          }
+        }
       }
-    } catch (err) {
-      if (err.errorFields) {
-        message.error('Please fill in all required fields')
-      } else {
-        message.error(err.message || 'Failed to submit leave application')
-      }
+    } catch (error) {
+      notification.error({
+        message: 'Failed to submit leave application',
+        description: error?.message || 'Please check your entries and try again.',
+        duration: 6
+      })
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const handleCancel = () => {
-    if (navigateToRoute) {
-      navigateToRoute('timesheet-toil')
-    }
-  }
-
-  // Show loading while initializing
-  if (loading && (!employeeSetup || !toilBalance)) {
-    return (
-      <div style={{ textAlign: 'center', padding: '100px 0' }}>
-        <Spin size="large" />
-        <div style={{ marginTop: 16 }}>
-          <Text type="secondary">Initializing leave application form...</Text>
-        </div>
-      </div>
-    )
-  }
-
-  // Show error if setup failed
-  if (error && !employeeSetup) {
-    return (
-      <div style={{ textAlign: 'center', padding: '100px 0' }}>
-        <Text type="danger">{error}</Text>
-      </div>
-    )
-  }
-
-  const totalDays = form.getFieldValue('total_leave_days') || 0
-  const insufficientBalance = totalDays > (toilBalance?.available || 0)
-  const noBalance = (toilBalance?.available || 0) === 0
+  const availableBalance = parseFloat(toilBalance?.available || 0)
+  const expiringSoon = parseFloat(toilBalance?.expiring_soon || 0)
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {/* Header Banner */}
-      <div style={getHeaderBannerStyle(token)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              backgroundColor: token.colorPrimary,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <CalendarOutlined style={{ fontSize: 20, color: '#fff' }} />
-          </div>
-          <div>
-            <Title level={3} style={{ margin: 0, color: token.colorText }}>
-              Apply for TOIL Leave
-            </Title>
-            <Text type="secondary">
-              Request time off using your earned TOIL balance
-            </Text>
-          </div>
+    <Card
+      style={{
+        background: 'linear-gradient(145deg, rgba(255,255,255,0.85), rgba(255,255,255,0.65))',
+        border: '1px solid rgba(255,255,255,0.5)',
+        boxShadow: '0 8px 24px rgba(15, 23, 42, 0.1)',
+        borderRadius: 12
+      }}
+    >
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {/* Header */}
+        <div>
+          <Title level={4} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CalendarOutlined style={{ color: '#52c41a' }} />
+            Apply for TOIL Leave
+          </Title>
+          <Text type="secondary">
+            Request leave using your accrued TOIL balance. Uses Frappe Leave Application workflow.
+          </Text>
         </div>
-        <Button icon={<ArrowLeftOutlined />} onClick={handleCancel}>
-          Back to List
-        </Button>
-      </div>
 
-      {/* Configuration Warning */}
-      {employeeSetup && !employeeSetup.valid && (
-        <ConfigurationWarning setupData={employeeSetup} />
-      )}
+        <Divider style={{ margin: '16px 0' }} />
 
-      {/* Supervisor Info Card */}
-      {employeeSetup?.valid && (
-        <SupervisorInfoCard
-          supervisor={{
-            name: employeeSetup.supervisor_name,
-            email: employeeSetup.supervisor_user,
-            supervisor_name: employeeSetup.supervisor_name,
-            supervisor_user: employeeSetup.supervisor_user
+        {/* Balance Summary */}
+        <Card
+          size="small"
+          style={{
+            background: availableBalance > 0
+              ? 'linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%)'
+              : 'linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%)',
+            border: availableBalance > 0 ? '1px solid #b7eb8f' : '1px solid #ffd591'
           }}
-          type="leave"
-        />
-      )}
+        >
+          <Row gutter={16}>
+            <Col xs={24} sm={8}>
+              <Statistic
+                title="Available Balance"
+                value={availableBalance}
+                precision={2}
+                suffix="days"
+                valueStyle={{
+                  color: availableBalance > 0 ? '#52c41a' : '#fa8c16',
+                  fontWeight: 600
+                }}
+              />
+            </Col>
+            <Col xs={24} sm={8}>
+              <Statistic
+                title="Requested Days"
+                value={businessDays}
+                precision={2}
+                suffix="days"
+                valueStyle={{ fontWeight: 600 }}
+              />
+            </Col>
+            <Col xs={24} sm={8}>
+              <Statistic
+                title="Remaining After"
+                value={Math.max(0, availableBalance - businessDays)}
+                precision={2}
+                suffix="days"
+                valueStyle={{
+                  color: balanceCheck?.sufficient ? '#52c41a' : '#ff4d4f',
+                  fontWeight: 600
+                }}
+              />
+            </Col>
+          </Row>
 
-      {/* TOIL Balance Card */}
-      {employeeSetup?.valid && (
-        <TOILBalanceCard balance={toilBalance} loading={loading} />
-      )}
+          {expiringSoon > 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginTop: 12 }}
+              message={`${expiringSoon.toFixed(2)} days expiring within 30 days`}
+              description="Consider using expiring TOIL first."
+            />
+          )}
 
-      {/* No Balance Warning */}
-      {employeeSetup?.valid && noBalance && (
-        <Alert
-          message="No TOIL Balance Available"
-          description="You do not have any TOIL days to use for leave. Please submit and get approval for timesheets with non-billable hours to accrue TOIL."
-          type="warning"
-          showIcon
-          icon={<WarningOutlined />}
-          style={{ marginBottom: 16 }}
-        />
-      )}
+          {balanceCheck && !balanceCheck.sufficient && (
+            <Alert
+              type="error"
+              showIcon
+              style={{ marginTop: 12 }}
+              message="Insufficient balance"
+              description={`You need ${balanceCheck.shortfall.toFixed(2)} more day(s). Available: ${balanceCheck.available.toFixed(2)} days.`}
+            />
+          )}
 
-      {/* Leave Application Form */}
-      {employeeSetup?.valid && !noBalance && (
-        <>
-          <Card title="Leave Details" style={{ borderRadius: 8 }}>
-            <Form form={form} layout="vertical">
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="From Date"
-                    name="from_date"
-                    rules={[{ required: true, message: 'Please select from date' }]}
-                  >
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      format="YYYY-MM-DD"
-                      onChange={handleDateChange}
-                      disabledDate={(current) => {
-                        return current && current.isBefore(dayjs().startOf('day'))
-                      }}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="To Date"
-                    name="to_date"
-                    rules={[{ required: true, message: 'Please select to date' }]}
-                  >
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      format="YYYY-MM-DD"
-                      onChange={handleDateChange}
-                      disabledDate={(current) => {
-                        const fromDate = form.getFieldValue('from_date')
-                        return current && fromDate && current.isBefore(fromDate)
-                      }}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+          {balanceCheck && balanceCheck.sufficient && businessDays > 0 && (
+            <Alert
+              type="success"
+              showIcon
+              style={{ marginTop: 12 }}
+              message="Balance sufficient"
+              description={`You have enough TOIL balance for this request. ${(availableBalance - businessDays).toFixed(2)} days will remain.`}
+            />
+          )}
+        </Card>
 
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item label="Total Days" name="total_leave_days">
-                    <Input
-                      readOnly
-                      suffix="days"
-                      style={{
-                        fontWeight: 600,
-                        fontSize: 16,
-                        color: insufficientBalance ? token.colorError : token.colorSuccess
-                      }}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+        {/* Form */}
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="date_range"
+            label="Leave Period"
+            rules={[{ required: true, message: 'Select leave dates' }]}
+          >
+            <DatePicker.RangePicker
+              style={{ width: '100%' }}
+              onChange={handleDateRangeChange}
+              disabledDate={(current) => current && current.isBefore(dayjs().startOf('day'))}
+              format="YYYY-MM-DD"
+            />
+          </Form.Item>
 
-              {/* Balance Check Warning */}
-              {insufficientBalance && totalDays > 0 && (
-                <Alert
-                  message="Insufficient Balance"
-                  description={`You only have ${toilBalance?.available || 0} days available. Please reduce your leave duration or wait until you accrue more TOIL.`}
-                  type="error"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                />
-              )}
-
-              <Form.Item
-                label="Reason for Leave"
-                name="description"
-                rules={[{ required: true, message: 'Please provide a reason' }]}
-              >
-                <TextArea
-                  rows={4}
-                  placeholder="Please describe the reason for taking TOIL leave..."
-                  maxLength={500}
-                  showCount
-                />
+          <Row gutter={16} style={{ display: 'none' }}>
+            <Col span={12}>
+              <Form.Item name="from_date" rules={[{ required: true }]}>
+                <DatePicker style={{ width: '100%' }} />
               </Form.Item>
-            </Form>
-          </Card>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="to_date" rules={[{ required: true }]}>
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          {/* Action Buttons */}
-          <Card style={{ borderRadius: 8 }}>
-            <Space style={{ float: 'right' }}>
-              <Button onClick={handleCancel}>Cancel</Button>
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={handleSubmit}
-                loading={submitting}
-                disabled={insufficientBalance || totalDays === 0}
-              >
-                Submit for Approval
-              </Button>
-            </Space>
-          </Card>
-        </>
-      )}
-    </Space>
+          <Form.Item
+            name="total_leave_days"
+            label="Business Days"
+            tooltip="Automatically calculated excluding weekends"
+          >
+            <InputNumber
+              value={businessDays}
+              disabled
+              style={{ width: '100%' }}
+              addonAfter="days"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="reason"
+            label="Reason for Leave"
+            rules={[{ required: true, message: 'Please provide a reason' }]}
+          >
+            <TextArea
+              rows={4}
+              placeholder="Explain why you need this TOIL leave..."
+            />
+          </Form.Item>
+        </Form>
+
+        {/* Action Buttons */}
+        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+          {onCancel && (
+            <Button onClick={onCancel} disabled={submitting}>
+              Cancel
+            </Button>
+          )}
+          <Popconfirm
+            title="Submit leave application?"
+            description="This will create a Leave Application document and submit it through Frappe workflow for supervisor approval."
+            onConfirm={handleSubmit}
+            okText="Submit"
+            cancelText="Cancel"
+            disabled={!balanceCheck?.sufficient || businessDays <= 0}
+          >
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              loading={submitting}
+              disabled={!balanceCheck?.sufficient || businessDays <= 0}
+            >
+              Submit Leave Request
+            </Button>
+          </Popconfirm>
+        </Space>
+
+        {/* Info Footer */}
+        <Alert
+          type="info"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          message="Frappe Workflow Integration"
+          description="This leave application uses Frappe's standard Leave Application document workflow. Your supervisor will receive a notification and can approve/reject through the Frappe Desk or this TOIL interface."
+        />
+      </Space>
+    </Card>
   )
 }
 

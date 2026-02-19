@@ -4,38 +4,49 @@
  */
 
 import dayjs from 'dayjs'
+import { normalizeToilStatus, TOIL_STATUSES } from './toilStatusUtils'
 
 /**
  * Color mappings for TOIL status (consistent with toilColors.js)
  * Matches the color scheme used throughout the TOIL application
  */
 export const TOIL_STATUS_COLORS = {
-  'Draft': {
-    tag: 'default',
-    hex: '#d9d9d9',
-    antd: 'colorTextSecondary'
-  },
-  'Pending Accrual': {
+  [TOIL_STATUSES.PENDING_ACCRUAL]: {
     tag: 'orange',
     hex: '#ff7a45',
     antd: 'colorWarning'
   },
-  'Accrued': {
+  [TOIL_STATUSES.ACCRUED]: {
     tag: 'blue',
     hex: '#1890ff',
     antd: 'colorPrimary'
   },
-  'Partially Used': {
+  [TOIL_STATUSES.PARTIALLY_USED]: {
     tag: 'cyan',
     hex: '#13c2c2',
     antd: 'colorInfo'
   },
-  'Fully Used': {
+  [TOIL_STATUSES.FULLY_USED]: {
     tag: 'green',
     hex: '#52c41a',
     antd: 'colorSuccess'
   },
-  'Not Applicable': {
+  [TOIL_STATUSES.REJECTED]: {
+    tag: 'red',
+    hex: '#f5222d',
+    antd: 'colorError'
+  },
+  [TOIL_STATUSES.EXPIRED]: {
+    tag: 'magenta',
+    hex: '#c41d7f',
+    antd: 'colorError'
+  },
+  [TOIL_STATUSES.CANCELLED]: {
+    tag: 'default',
+    hex: '#8c8c8c',
+    antd: 'colorTextTertiary'
+  },
+  [TOIL_STATUSES.NOT_APPLICABLE]: {
     tag: 'default',
     hex: '#d9d9d9',
     antd: 'colorTextSecondary'
@@ -48,8 +59,8 @@ export const TOIL_STATUS_COLORS = {
  * @returns {string} Hex color code
  */
 export const getStatusColor = (status) => {
-  if (!status) return '#f0f0f0'
-  return TOIL_STATUS_COLORS[status]?.hex || '#f0f0f0'
+  const normalized = normalizeToilStatus({ toil_status: status })
+  return TOIL_STATUS_COLORS[normalized]?.hex || '#f0f0f0'
 }
 
 /**
@@ -64,7 +75,7 @@ export const groupTimesheetsByDate = (timesheets) => {
 
   timesheets.forEach(timesheet => {
     // Use from_date as the primary date for calendar display
-    const dateValue = timesheet.from_date || timesheet.fromDate
+    const dateValue = timesheet.start_date || timesheet.from_date || timesheet.fromDate
     if (!dateValue) return
 
     // Normalize to YYYY-MM-DD
@@ -175,12 +186,14 @@ export const formatTOILHours = (hours) => {
  */
 export const getStatusPriority = (status) => {
   const priorities = {
-    'Pending Accrual': 5,
-    'Accrued': 4,
-    'Partially Used': 3,
-    'Fully Used': 2,
-    'Draft': 1,
-    'Not Applicable': 0
+    [TOIL_STATUSES.PENDING_ACCRUAL]: 7,
+    [TOIL_STATUSES.REJECTED]: 6,
+    [TOIL_STATUSES.ACCRUED]: 5,
+    [TOIL_STATUSES.PARTIALLY_USED]: 4,
+    [TOIL_STATUSES.FULLY_USED]: 3,
+    [TOIL_STATUSES.EXPIRED]: 2,
+    [TOIL_STATUSES.CANCELLED]: 1,
+    [TOIL_STATUSES.NOT_APPLICABLE]: 0
   }
   return priorities[status] || 0
 }

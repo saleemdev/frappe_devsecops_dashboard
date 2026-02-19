@@ -2,1064 +2,692 @@
 
 {% block page_content %}
 <style>
-  /* DevSecOps Dashboard - Futuristic Minimalist Landing Page */
   :root {
-    --primary-color: #1677ff;
-    --primary-light: #40a9ff;
+    --primary: #1677ff;
     --primary-dark: #0958d9;
-    --accent-color: #1890ff;
-    --bg-body: #f5f5f5;
-    --bg-surface: #ffffff;
-    --text-main: #000000d9;
-    --text-muted: #00000073;
-    --text-light: #00000045;
-    --border-light: #d9d9d9;
-    --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.06);
-    --shadow-hover: 0 4px 16px rgba(22, 119, 255, 0.15);
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --text-main: #1e293b;
+    --text-body: #334155;
+    --text-muted: #64748b;
+    --text-light: #94a3b8;
+    --text-faint: #cbd5e1;
+    --glass-bg: linear-gradient(145deg, rgba(255,255,255,0.72), rgba(255,255,255,0.44));
+    --glass-border: 1px solid rgba(255,255,255,0.50);
+    --glass-shadow: 0 12px 36px rgba(15, 23, 42, 0.11);
+    --glass-shadow-lg: 0 20px 56px rgba(15, 23, 42, 0.14);
+    --r: 16px;
+    --r-lg: 20px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
   html, body {
-    font-family: var(--font-sans);
+    font-family: var(--font);
     color: var(--text-main);
-    background-color: var(--bg-body);
+    background: linear-gradient(168deg, #f3f6fb 0%, #f8f7f5 42%, #f4f6fa 100%);
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
   }
 
-  #page-content {
-    padding: 0 !important;
-    max-width: none !important;
+  #page-content { padding: 0 !important; max-width: none !important; }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 28px; }
+
+  .page { position: relative; overflow: hidden; }
+
+  .page::before,
+  .page::after {
+    content: '';
+    position: fixed;
+    pointer-events: none;
+    border-radius: 999px;
+    filter: blur(34px);
+    z-index: 0;
   }
 
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 24px;
+  .page::before {
+    width: 360px; height: 360px;
+    top: -110px; right: -90px;
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.26), transparent);
   }
 
-  .section-padding {
-    padding: 100px 0;
+  .page::after {
+    width: 300px; height: 300px;
+    bottom: -90px; left: -70px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.18), transparent);
   }
 
-  /* Hero Section */
-  .hero-section {
-    position: relative;
-    padding: 120px 0 100px;
-    background: radial-gradient(circle at 50% 0%, rgba(22, 119, 255, 0.08) 0%, transparent 60%);
-    overflow: hidden;
+  .page > * { position: relative; z-index: 1; }
+
+  .orb-mid {
+    position: fixed;
+    pointer-events: none; z-index: 0;
+    width: 180px; height: 180px;
+    top: 50%; left: -30px;
+    border-radius: 999px;
+    filter: blur(46px);
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.07), transparent);
   }
 
-  .hero-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 60px;
-    align-items: center;
+  /* ── Glass ── */
+  .g {
+    background: var(--glass-bg);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: var(--r);
   }
 
-  .hero-content {
-    max-width: 600px;
-  }
+  /* ══════════════════════════════════
+     HERO
+     ══════════════════════════════════ */
+  .hero { padding: 110px 0 48px; }
+
+  .hero-inner { text-align: center; max-width: 680px; margin: 0 auto; }
 
   .hero-badge {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
-    background: white;
-    border: 1px solid var(--border-light);
-    border-radius: 100px;
-    font-size: 13px;
+    padding: 7px 18px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--primary-color);
-    margin-bottom: 32px;
-    box-shadow: var(--shadow-soft);
-    animation: fadeInDown 0.6s ease;
-    transition: all 0.3s ease;
+    color: var(--text-muted);
+    border-radius: 100px;
+    margin-bottom: 28px;
+    letter-spacing: 0.3px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.78), rgba(248,252,255,0.52));
   }
 
-  .hero-badge:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.15);
-  }
-
-  @keyframes fadeInDown {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+  .hero-badge svg { color: var(--primary); }
 
   .hero-title {
-    font-size: 64px;
+    font-size: clamp(2.6rem, 5vw, 3.6rem);
     font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    margin-bottom: 24px;
-    color: var(--text-main);
-    animation: fadeInUp 0.8s ease 0.2s both;
+    line-height: 1.06;
+    letter-spacing: -0.035em;
+    margin-bottom: 20px;
   }
 
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .brand-highlight {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+  .hero-title .accent {
+    background: linear-gradient(135deg, var(--primary), #38bdf8);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    display: block;
-    font-size: 1.1em;
   }
 
-  .hero-description {
-    font-size: 20px;
-    line-height: 1.6;
+  .hero-desc {
+    font-size: 17px;
+    line-height: 1.65;
     color: var(--text-muted);
-    margin-bottom: 40px;
-    animation: fadeInUp 0.8s ease 0.4s both;
+    margin: 0 auto 36px;
+    max-width: 520px;
   }
 
-  .cta-group {
-    display: flex;
-    gap: 16px;
-    animation: fadeInUp 0.8s ease 0.6s both;
-  }
+  .cta-row { display: flex; gap: 12px; justify-content: center; }
 
   .btn {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 16px 32px;
+    gap: 8px;
+    padding: 13px 26px;
     font-weight: 600;
-    border-radius: var(--radius-md);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 14px;
+    border-radius: 10px;
     text-decoration: none;
-    font-size: 16px;
     border: none;
     cursor: pointer;
     font-family: inherit;
+    transition: all 0.2s ease;
   }
 
-  .btn-primary {
-    background: var(--primary-color);
-    color: white;
-    box-shadow: var(--shadow-soft);
+  .btn-p {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(22, 119, 255, 0.22), 0 1px 3px rgba(22, 119, 255, 0.10);
   }
 
-  .btn-primary:hover {
-    transform: translateY(-2px);
+  .btn-p:hover {
     background: var(--primary-dark);
-    box-shadow: var(--shadow-hover);
+    box-shadow: 0 6px 20px rgba(22, 119, 255, 0.30), 0 2px 4px rgba(22, 119, 255, 0.12);
+    transform: translateY(-1px);
   }
 
-  .btn-secondary {
-    background: white;
-    color: var(--text-main);
-    border: 1px solid var(--border-light);
+  .btn-s {
+    background: rgba(255,255,255,0.6);
+    color: var(--text-body);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 
-  .btn-secondary:hover {
-    background: var(--bg-body);
-    border-color: var(--text-muted);
-  }
+  .btn-s:hover { background: rgba(255,255,255,0.9); }
 
-  /* Features Section */
-  .features-section {
-    background: white;
-    border-top: 1px solid var(--border-light);
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .section-header {
-    text-align: center;
-    margin-bottom: 60px;
-  }
-
-  .section-title {
-    font-size: 36px;
-    font-weight: 700;
-    margin-bottom: 16px;
-    letter-spacing: -0.5px;
-    color: var(--text-main);
-  }
-
-  .section-subtitle {
-    font-size: 18px;
-    color: var(--text-muted);
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 32px;
-  }
-
-  .feature-card {
-    padding: 40px;
-    background: white;
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    animation: fadeIn 0.6s ease both;
-  }
-
-  .feature-card:nth-child(1) { animation-delay: 0.1s; }
-  .feature-card:nth-child(2) { animation-delay: 0.2s; }
-  .feature-card:nth-child(3) { animation-delay: 0.3s; }
-  .feature-card:nth-child(4) { animation-delay: 0.4s; }
-  .feature-card:nth-child(5) { animation-delay: 0.5s; }
-  .feature-card:nth-child(6) { animation-delay: 0.6s; }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .feature-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-    transform: scaleX(0);
-    transition: transform 0.4s ease;
-  }
-
-  .feature-card:hover {
-    border-color: var(--primary-color);
-    box-shadow: 0 12px 32px rgba(22, 119, 255, 0.15);
-    transform: translateY(-6px);
-  }
-
-  .feature-card:hover::before {
-    transform: scaleX(1);
-  }
-
-  .feature-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-md);
-    background: linear-gradient(135deg, #e6f4ff 0%, #bae0ff 100%);
+  /* Trust bar */
+  .trust-bar {
     display: flex;
-    align-items: center;
     justify-content: center;
-    color: var(--primary-color);
-    margin-bottom: 24px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(22, 119, 255, 0.15);
+    gap: 32px;
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px solid rgba(226, 232, 240, 0.30);
   }
 
-  .feature-card:hover .feature-icon {
-    transform: scale(1.1) rotate(5deg);
-    box-shadow: 0 4px 16px rgba(22, 119, 255, 0.25);
+  .trust-item { text-align: center; }
+  .trust-val { font-size: 22px; font-weight: 800; color: var(--text-main); }
+  .trust-lbl { font-size: 11px; color: var(--text-light); font-weight: 500; letter-spacing: 0.4px; text-transform: uppercase; margin-top: 2px; }
+
+  /* ══════════════════════════════════
+     SHOWCASE (visual panel below hero)
+     ══════════════════════════════════ */
+  .showcase {
+    padding: 24px 0 100px;
   }
 
-  .feature-title {
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 12px;
-    color: var(--text-main);
-  }
-
-  .feature-description {
-    font-size: 15px;
-    line-height: 1.6;
-    color: var(--text-muted);
-  }
-
-  /* Stats Section */
-  .stats-section {
-    background: linear-gradient(135deg, #001529 0%, #002140 100%);
-    color: white;
-    position: relative;
+  .showcase-panel {
+    border-radius: var(--r-lg);
     overflow: hidden;
+    position: relative;
+    padding: 48px;
+    min-height: 320px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+    background: linear-gradient(145deg, rgba(255,255,255,0.68), rgba(255,255,255,0.36));
+    border: 1px solid rgba(255,255,255,0.48);
+    box-shadow: var(--glass-shadow-lg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
-  .stats-section::before {
+  .showcase-panel::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: 
-      linear-gradient(rgba(22, 119, 255, 0.1) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(22, 119, 255, 0.1) 1px, transparent 1px);
-    background-size: 50px 50px;
-    opacity: 0.2;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+    z-index: 0;
   }
 
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 48px;
-    position: relative;
-    z-index: 1;
+  .showcase-panel > * { position: relative; z-index: 1; }
+
+  .sc-card {
+    padding: 20px;
+    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.82), rgba(255,255,255,0.52));
+    border: 1px solid rgba(255,255,255,0.55);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.07);
   }
 
-  .stat-card {
-    text-align: center;
-  }
-
-  .stat-number {
-    font-size: 48px;
-    font-weight: 800;
-    line-height: 1;
-    margin-bottom: 12px;
-    background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .stat-label {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 500;
+  .sc-card .sc-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-light);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.4px;
+    margin-bottom: 8px;
   }
 
-  /* Use Cases Section */
-  .use-cases-section {
-    background: var(--bg-body);
+  .sc-card .sc-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1;
+    margin-bottom: 6px;
   }
 
-  .use-cases-grid {
+  .sc-card .sc-sub { font-size: 12px; color: var(--text-muted); }
+
+  .sc-card .sc-bar {
+    height: 4px;
+    border-radius: 4px;
+    background: rgba(226, 232, 240, 0.5);
+    margin-top: 12px;
+    overflow: hidden;
+  }
+
+  .sc-card .sc-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--primary), #38bdf8);
+  }
+
+  .sc-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 10px;
+  }
+
+  .sc-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .sc-dot.green { background: #10b981; }
+  .sc-dot.blue { background: var(--primary); }
+  .sc-dot.amber { background: #f59e0b; }
+
+  /* ══════════════════════════════════
+     BENTO FEATURES
+     ══════════════════════════════════ */
+  .bento { padding: 100px 0; }
+
+  .bento-header { margin-bottom: 48px; }
+  .bento-header h2 { font-size: 28px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 10px; }
+  .bento-header p { font-size: 15px; color: var(--text-muted); max-width: 420px; line-height: 1.55; }
+
+  .bento-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: auto auto;
+    gap: 16px;
   }
 
-  .use-case-card {
+  .bento-card {
     padding: 32px;
-    background: white;
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    transition: all 0.3s ease;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
 
-  .use-case-card:hover {
-    border-color: var(--primary-color);
-    box-shadow: 0 8px 24px rgba(22, 119, 255, 0.1);
-    transform: translateY(-4px);
+  .bento-card:hover {
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.15);
+    transform: translateY(-2px);
   }
 
-  .use-case-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-md);
-    background: #e6f4ff;
+  .bento-card.wide { grid-column: span 2; }
+
+  .bento-ic {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: rgba(22, 119, 255, 0.06);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--primary-color);
-    margin-bottom: 20px;
+    color: var(--primary);
+    margin-bottom: 16px;
   }
 
-  .use-case-title {
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 8px;
-    color: var(--text-main);
-  }
+  .bento-card h3 { font-size: 16px; font-weight: 700; color: var(--text-body); margin-bottom: 8px; }
+  .bento-card p { font-size: 13px; line-height: 1.6; color: var(--text-muted); max-width: 400px; }
 
-  .use-case-description {
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--text-muted);
-  }
+  /* ══════════════════════════════════
+     SOCIAL PROOF (testimonial + logos)
+     ══════════════════════════════════ */
+  .proof { padding: 100px 0; }
 
-  /* Testimonials Section */
-  .testimonials-section {
-    background: white;
-  }
-
-  .testimonials-grid {
+  .proof-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 32px;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
   }
 
-  .testimonial-card {
-    padding: 32px;
-    background: var(--bg-body);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    position: relative;
+  .proof-quote {
+    padding: 36px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    grid-row: span 2;
   }
 
-  .testimonial-card::before {
-    content: '"';
-    position: absolute;
-    top: 20px;
-    left: 24px;
-    font-size: 64px;
-    color: var(--primary-color);
-    opacity: 0.1;
-    font-family: Georgia, serif;
+  .proof-quote .pq-mark {
+    font-size: 56px;
     line-height: 1;
+    font-family: Georgia, serif;
+    color: var(--primary);
+    opacity: 0.15;
+    margin-bottom: 8px;
   }
 
-  .testimonial-text {
-    font-size: 15px;
+  .proof-quote .pq-text {
+    font-size: 17px;
     line-height: 1.7;
-    color: var(--text-main);
+    color: var(--text-body);
+    font-style: italic;
     margin-bottom: 24px;
-    position: relative;
-    z-index: 1;
   }
 
-  .testimonial-author {
+  .proof-quote .pq-author { display: flex; align-items: center; gap: 12px; }
+
+  .proof-quote .pq-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), #60a5fa);
     display: flex;
     align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .proof-quote .pq-name { font-size: 14px; font-weight: 600; color: var(--text-body); }
+  .proof-quote .pq-role { font-size: 12px; color: var(--text-muted); }
+
+  .proof-mini {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .proof-mini .pm-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-body);
+    margin-bottom: 16px;
+  }
+
+  .proof-mini .pm-author { display: flex; align-items: center; gap: 10px; }
+
+  .proof-mini .pm-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), #60a5fa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  .proof-mini .pm-name { font-size: 13px; font-weight: 600; color: var(--text-body); }
+  .proof-mini .pm-role { font-size: 11px; color: var(--text-muted); }
+
+  /* ══════════════════════════════════
+     CTA
+     ══════════════════════════════════ */
+  .cta-sec { padding: 60px 0 100px; }
+
+  .cta-box {
+    text-align: center;
+    padding: 64px 40px;
+    max-width: 720px;
+    margin: 0 auto;
+    background: linear-gradient(145deg, rgba(255,255,255,0.84), rgba(255,255,255,0.50));
+    border: 1px solid rgba(255,255,255,0.60);
+    box-shadow: var(--glass-shadow-lg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: var(--r-lg);
+  }
+
+  .cta-box h2 { font-size: 28px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.025em; }
+  .cta-box > p { font-size: 15px; color: var(--text-muted); margin-bottom: 28px; line-height: 1.55; max-width: 460px; margin-left: auto; margin-right: auto; }
+  .cta-box .cta-row { justify-content: center; }
+
+  .cta-box .trust-note {
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .cta-box .trust-note svg { color: #10b981; }
+
+  /* ══════════════════════════════════
+     FOOTER
+     ══════════════════════════════════ */
+  .ft {
+    padding: 48px 0 32px;
+    border-top: 1px solid rgba(226, 232, 240, 0.30);
+  }
+
+  .ft-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 32px;
+    margin-bottom: 32px;
+  }
+
+  .ft-brand p { font-size: 13px; line-height: 1.6; color: var(--text-muted); margin-top: 8px; max-width: 260px; }
+  .ft-col h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-body); margin-bottom: 14px; }
+  .ft-col a { display: block; color: var(--text-muted); text-decoration: none; font-size: 13px; margin-bottom: 10px; transition: color 0.15s; }
+  .ft-col a:hover { color: var(--primary); }
+
+  .ft-bottom {
+    border-top: 1px solid rgba(226, 232, 240, 0.22);
+    padding-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
   }
 
-  .testimonial-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 16px;
-  }
+  .ft-bottom .cp { color: var(--text-light); font-size: 11px; }
+  .ft-bottom .ft-links { display: flex; gap: 16px; }
+  .ft-bottom .ft-links a { color: var(--text-light); text-decoration: none; font-size: 11px; transition: color 0.15s; }
+  .ft-bottom .ft-links a:hover { color: var(--primary); }
 
-  .testimonial-info {
-    flex: 1;
-  }
-
-  .testimonial-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-main);
-    margin-bottom: 2px;
-  }
-
-  .testimonial-role {
-    font-size: 13px;
-    color: var(--text-muted);
-  }
-
-  /* Integrations Section */
-  .integrations-section {
-    background: var(--bg-body);
-  }
-
-  .integrations-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 48px;
-    padding: 40px 0;
-  }
-
-  .integration-item {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 120px;
-    height: 80px;
-    background: white;
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    transition: all 0.3s ease;
-    opacity: 0.6;
-  }
-
-  .integration-item:hover {
-    opacity: 1;
-    border-color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.1);
-    transform: translateY(-4px);
-  }
-
-  .integration-item svg {
-    width: 60px;
-    height: 60px;
-    color: var(--text-muted);
-  }
-
-  /* CTA Section */
-  .cta-section {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-    color: white;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .cta-section::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    animation: rotate 20s linear infinite;
-  }
-
-  @keyframes rotate {
-    to { transform: rotate(360deg); }
-  }
-
-  .cta-content {
-    position: relative;
-    z-index: 1;
-  }
-
-  .cta-title {
-    font-size: 42px;
-    font-weight: 800;
-    margin-bottom: 16px;
-    letter-spacing: -0.02em;
-  }
-
-  .cta-description {
-    font-size: 18px;
-    color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 32px;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .btn-white {
-    background: white;
-    color: var(--primary-color);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  }
-
-  .btn-white:hover {
-    background: rgba(255, 255, 255, 0.95);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
-  }
-
-  /* Footer */
-  footer {
-    padding: 60px 0;
-    text-align: center;
-    border-top: 1px solid var(--border-light);
-    background: white;
-  }
-
-  .footer-links {
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-  }
-
-  .footer-link {
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: 14px;
-    transition: color 0.2s;
-  }
-
-  .footer-link:hover {
-    color: var(--primary-color);
-  }
-
-  .footer-text {
-    color: var(--text-light);
-    font-size: 13px;
-  }
-
-  /* Responsive */
+  /* ── Responsive ── */
   @media (max-width: 992px) {
-    .hero-grid {
-      grid-template-columns: 1fr;
-      gap: 40px;
-      text-align: center;
-    }
-
-    .hero-content {
-      margin: 0 auto;
-    }
-
-    .hero-title {
-      font-size: 48px;
-    }
-
-    .cta-group {
-      justify-content: center;
-    }
+    .hero-title { font-size: 2.4rem; }
+    .showcase-panel { grid-template-columns: 1fr; padding: 32px; }
+    .bento-grid { grid-template-columns: 1fr; }
+    .bento-card.wide { grid-column: span 1; }
+    .proof-grid { grid-template-columns: 1fr; }
+    .proof-quote { grid-row: span 1; }
+    .ft-grid { grid-template-columns: 1fr 1fr; }
+    .trust-bar { gap: 24px; }
   }
 
   @media (max-width: 768px) {
-    .section-padding {
-      padding: 60px 0;
-    }
-
-    .hero-section {
-      padding: 80px 0 60px;
-    }
-
-    .hero-title {
-      font-size: 38px;
-    }
-
-    .hero-description {
-      font-size: 17px;
-    }
-
-    .cta-group {
-      flex-direction: column;
-      width: 100%;
-    }
-
-    .btn {
-      width: 100%;
-    }
-
-    .features-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .stats-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 32px;
-    }
-
-    .use-cases-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .testimonials-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .cta-title {
-      font-size: 32px;
-    }
-
-    .cta-description {
-      font-size: 16px;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .stats-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .stat-number {
-      font-size: 36px;
-    }
+    .hero { padding: 72px 0 36px; }
+    .bento, .proof { padding: 64px 0; }
+    .cta-row { flex-direction: column; width: 100%; }
+    .btn { width: 100%; justify-content: center; }
+    .showcase { padding: 16px 0 64px; }
+    .ft-grid { grid-template-columns: 1fr; }
+    .ft-bottom { justify-content: center; text-align: center; }
+    .trust-bar { flex-wrap: wrap; gap: 20px; }
   }
 </style>
 
-<!-- Hero Section -->
-<section class="hero-section">
-  <div class="container hero-grid">
-    <div class="hero-content">
-      <div class="hero-badge">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-        DevSecOps Dashboard
-      </div>
-      <h1 class="hero-title">
-        <span class="brand-highlight">Secure. Monitor. Deploy.</span>
-        Enterprise DevSecOps Platform
-      </h1>
-      <p class="hero-description">
-        Comprehensive project management and security monitoring for DevSecOps initiatives. 
-        Track projects, manage incidents, ensure compliance—all in one powerful platform.
-      </p>
-      <div class="cta-group">
-        {% if is_logged_in %}
-        <a href="/devsecops-ui" class="btn btn-primary">
-          Launch Dashboard
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </a>
-        {% else %}
-        <a href="/login" class="btn btn-primary">
-          Sign In
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </a>
-        {% endif %}
-        <a href="#features" class="btn btn-secondary">Explore Features</a>
-      </div>
-    </div>
+<div class="page">
+  <div class="orb-mid"></div>
 
-    <div class="hero-graphic" style="position: relative; height: 500px; display: flex; align-items: center; justify-content: center;">
-      <!-- Enhanced Background Glow -->
-      <div style="position: absolute; width: 500px; height: 500px; background: linear-gradient(135deg, rgba(22, 119, 255, 0.25), rgba(24, 144, 255, 0.2)); border-radius: 50%; filter: blur(80px); z-index: 0; animation: pulse-glow 4s ease-in-out infinite;"></div>
-      <div style="position: absolute; width: 350px; height: 350px; background: linear-gradient(135deg, rgba(64, 169, 255, 0.2), rgba(22, 119, 255, 0.15)); border-radius: 50%; filter: blur(60px); z-index: 0; animation: pulse-glow 4s ease-in-out infinite 2s; top: 20%; right: 10%;"></div>
-      
-      <!-- Main Graphic Container -->
-      <div style="position: relative; z-index: 1; width: 100%; height: 100%; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border: 2px solid var(--border-light); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(22, 119, 255, 0.12); overflow: hidden;">
-        <!-- Grid Pattern -->
-        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: linear-gradient(rgba(22, 119, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(22, 119, 255, 0.03) 1px, transparent 1px); background-size: 30px 30px; opacity: 0.5;"></div>
-        
-        <!-- Central Icon with Animation -->
-        <div style="position: relative; z-index: 2; animation: float-icon 6s ease-in-out infinite;">
-          <svg width="140" height="140" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--primary-color); opacity: 0.8;">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
+  <!-- ═══ Hero ═══ -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-inner">
+        <div class="g hero-badge">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          DevSecOps Dashboard
         </div>
-        
-        <!-- Floating Elements -->
-        <div style="position: absolute; top: 15%; left: 15%; width: 60px; height: 60px; border: 2px solid rgba(22, 119, 255, 0.2); border-radius: 12px; transform: rotate(45deg); animation: float-element 8s ease-in-out infinite;"></div>
-        <div style="position: absolute; bottom: 20%; right: 20%; width: 40px; height: 40px; border: 2px solid rgba(24, 144, 255, 0.2); border-radius: 50%; animation: float-element 6s ease-in-out infinite 2s;"></div>
-      </div>
-    </div>
-    
-    <style>
-      @keyframes pulse-glow {
-        0%, 100% { opacity: 0.6; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.1); }
-      }
-      @keyframes float-icon {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50% { transform: translateY(-15px) rotate(5deg); }
-      }
-      @keyframes float-element {
-        0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.3; }
-        50% { transform: translate(10px, -10px) rotate(180deg); opacity: 0.6; }
-      }
-    </style>
-  </div>
-</section>
-
-<!-- Features Section -->
-<section id="features" class="section-padding features-section">
-  <div class="container">
-    <div class="section-header">
-      <h2 class="section-title">Powerful Features</h2>
-      <p class="section-subtitle">Everything you need to manage DevSecOps initiatives in one unified platform.</p>
-    </div>
-
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 20V10M12 20V4M6 20v-6" />
-          </svg>
-        </div>
-        <h3 class="feature-title">Project Metrics</h3>
-        <p class="feature-description">Real-time insights into project performance, delivery timelines, and team utilization metrics.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-        </div>
-        <h3 class="feature-title">Security Monitoring</h3>
-        <p class="feature-description">Comprehensive security posture monitoring, incident tracking, and compliance management.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-        </div>
-        <h3 class="feature-title">Team Collaboration</h3>
-        <p class="feature-description">Streamlined change management, team utilization tracking, and collaborative workflows.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-            <line x1="12" y1="22.08" x2="12" y2="12" />
-          </svg>
-        </div>
-        <h3 class="feature-title">Change Management</h3>
-        <p class="feature-description">End-to-end change request lifecycle management with approval workflows and tracking.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
-        </div>
-        <h3 class="feature-title">Documentation</h3>
-        <p class="feature-description">Centralized wiki and documentation system for knowledge management and collaboration.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        </div>
-        <h3 class="feature-title">Security Vault</h3>
-        <p class="feature-description">Secure password and credential management with role-based access control.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Stats Section -->
-<section class="section-padding stats-section">
-  <div class="container">
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-number">99.9%</div>
-        <div class="stat-label">Uptime</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">24/7</div>
-        <div class="stat-label">Monitoring</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">100+</div>
-        <div class="stat-label">Projects</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">50+</div>
-        <div class="stat-label">Teams</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Use Cases Section -->
-<section id="use-cases" class="section-padding use-cases-section">
-  <div class="container">
-    <div class="section-header">
-      <h2 class="section-title">Built for Every Team</h2>
-      <p class="section-subtitle">Designed to streamline workflows across development, security, and operations teams.</p>
-    </div>
-
-    <div class="use-cases-grid">
-      <div class="use-case-card">
-        <div class="use-case-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-          </svg>
-        </div>
-        <h3 class="use-case-title">Development Teams</h3>
-        <p class="use-case-description">Track project progress, manage sprints, and monitor code quality metrics in real-time.</p>
-      </div>
-
-      <div class="use-case-card">
-        <div class="use-case-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-        </div>
-        <h3 class="use-case-title">Security Teams</h3>
-        <p class="use-case-description">Monitor security incidents, track vulnerabilities, and ensure compliance across all projects.</p>
-      </div>
-
-      <div class="use-case-card">
-        <div class="use-case-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-          </svg>
-        </div>
-        <h3 class="use-case-title">Operations Teams</h3>
-        <p class="use-case-description">Manage deployments, track infrastructure changes, and monitor system health metrics.</p>
-      </div>
-
-      <div class="use-case-card">
-        <div class="use-case-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-        </div>
-        <h3 class="use-case-title">Management</h3>
-        <p class="use-case-description">Get executive dashboards with KPIs, team utilization, and project health at a glance.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Testimonials Section -->
-<section class="section-padding testimonials-section">
-  <div class="container">
-    <div class="section-header">
-      <h2 class="section-title">Trusted by Teams</h2>
-      <p class="section-subtitle">See what teams are saying about DevSecOps Dashboard.</p>
-    </div>
-
-    <div class="testimonials-grid">
-      <div class="testimonial-card">
-        <p class="testimonial-text">
-          The unified dashboard has transformed how we track projects and incidents. Everything we need is in one place, and the real-time metrics help us make data-driven decisions.
+        <h1 class="hero-title">
+          <span class="accent">Secure. Monitor. Deploy.</span>
+          Enterprise DevSecOps Platform
+        </h1>
+        <p class="hero-desc">
+          One platform to manage projects, track incidents, enforce compliance, and ship with confidence across your entire delivery pipeline.
         </p>
-        <div class="testimonial-author">
-          <div class="testimonial-avatar">SM</div>
-          <div class="testimonial-info">
-            <div class="testimonial-name">Sarah Mitchell</div>
-            <div class="testimonial-role">DevOps Lead</div>
+        <div class="cta-row">
+          {% if is_logged_in %}
+          <a href="/devsecops-ui" class="btn btn-p">
+            Launch Dashboard
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+          {% else %}
+          <a href="/login" class="btn btn-p">
+            Get Started
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+          {% endif %}
+          <a href="#features" class="btn btn-s">Learn More</a>
+        </div>
+        <div class="trust-bar">
+          <div class="trust-item"><div class="trust-val">99.9%</div><div class="trust-lbl">Uptime</div></div>
+          <div class="trust-item"><div class="trust-val">24/7</div><div class="trust-lbl">Monitoring</div></div>
+          <div class="trust-item"><div class="trust-val">100+</div><div class="trust-lbl">Projects</div></div>
+          <div class="trust-item"><div class="trust-val">50+</div><div class="trust-lbl">Teams</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Showcase Panel ═══ -->
+  <section class="showcase">
+    <div class="wrap">
+      <div class="showcase-panel">
+        <div class="sc-card">
+          <div class="sc-label">Security Posture</div>
+          <div class="sc-value">98.4%</div>
+          <div class="sc-sub">Compliance score across 12 projects</div>
+          <div class="sc-bar"><div class="sc-bar-fill" style="width: 98.4%"></div></div>
+          <div class="sc-status"><span class="sc-dot green"></span> All checks passing</div>
+        </div>
+        <div class="sc-card">
+          <div class="sc-label">Today's Pipeline</div>
+          <div class="sc-value">47</div>
+          <div class="sc-sub">Deployments completed</div>
+          <div class="sc-bar"><div class="sc-bar-fill" style="width: 78%"></div></div>
+          <div class="sc-status"><span class="sc-dot blue"></span> 3 in progress</div>
+        </div>
+        <div class="sc-card">
+          <div class="sc-label">Open Incidents</div>
+          <div class="sc-value">2</div>
+          <div class="sc-sub">Across all monitored services</div>
+          <div class="sc-bar"><div class="sc-bar-fill" style="width: 12%"></div></div>
+          <div class="sc-status"><span class="sc-dot amber"></span> 0 critical</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Bento Features ═══ -->
+  <section id="features" class="bento">
+    <div class="wrap">
+      <div class="bento-header">
+        <h2>Everything in One Place</h2>
+        <p>A single pane of glass for your entire DevSecOps lifecycle — from code commit to production monitoring.</p>
+      </div>
+      <div class="bento-grid">
+        <div class="g bento-card wide">
+          <div class="bento-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <h3>Security &amp; Compliance</h3>
+          <p>Continuous vulnerability scanning, automated compliance checks, and a centralised incident response workflow. Stay audit-ready without the manual overhead.</p>
+        </div>
+        <div class="g bento-card">
+          <div class="bento-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div>
+          <h3>Project Metrics</h3>
+          <p>Real-time delivery timelines, velocity tracking, and utilisation insights across every team.</p>
+        </div>
+        <div class="g bento-card">
+          <div class="bento-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <h3>Team Collaboration</h3>
+          <p>Shared workflows, approval chains, and cross-team visibility that eliminates silos.</p>
+        </div>
+        <div class="g bento-card wide">
+          <div class="bento-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+          <h3>Change Management &amp; Audit Trails</h3>
+          <p>Full lifecycle change request tracking from initiation through approval, with immutable audit logs for every action. Built for environments where accountability is non-negotiable.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Social Proof ═══ -->
+  <section class="proof">
+    <div class="wrap">
+      <div class="proof-grid">
+        <div class="g proof-quote">
+          <div>
+            <div class="pq-mark">&ldquo;</div>
+            <p class="pq-text">The unified dashboard has fundamentally changed how our teams operate. We went from juggling five different tools to a single source of truth for security, delivery, and compliance. The audit trails alone saved us weeks of manual work during our last assessment.</p>
+          </div>
+          <div class="pq-author">
+            <div class="pq-avatar">SM</div>
+            <div><div class="pq-name">Sarah Mitchell</div><div class="pq-role">VP of Engineering, Meridian Systems</div></div>
           </div>
         </div>
-      </div>
-
-      <div class="testimonial-card">
-        <p class="testimonial-text">
-          Security monitoring has never been easier. The incident tracking and compliance features give us complete visibility into our security posture across all projects.
-        </p>
-        <div class="testimonial-author">
-          <div class="testimonial-avatar">JC</div>
-          <div class="testimonial-info">
-            <div class="testimonial-name">James Chen</div>
-            <div class="testimonial-role">Security Manager</div>
+        <div class="g proof-mini">
+          <p class="pm-text">Security monitoring has never been easier. We have complete visibility into our posture across 40+ microservices, and the incident tracking workflow is exactly what we needed.</p>
+          <div class="pm-author">
+            <div class="pm-avatar">JC</div>
+            <div><div class="pm-name">James Chen</div><div class="pm-role">Security Manager</div></div>
           </div>
         </div>
-      </div>
-
-      <div class="testimonial-card">
-        <p class="testimonial-text">
-          The change management workflow is seamless. We can track every change request from initiation to approval, with full audit trails for compliance.
-        </p>
-        <div class="testimonial-author">
-          <div class="testimonial-avatar">AR</div>
-          <div class="testimonial-info">
-            <div class="testimonial-name">Alex Rodriguez</div>
-            <div class="testimonial-role">Engineering Manager</div>
+        <div class="g proof-mini">
+          <p class="pm-text">Change management went from a spreadsheet nightmare to a seamless process. Every request has a full audit trail, and the approval workflow integrates perfectly with our existing tooling.</p>
+          <div class="pm-author">
+            <div class="pm-avatar">AR</div>
+            <div><div class="pm-name">Alex Rodriguez</div><div class="pm-role">Engineering Manager</div></div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- Integrations Section -->
-<section class="section-padding integrations-section">
-  <div class="container">
-    <div class="section-header">
-      <h2 class="section-title">Seamless Integrations</h2>
-      <p class="section-subtitle">Connect with your existing tools and workflows.</p>
-    </div>
-
-    <div class="integrations-list">
-      <div class="integration-item">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-        </svg>
-      </div>
-      <div class="integration-item">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-        </svg>
-      </div>
-      <div class="integration-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-          <line x1="9" y1="3" x2="9" y2="21"/>
-          <line x1="3" y1="9" x2="21" y2="9"/>
-        </svg>
-      </div>
-      <div class="integration-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
-      </div>
-      <div class="integration-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 6v6l4 2"/>
-        </svg>
+  <!-- ═══ CTA ═══ -->
+  <section class="cta-sec">
+    <div class="wrap">
+      <div class="cta-box">
+        <h2>Ready to Ship with Confidence?</h2>
+        <p>Join the teams using DevSecOps Dashboard to secure their pipelines, streamline operations, and stay compliant.</p>
+        <div class="cta-row">
+          {% if is_logged_in %}
+          <a href="/devsecops-ui" class="btn btn-p">
+            Go to Dashboard
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+          {% else %}
+          <a href="/login" class="btn btn-p">
+            Get Started Free
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+          {% endif %}
+        </div>
+        <div class="trust-note">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          No credit card required &middot; Free for teams under 10
+        </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- CTA Section -->
-<section class="section-padding cta-section">
-  <div class="container">
-    <div class="cta-content">
-      <h2 class="cta-title">Ready to Transform Your DevSecOps?</h2>
-      <p class="cta-description">
-        Join teams using DevSecOps Dashboard to streamline workflows, improve security, and deliver faster.
-      </p>
-      <div class="cta-group" style="justify-content: center;">
-        {% if is_logged_in %}
-        <a href="/devsecops-ui" class="btn btn-white">
-          Go to Dashboard
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </a>
-        {% else %}
-        <a href="/login" class="btn btn-white">
-          Get Started
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </a>
-        {% endif %}
+  <!-- ═══ Footer ═══ -->
+  <footer class="ft">
+    <div class="wrap">
+      <div class="ft-grid">
+        <div class="ft-brand">
+          <strong style="font-size: 15px;">DevSecOps Dashboard</strong>
+          <p>Comprehensive project management and security monitoring for DevSecOps initiatives. Built on the Frappe Framework.</p>
+        </div>
+        <div class="ft-col">
+          <h4>Product</h4>
+          <a href="#features">Features</a>
+          <a href="/devsecops-ui">Dashboard</a>
+          <a href="#">Changelog</a>
+        </div>
+        <div class="ft-col">
+          <h4>Resources</h4>
+          <a href="#">Documentation</a>
+          <a href="#">API Reference</a>
+          <a href="#">Status</a>
+        </div>
+        <div class="ft-col">
+          <h4>Company</h4>
+          <a href="#">About</a>
+          <a href="#">Contact</a>
+          <a href="/login">Sign In</a>
+        </div>
+      </div>
+      <div class="ft-bottom">
+        <span class="cp">&copy; 2025 DevSecOps Dashboard. All rights reserved.</span>
+        <div class="ft-links">
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#">Security</a>
+        </div>
       </div>
     </div>
-  </div>
-</section>
+  </footer>
 
-<!-- Footer -->
-<footer>
-  <div class="container">
-    <div class="footer-links">
-      <a href="#features" class="footer-link">Features</a>
-      <a href="/login" class="footer-link">Sign In</a>
-      <a href="/devsecops-ui" class="footer-link">Dashboard</a>
-    </div>
-    <p class="footer-text">&copy; 2024 DevSecOps Dashboard. Built on Frappe Framework.</p>
-  </div>
-</footer>
+</div>
 {% endblock %}
-

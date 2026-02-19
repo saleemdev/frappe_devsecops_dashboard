@@ -1,0 +1,145 @@
+.toil-page {
+  --toil-glass-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.4));
+  --toil-glass-border: 1px solid rgba(255, 255, 255, 0.5);
+  --toil-glass-shadow: 0 14px 40px rgba(15, 23, 42, 0.14);
+  --toil-muted-surface: rgba(248, 250, 252, 0.65);
+  position: relative;
+  overflow: hidden;
+}
+
+.toil-page::before,
+.toil-page::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 999px;
+  filter: blur(34px);
+}
+
+.toil-page::before {
+  width: 280px;
+  height: 280px;
+  top: -80px;
+  right: -120px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.28), rgba(56, 189, 248, 0));
+}
+
+.toil-page::after {
+  width: 220px;
+  height: 220px;
+  bottom: -80px;
+  left: -100px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0));
+}
+
+.toil-page > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Glass cards ── */
+.toil-page .toil-glass-card {
+  background: var(--toil-glass-bg);
+  border: var(--toil-glass-border);
+  box-shadow: var(--toil-glass-shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* ── Hero header ── */
+.toil-page .toil-hero-card .ant-card-body {
+  padding: 18px;
+}
+
+.toil-page .toil-hero-subtitle {
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+.toil-page .toil-hero-actions {
+  justify-content: flex-start;
+  row-gap: 8px;
+}
+
+/* ── Metric cards ── */
+.toil-page .toil-metric-card .ant-card-body {
+  padding: 14px 16px;
+}
+
+.toil-page .toil-metric-card .ant-statistic-title {
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.toil-page .toil-metric-card .ant-statistic-content {
+  font-size: 28px;
+}
+
+.toil-page .toil-metric-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+/* ── Section layout ── */
+.toil-page .toil-section-head {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--toil-muted-surface);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* ── Tables ── */
+.toil-page .toil-table .ant-table {
+  background: rgba(255, 255, 255, 0.56);
+  border-radius: 12px;
+}
+
+.toil-page .toil-table .ant-table-thead > tr > th {
+  background: rgba(248, 250, 252, 0.76);
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.toil-page .toil-table .ant-table-tbody > tr > td {
+  background: transparent;
+}
+
+.toil-page .toil-table .ant-table-expanded-row > td {
+  background: rgba(248, 250, 252, 0.5);
+}
+
+.toil-page .toil-table .ant-table-expand-icon-col {
+  width: 36px;
+}
+
+/* ── Inline approval cards ── */
+.toil-page .toil-approval-card .ant-card-body {
+  padding: 16px;
+}
+
+.toil-page .toil-approval-card .ant-descriptions-item-label {
+  width: 90px;
+  font-size: 12px;
+}
+
+.toil-page .toil-approval-card .ant-descriptions-item-content {
+  font-size: 13px;
+}
+
+/* ── Audit timeline ── */
+.toil-page .ant-timeline-item-content {
+  font-size: 13px;
+}
+
+@media (min-width: 768px) {
+  .toil-page .toil-hero-card .ant-card-body {
+    padding: 20px 22px;
+  }
+
+  .toil-page .toil-hero-actions {
+    justify-content: flex-end;
+  }
+}

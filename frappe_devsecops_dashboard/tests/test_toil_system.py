@@ -229,7 +229,7 @@ class TestTOILSystem(FrappeTestCase):
             "from_time": datetime.now(),
             "to_time": datetime.now() + timedelta(hours=4),
             "hours": 4,
-            "billable": 0  # Non-billable
+            "is_billable": 0  # Non-billable
         })
 
         timesheet.append("time_logs", {
@@ -237,7 +237,7 @@ class TestTOILSystem(FrappeTestCase):
             "from_time": datetime.now() + timedelta(hours=4),
             "to_time": datetime.now() + timedelta(hours=6),
             "hours": 2,
-            "billable": 1  # Billable - should be excluded
+            "is_billable": 1  # Billable - should be excluded
         })
 
         # Calculate TOIL
@@ -278,7 +278,7 @@ class TestTOILSystem(FrappeTestCase):
             "from_time": datetime.now(),
             "to_time": datetime.now() + timedelta(hours=12),
             "hours": 12,
-            "billable": 0
+            "is_billable": 0
         })
 
         timesheet.insert(ignore_permissions=True)
@@ -308,7 +308,7 @@ class TestTOILSystem(FrappeTestCase):
             "from_time": datetime.now(),
             "to_time": datetime.now() + timedelta(hours=8),
             "hours": 8,
-            "billable": 0
+            "is_billable": 0
         })
         timesheet.insert(ignore_permissions=True)
 
@@ -338,7 +338,7 @@ class TestTOILSystem(FrappeTestCase):
             "from_time": datetime.now(),
             "to_time": datetime.now() + timedelta(hours=8),
             "hours": 8,
-            "billable": 0
+            "is_billable": 0
         })
         timesheet.insert(ignore_permissions=True)
 
@@ -382,7 +382,7 @@ class TestTOILSystem(FrappeTestCase):
             "from_time": datetime.now(),
             "to_time": datetime.now() + timedelta(hours=8),
             "hours": 8,
-            "billable": 0
+            "is_billable": 0
         })
         timesheet.insert(ignore_permissions=True)
 
@@ -432,7 +432,7 @@ class TestTOILSystem(FrappeTestCase):
             "from_time": datetime.now(),
             "to_time": datetime.now() + timedelta(hours=10),
             "hours": 10,
-            "billable": 0
+            "is_billable": 0
         })
         timesheet.insert(ignore_permissions=True)
 
@@ -479,7 +479,7 @@ class TestTOILSystem(FrappeTestCase):
             "from_time": datetime.now(),
             "to_time": datetime.now() + timedelta(hours=8),
             "hours": 8,
-            "billable": 0
+            "is_billable": 0
         })
         timesheet.insert(ignore_permissions=True)
 
@@ -579,6 +579,66 @@ class TestTOILSystem(FrappeTestCase):
         # Clean up
         self._cleanup_timesheet(timesheet)
 
+    def test_allocation_creation_rounds_up_fractional_toil_days(self):
+        """Test that fractional TOIL days are rounded up for allocation."""
+        frappe.set_user("test.supervisor@toil.test")
+
+        # 6 hours => 0.75 TOIL day, but allocation should be ceiling(0.75) = 1
+        timesheet = self._create_and_submit_timesheet("TEST-EMP-001", 6)
+
+        self.assertIsNotNone(timesheet.toil_allocation)
+        self.assertTrue(frappe.db.exists("Leave Allocation", timesheet.toil_allocation))
+
+        allocation = frappe.get_doc("Leave Allocation", timesheet.toil_allocation)
+        self.assertEqual(flt(timesheet.toil_days, 3), 0.75)
+        self.assertEqual(flt(allocation.new_leaves_allocated, 3), 1.0)
+
+        # Clean up
+        self._cleanup_timesheet(timesheet)
+
+    def test_allocation_reused_for_multiple_timesheets_same_period(self):
+        """Test that additional timesheets top up active allocation instead of overlapping."""
+        frappe.set_user("test.supervisor@toil.test")
+
+        first = self._create_and_submit_timesheet("TEST-EMP-001", 8)   # 1 day
+        second = self._create_and_submit_timesheet("TEST-EMP-001", 6)  # 0.75 -> 1 day
+
+        self.assertIsNotNone(first.toil_allocation)
+        self.assertEqual(second.toil_allocation, first.toil_allocation)
+
+        allocation = frappe.get_doc("Leave Allocation", first.toil_allocation)
+        self.assertEqual(flt(allocation.new_leaves_allocated, 3), 2.0)
+
+        # Clean up in reverse submit order
+        self._cleanup_timesheet(second)
+        self._cleanup_timesheet(first)
+
+    def test_cancelling_one_timesheet_reduces_shared_allocation(self):
+        """Test that cancellation reverses only the cancelled timesheet accrual."""
+        frappe.set_user("test.supervisor@toil.test")
+
+        first = self._create_and_submit_timesheet("TEST-EMP-001", 8)   # 1 day
+        second = self._create_and_submit_timesheet("TEST-EMP-001", 8)  # 1 day
+        shared_allocation = first.toil_allocation
+
+        self.assertEqual(second.toil_allocation, shared_allocation)
+        allocation = frappe.get_doc("Leave Allocation", shared_allocation)
+        self.assertEqual(flt(allocation.new_leaves_allocated, 3), 2.0)
+
+        # Cancel one timesheet and verify allocation remains with reduced amount.
+        frappe.set_user("Administrator")
+        second.reload()
+        second.cancel()
+        second.reload()
+
+        allocation.reload()
+        self.assertEqual(allocation.docstatus, 1)
+        self.assertEqual(flt(allocation.new_leaves_allocated, 3), 1.0)
+
+        # Clean up
+        self._cleanup_timesheet(second)
+        self._cleanup_timesheet(first)
+
     def test_allocation_cancellation_protection(self):
         """Test that timesheet cannot be cancelled if TOIL is consumed"""
         frappe.set_user("test.supervisor@toil.test")
@@ -666,7 +726,7 @@ class TestTOILSystem(FrappeTestCase):
             "from_time": datetime.now(),
             "to_time": datetime.now() + timedelta(hours=hours),
             "hours": hours,
-            "billable": 0
+            "is_billable": 0
         })
         timesheet.insert(ignore_permissions=True)
         timesheet.submit()

@@ -16,12 +16,11 @@ def get_current_employee() -> str:
         Employee ID or None
     """
     current_user = frappe.session.user
-    employee = frappe.db.get_value(
+    return frappe.db.get_value(
         "Employee",
         {"user_id": current_user},
         "name"
     )
-    return employee
 
 
 @frappe.whitelist()
@@ -62,7 +61,7 @@ def validate_employee_setup(employee: str = None) -> Dict[str, Any]:
                     "success": True,
                     "valid": False,
                     "issues": [
-                        _("No employee record found for current user. Contact HR to create your employee record.")
+                        _("Your login account isn't linked to an employee profile yet. Please ask HR to complete this setup.")
                     ]
                 }
 
@@ -79,7 +78,7 @@ def validate_employee_setup(employee: str = None) -> Dict[str, Any]:
                 "success": True,
                 "valid": False,
                 "issues": [
-                    _("Employee {0} does not exist.").format(employee)
+                    _("We couldn't find your employee profile. Please check with HR that your account is set up correctly.")
                 ]
             }
 
@@ -88,13 +87,13 @@ def validate_employee_setup(employee: str = None) -> Dict[str, Any]:
         # Check if employee is active
         if employee_data.status != "Active":
             issues.append(
-                _("Employee status is {0}. Only active employees can use TOIL system.").format(employee_data.status)
+                _("Your employee profile is currently marked as {0}. Only active employees can use TOIL.").format(employee_data.status)
             )
 
         # CRITICAL CHECK: Supervisor must be assigned
         if not employee_data.reports_to:
             issues.append(
-                _("No supervisor assigned. Contact HR to assign your supervisor in the Employee master (reports_to field).")
+                _("You don't have a reporting manager assigned yet. HR can add this for you.")
             )
             return {
                 "success": True,
@@ -117,7 +116,7 @@ def validate_employee_setup(employee: str = None) -> Dict[str, Any]:
 
         if not supervisor_data:
             issues.append(
-                _("Supervisor {0} does not exist in the system.").format(employee_data.reports_to)
+                _("Your assigned manager ({0}) could not be found. Please ask HR to update this.").format(employee_data.reports_to)
             )
             return {
                 "success": True,
@@ -133,7 +132,7 @@ def validate_employee_setup(employee: str = None) -> Dict[str, Any]:
         # CRITICAL CHECK: Supervisor must have user account
         if not supervisor_data.user_id:
             issues.append(
-                _("Supervisor {0} has no user account. Contact HR to link supervisor's user account.").format(
+                _("Your manager ({0}) doesn't have a login account yet. HR needs to set one up so they can approve your requests.").format(
                     supervisor_data.employee_name
                 )
             )
@@ -141,9 +140,9 @@ def validate_employee_setup(employee: str = None) -> Dict[str, Any]:
         # Check if supervisor is active
         if supervisor_data.status != "Active":
             issues.append(
-                _("Supervisor {0} is {1}. Supervisor must be active to approve TOIL requests.").format(
+                _("Your manager ({0}) is currently {1}. An active manager is needed to approve overtime requests.").format(
                     supervisor_data.employee_name,
-                    supervisor_data.status
+                    supervisor_data.status.lower()
                 )
             )
 
@@ -156,9 +155,7 @@ def validate_employee_setup(employee: str = None) -> Dict[str, Any]:
             )
             if not user_enabled:
                 issues.append(
-                    _("Supervisor's user account {0} is disabled. Contact system administrator.").format(
-                        supervisor_data.user_id
-                    )
+                    _("Your manager's account is currently disabled. Please contact IT support to have it re-enabled.")
                 )
 
         # Determine if setup is valid

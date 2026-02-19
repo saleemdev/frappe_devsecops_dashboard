@@ -28,6 +28,7 @@ const useToilStore = create(
       // CORE DATA
       timesheets: [],           // All timesheets (role-filtered by backend)
       supervisorTimesheets: [], // Team timesheets pending approval (supervisor only)
+      supervisorLeaveApplications: [], // Leave applications pending approval (supervisor only)
       selectedTimesheet: null,  // Current detail view
       leaveApplications: [],    // Leave applications
       selectedLeaveApplication: null,
@@ -37,8 +38,14 @@ const useToilStore = create(
       toilBalance: null,        // Current TOIL balance
       leaveLedger: [],          // Leave Ledger entries (transaction history)
 
-      // LOADING & ERROR (Simplified)
-      loading: false,           // General data fetching
+      // LOADING & ERROR (granular per-domain flags)
+      loading: false,           // Legacy: true when ANY fetch is active
+      balanceLoading: false,
+      timesheetsLoading: false,
+      supervisorLoading: false,
+      supervisorLeaveLoading: false,
+      ledgerLoading: false,
+      setupLoading: false,
       submitting: false,        // Form submissions
       error: null,
 
@@ -341,12 +348,13 @@ const useToilStore = create(
        * MUST be called before any timesheet/leave action
        */
       validateSetup: async (employeeId = null) => {
-        set({ loading: true, error: null })
+        set({ setupLoading: true, loading: true, error: null })
         try {
           const response = await apiService.toil.validateEmployeeSetup(employeeId)
           if (response.success) {
             set({
               employeeSetup: response.data,
+              setupLoading: false,
               loading: false
             })
             return response.data
@@ -356,6 +364,7 @@ const useToilStore = create(
         } catch (error) {
           set({
             error: error.message || 'Failed to validate employee setup',
+            setupLoading: false,
             loading: false
           })
           throw error
@@ -367,16 +376,18 @@ const useToilStore = create(
        */
       createTimesheet: async (data) => {
         set({ submitting: true, error: null })
-        const response = await apiService.toil.createTimesheet(data)
-        set({ submitting: false })
+        try {
+          const response = await apiService.toil.createTimesheet(data)
+          if (response?.success) {
+            return response.data
+          }
 
-        if (response?.success) {
-          return response.data
+          const errorMsg = response?.message || 'Failed to create timesheet'
+          set({ error: errorMsg })
+          throw new Error(errorMsg)
+        } finally {
+          set({ submitting: false })
         }
-
-        const errorMsg = response?.message || 'Failed'
-        set({ error: errorMsg })
-        throw new Error(errorMsg)
       },
 
       /**
@@ -407,13 +418,13 @@ const useToilStore = create(
        * Fetch TOIL balance
        */
       fetchTOILBalance: async (employeeId = null) => {
-        set({ loading: true, error: null })
+        set({ balanceLoading: true, error: null })
         try {
           const response = await apiService.toil.getTOILBalanceForLeave(employeeId)
           if (response.success) {
             set({
               toilBalance: response.data,
-              loading: false
+              balanceLoading: false
             })
             return response.data
           } else {
@@ -422,7 +433,7 @@ const useToilStore = create(
         } catch (error) {
           set({
             error: error.message || 'Failed to fetch TOIL balance',
-            loading: false
+            balanceLoading: false
           })
           throw error
         }
@@ -432,13 +443,13 @@ const useToilStore = create(
        * Fetch my timesheets
        */
       fetchMyTimesheets: async (filters = {}) => {
-        set({ loading: true, error: null })
+        set({ timesheetsLoading: true, error: null })
         try {
           const response = await apiService.toil.getMyTimesheets(filters)
           if (response.success) {
             set({
               timesheets: response.data,
-              loading: false
+              timesheetsLoading: false
             })
             return response.data
           } else {
@@ -447,7 +458,7 @@ const useToilStore = create(
         } catch (error) {
           set({
             error: error.message || 'Failed to fetch timesheets',
-            loading: false
+            timesheetsLoading: false
           })
           throw error
         }
@@ -457,13 +468,13 @@ const useToilStore = create(
        * Fetch team timesheets pending approval (supervisor only)
        */
       fetchSupervisorTimesheets: async (filters = {}) => {
-        set({ loading: true, error: null })
+        set({ supervisorLoading: true, error: null })
         try {
           const response = await apiService.toil.getSupervisorTimesheets(filters)
           if (response.success) {
             set({
               supervisorTimesheets: response.data || [],
-              loading: false
+              supervisorLoading: false
             })
             return response.data || []
           } else {
@@ -473,9 +484,53 @@ const useToilStore = create(
           set({
             supervisorTimesheets: [],
             error: error.message || 'Failed to fetch team timesheets',
-            loading: false
+            supervisorLoading: false
           })
           throw error
+        }
+      },
+
+      /**
+       * Fetch leave applications pending approval (supervisor only)
+       */
+      fetchSupervisorLeaveApplications: async (filters = {}) => {
+        set({ supervisorLeaveLoading: true, error: null })
+        try {
+          const response = await apiService.toil.getSupervisorLeaveApplications(filters)
+          if (response.success) {
+            set({ supervisorLeaveApplications: response.data || [], supervisorLeaveLoading: false })
+            return response.data || []
+          } else {
+            throw new Error(response.message || 'Failed to fetch leave applications for approval')
+          }
+        } catch (error) {
+          set({ supervisorLeaveApplications: [], error: error.message, supervisorLeaveLoading: false })
+          throw error
+        }
+      },
+
+      /**
+       * Approve or reject a leave application
+       */
+      setLeaveApproval: async (leaveApplicationName, status, comment = '') => {
+        set({ submitting: true, error: null })
+        try {
+          const response = await apiService.toil.setLeaveApproval(leaveApplicationName, status, comment)
+          if (response.success) {
+            await Promise.all([
+              get().fetchSupervisorLeaveApplications().catch(() => {}),
+              get().fetchTOILBalance(),
+              get().fetchLeaveLedger()
+            ])
+            set({ submitting: false })
+            return response
+          } else {
+            set({ submitting: false })
+            return response
+          }
+        } catch (error) {
+          set({ error: error.message, submitting: false })
+          return { success: false, error: error.message }
         }
       },
 
@@ -487,19 +542,13 @@ const useToilStore = create(
         try {
           const response = await apiService.toil.getMyLeaveApplications(filters)
           if (response.success) {
-            set({
-              leaveApplications: response.data,
-              loading: false
-            })
+            set({ leaveApplications: response.data, loading: false })
             return response.data
           } else {
             throw new Error(response.message || 'Failed to fetch leave applications')
           }
         } catch (error) {
-          set({
-            error: error.message || 'Failed to fetch leave applications',
-            loading: false
-          })
+          set({ error: error.message || 'Failed to fetch leave applications', loading: false })
           throw error
         }
       },
@@ -598,13 +647,13 @@ const useToilStore = create(
        * Fetch Leave Ledger entries (transaction history)
        */
       fetchLeaveLedger: async (employeeId = null) => {
-        set({ loading: true, error: null })
+        set({ ledgerLoading: true, error: null })
         try {
           const response = await apiService.toil.getLeaveLedger(employeeId)
           if (response.success) {
             set({
               leaveLedger: response.data,
-              loading: false
+              ledgerLoading: false
             })
             return response.data
           } else {
@@ -613,7 +662,7 @@ const useToilStore = create(
         } catch (error) {
           set({
             error: error.message || 'Failed to fetch leave ledger',
-            loading: false
+            ledgerLoading: false
           })
           throw error
         }
@@ -624,18 +673,20 @@ const useToilStore = create(
        */
       reset: () => set({
         timesheets: [],
+        supervisorTimesheets: [],
         selectedTimesheet: null,
         leaveApplications: [],
         selectedLeaveApplication: null,
         employeeSetup: null,
         toilBalance: null,
+        leaveLedger: [],
         loading: false,
-        error: null,
-        submitting: false,
-        setupLoading: false,
         balanceLoading: false,
-        leaveLoading: false,
-        timesheetSubmitting: false,
+        timesheetsLoading: false,
+        supervisorLoading: false,
+        ledgerLoading: false,
+        setupLoading: false,
+        error: null,
         submitting: false,
         filters: {
           employee: null,
@@ -672,7 +723,6 @@ const useToilStore = create(
             balanceLoading: true,
             leaveLoading: true,
             timesheetSubmitting: true,
-            submitting: true,
             filters: true,
             pagination: true,
             viewMode: true,

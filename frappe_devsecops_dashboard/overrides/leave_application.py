@@ -13,8 +13,11 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, add_days
 
-# Import canonical implementations from api.toil (consolidated from duplicates)
-from frappe_devsecops_dashboard.api.toil import get_allocation_balance, get_available_toil_allocations
+# Shared TOIL allocation helpers
+from frappe_devsecops_dashboard.api.toil.query_service import (
+    get_allocation_balance,
+    get_available_toil_allocations,
+)
 # Import TOIL constants (centralized configuration)
 from frappe_devsecops_dashboard.constants import TOIL_LEAVE_TYPE
 
@@ -82,16 +85,19 @@ def track_toil_consumption(doc, method):
             break
 
         # Get current balance for this allocation
-        available = get_allocation_balance(alloc.name)
+        allocation_name = alloc.get("name")
+        if not allocation_name:
+            continue
+        available = get_allocation_balance(allocation_name)
 
         if available > 0:
             # Consume from this allocation
             consumed_from_this = min(days_remaining, available)
 
             consumption_log.append({
-                "timesheet": alloc.source_timesheet,
-                "allocation": alloc.name,
-                "allocation_date": alloc.from_date,
+                "timesheet": alloc.get("source_timesheet"),
+                "allocation": allocation_name,
+                "allocation_date": alloc.get("from_date"),
                 "days_consumed": consumed_from_this,
                 "days_available_before": available
             })
@@ -109,6 +115,16 @@ def track_toil_consumption(doc, method):
         if hasattr(doc, 'toil_consumption_log'):
             import json
             doc.db_set('toil_consumption_log', json.dumps(consumption_log), update_modified=False)
+
+    if days_remaining > 0:
+        # Should not happen because validate hook blocks over-consumption.
+        frappe.log_error(
+            title="TOIL Consumption Tracking Drift",
+            message=(
+                f"Leave Application {doc.name} tracked with remaining days {days_remaining}. "
+                f"Employee={doc.employee}, requested={doc.total_leave_days}"
+            ),
+        )
 
 
 def restore_toil_balance(doc, method):
@@ -147,7 +163,10 @@ def restore_toil_balance(doc, method):
 
 def get_toil_balance_details(employee):
     """
-    Get detailed TOIL balance information including expiring allocations
+    Get detailed TOIL balance information including expiring allocations.
+
+    Uses all Leave Ledger Entry rows for TOIL leave type (both accrual and
+    consumption) to compute net balance correctly.
 
     Args:
         employee (str): Employee ID
@@ -160,34 +179,32 @@ def get_toil_balance_details(employee):
     thirty_days_out = add_days(getdate(), 30)
     today = getdate()
 
-    # Get total TOIL balance
     total_balance = frappe.db.sql("""
-        SELECT SUM(lle.leaves) as balance
+        SELECT COALESCE(SUM(lle.leaves), 0) as balance
         FROM `tabLeave Ledger Entry` lle
-        INNER JOIN `tabLeave Allocation` la ON lle.transaction_name = la.name
         WHERE lle.employee = %s
         AND lle.leave_type = %s
         AND lle.docstatus = 1
-        AND lle.is_expired = 0
-        AND la.is_toil_allocation = 1
+        AND (lle.is_expired IS NULL OR lle.is_expired = 0)
     """, (employee, TOIL_LEAVE_TYPE), as_dict=1)
 
     balance = flt(total_balance[0].balance) if total_balance else 0
 
-    # Get allocations expiring within 30 days
     expiring = frappe.db.sql("""
         SELECT
             la.name,
             la.from_date,
             la.to_date,
-            SUM(lle.leaves) as expiring_balance
-        FROM `tabLeave Ledger Entry` lle
-        INNER JOIN `tabLeave Allocation` la ON lle.transaction_name = la.name
-        WHERE lle.employee = %s
-        AND lle.leave_type = %s
-        AND lle.docstatus = 1
-        AND lle.is_expired = 0
+            COALESCE(SUM(lle.leaves), 0) as expiring_balance
+        FROM `tabLeave Allocation` la
+        LEFT JOIN `tabLeave Ledger Entry` lle
+            ON lle.transaction_name = la.name
+           AND lle.docstatus = 1
+           AND (lle.is_expired IS NULL OR lle.is_expired = 0)
+        WHERE la.employee = %s
+        AND la.leave_type = %s
         AND la.is_toil_allocation = 1
+        AND la.docstatus = 1
         AND la.to_date <= %s
         AND la.to_date >= %s
         GROUP BY la.name, la.from_date, la.to_date
@@ -204,5 +221,4 @@ def get_toil_balance_details(employee):
         "earliest_expiry_date": earliest_expiry,
         "expiring_allocations": expiring
     }
-
 

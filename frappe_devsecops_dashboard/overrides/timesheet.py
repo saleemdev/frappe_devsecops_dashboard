@@ -17,6 +17,8 @@ CRITICAL SECURITY FEATURES:
 - Cancellation protection for consumed TOIL
 """
 
+from math import ceil
+
 import frappe
 from frappe import _
 from frappe.utils import flt, getdate, add_months
@@ -28,7 +30,6 @@ from frappe_devsecops_dashboard.utils.toil_calculator import (
     calculate_toil_days,
     validate_supervisor_permission,
     get_allocation_balance,
-    check_toil_consumption,
     lock_employee_for_update
 )
 
@@ -111,22 +112,23 @@ def before_cancel_timesheet(doc, method):
     if not doc.toil_allocation:
         return
 
-    # Check if allocation exists and has been consumed
-    has_consumed, allocated, consumed = check_toil_consumption(doc.toil_allocation)
-
-    if has_consumed:
+    # Shared-allocation model: allow cancellation only when this timesheet's
+    # accrued amount is still available in allocation balance.
+    allocated_for_timesheet = ceil(flt(doc.toil_days, 3))
+    allocation_balance = get_allocation_balance(doc.toil_allocation)
+    if allocation_balance < allocated_for_timesheet:
         frappe.throw(
             _(
-                "Cannot cancel timesheet. {0} days of TOIL (out of {1} days allocated) "
-                "have already been consumed in approved leave applications. "
+                "Cannot cancel timesheet. This timesheet allocated {0} day(s), "
+                "but only {1} day(s) remain available in allocation {2}. "
                 "Please cancel the leave applications first before cancelling this timesheet."
-            ).format(flt(consumed, 3), flt(allocated, 3)),
+            ).format(flt(allocated_for_timesheet, 3), flt(allocation_balance, 3), doc.toil_allocation),
             frappe.ValidationError
         )
 
     # Log cancellation attempt for audit trail
     frappe.logger().info(
-        f"Timesheet {doc.name} cancellation validated - no TOIL consumed"
+        f"Timesheet {doc.name} cancellation validated against available TOIL balance"
     )
 
 
@@ -163,8 +165,31 @@ def create_toil_allocation_job(timesheet_name: str):
     """
     Background job entrypoint for TOIL allocation generation.
     """
-    doc = frappe.get_doc("Timesheet", timesheet_name)
-    create_toil_allocation(doc, "on_submit")
+    lock_key = f"toil-allocation-lock:{timesheet_name}"
+    cache = frappe.cache()
+    if cache.get_value(lock_key):
+        frappe.logger().warning(
+            f"Skipped duplicate TOIL allocation job for timesheet {timesheet_name} (lock held)"
+        )
+        return
+    cache.set_value(lock_key, 1, expires_in_sec=300, shared=True)
+
+    try:
+        doc = frappe.get_doc("Timesheet", timesheet_name)
+        # Idempotent guardrails for async processing.
+        if doc.docstatus != 1:
+            frappe.logger().warning(
+                f"Skipping TOIL allocation for non-submitted timesheet {timesheet_name}"
+            )
+            return
+        if doc.toil_allocation:
+            frappe.logger().info(
+                f"Timesheet {timesheet_name} already linked to allocation {doc.toil_allocation}"
+            )
+            return
+        create_toil_allocation(doc, "on_submit")
+    finally:
+        cache.delete_value(lock_key)
 
 
 def create_toil_allocation(doc, method):
@@ -208,37 +233,53 @@ def create_toil_allocation(doc, method):
                 frappe.ValidationError
             )
 
-        # Create Leave Allocation document
-        allocation = frappe.get_doc({
-            "doctype": "Leave Allocation",
-            "employee": doc.employee,
-            "leave_type": TOIL_LEAVE_TYPE,
-            "from_date": getdate(),
-            "to_date": add_months(getdate(), 6),  # 6-month validity
-            "new_leaves_allocated": flt(doc.toil_days, 3),
-            "description": f"TOIL from Timesheet {doc.name}",
-            "source_timesheet": doc.name,
-            "toil_hours": flt(doc.total_toil_hours, 2),
-            "is_toil_allocation": 1
-        })
+        # Business rule: allocation is always whole days, rounded up.
+        raw_toil_days = flt(doc.toil_days, 3)
+        allocated_days = ceil(raw_toil_days)
 
-        # Insert without ignore_permissions (respects user permissions)
-        allocation.insert()
-        allocation.submit()
+        allocation = get_active_toil_allocation(doc.employee)
+
+        if allocation:
+            # Avoid Leave Allocation overlap by topping up the active TOIL allocation.
+            previous_allocated = flt(allocation.new_leaves_allocated, 3)
+            allocation.new_leaves_allocated = flt(previous_allocated + allocated_days, 3)
+            if hasattr(allocation, "toil_hours"):
+                allocation.toil_hours = flt(flt(allocation.toil_hours or 0, 2) + flt(doc.total_toil_hours, 2), 2)
+            allocation.save()
+        else:
+            # Create Leave Allocation document
+            allocation = frappe.get_doc({
+                "doctype": "Leave Allocation",
+                "employee": doc.employee,
+                "leave_type": TOIL_LEAVE_TYPE,
+                "from_date": getdate(),
+                "to_date": add_months(getdate(), 6),  # 6-month validity
+                "new_leaves_allocated": allocated_days,
+                "description": f"TOIL from Timesheet {doc.name}",
+                "source_timesheet": doc.name,
+                "toil_hours": flt(doc.total_toil_hours, 2),
+                "is_toil_allocation": 1
+            })
+
+            # Insert without ignore_permissions (respects user permissions)
+            allocation.insert()
+            allocation.submit()
 
         # Update timesheet with allocation reference
         doc.db_set('toil_allocation', allocation.name, update_modified=False)
-        doc.db_set('toil_status', 'Accrued', update_modified=False)
+        doc.db_set('toil_status', TOILStatus.ACCRUED, update_modified=False)
 
         # Log success for audit trail
         frappe.logger().info(
             f"Created TOIL allocation {allocation.name} for timesheet {doc.name}: "
-            f"{doc.toil_days} days ({doc.total_toil_hours} hours)"
+            f"{allocated_days} day(s) allocated from {raw_toil_days} TOIL day(s) "
+            f"({doc.total_toil_hours} hours)"
         )
 
         # Avoid UI popups inside hooks/jobs; log for auditability instead.
         frappe.logger().info(
-            f"TOIL Allocation created: {doc.toil_days} days ({doc.total_toil_hours} hours) for {doc.name}"
+            f"TOIL Allocation created: {allocated_days} day(s) from {raw_toil_days} day(s) "
+            f"({doc.total_toil_hours} hours) for {doc.name}"
         )
 
     except Exception as e:
@@ -248,40 +289,21 @@ def create_toil_allocation(doc, method):
         )
 
         try:
-            # Rollback the entire transaction
-            frappe.db.rollback()
-
-            # Reset timesheet to Draft status
-            frappe.db.sql("""
-                UPDATE `tabTimesheet`
-                SET docstatus = 0,
-                    toil_status = 'Pending Accrual',
-                    toil_allocation = NULL
-                WHERE name = %s
-            """, doc.name)
-
-            frappe.db.commit()
-
-            # Throw user-friendly error
-            frappe.throw(
-                _(
-                    "Failed to create TOIL allocation: {0}. "
-                    "Timesheet has been reverted to Draft status. "
-                    f"Please verify the Leave Type '{TOIL_LEAVE_TYPE}' exists and try again."
-                ).format(str(e)),
-                frappe.ValidationError
-            )
-
-        except Exception as rollback_error:
-            frappe.log_error(
-                title="TOIL Allocation Rollback Failed",
-                message=f"Timesheet: {doc.name}\nOriginal Error: {str(e)}\n"
-                        f"Rollback Error: {str(rollback_error)}"
-            )
-            frappe.throw(
-                _("Critical error during TOIL allocation. Please contact system administrator."),
-                frappe.ValidationError
-            )
+            # Keep timesheet submitted and mark as pending retry to avoid
+            # partial state rollbacks from async context.
+            doc.db_set('toil_status', TOILStatus.PENDING_ACCRUAL, update_modified=False)
+            doc.db_set('toil_allocation', None, update_modified=False)
+        except Exception:
+            # Best effort; details already logged above.
+            pass
+        frappe.throw(
+            _(
+                "Failed to create TOIL allocation: {0}. "
+                "Timesheet remains submitted with pending accrual status. "
+                f"Please verify Leave Type '{TOIL_LEAVE_TYPE}' and retry."
+            ).format(str(e)),
+            frappe.ValidationError
+        )
 
 
 def cancel_toil_allocation(doc, method):
@@ -304,23 +326,45 @@ def cancel_toil_allocation(doc, method):
         # Get the allocation document
         allocation = frappe.get_doc("Leave Allocation", doc.toil_allocation)
 
-        # Verify allocation is submitted before cancelling
+        # Verify allocation is submitted before reversing
         if allocation.docstatus == 1:
-            allocation.cancel()
+            allocated_for_timesheet = ceil(flt(doc.toil_days, 3))
+            allocation_balance = get_allocation_balance(allocation.name)
+            if allocation_balance < allocated_for_timesheet:
+                frappe.throw(
+                    _(
+                        "Cannot cancel timesheet. This timesheet allocated {0} day(s), "
+                        "but only {1} day(s) remain available in allocation {2}."
+                    ).format(
+                        flt(allocated_for_timesheet, 3),
+                        flt(allocation_balance, 3),
+                        allocation.name,
+                    ),
+                    frappe.ValidationError,
+                )
+
+            current_allocated = flt(allocation.new_leaves_allocated, 3)
+            updated_allocated = flt(current_allocated - allocated_for_timesheet, 3)
+
+            if updated_allocated > 0:
+                # Keep shared allocation and post a reversing ledger delta via update-after-submit.
+                allocation.new_leaves_allocated = updated_allocated
+                if hasattr(allocation, "toil_hours"):
+                    allocation.toil_hours = max(
+                        0.0,
+                        flt(flt(allocation.toil_hours or 0, 2) - flt(doc.total_toil_hours, 2), 2),
+                    )
+                allocation.save()
+            else:
+                # No accrued TOIL left in this allocation.
+                allocation.cancel()
 
             # Update timesheet status
             doc.db_set('toil_status', 'Cancelled', update_modified=False)
 
             # Log cancellation for audit trail
             frappe.logger().info(
-                f"Cancelled TOIL allocation {allocation.name} for timesheet {doc.name}"
-            )
-
-            # Show success message
-            frappe.msgprint(
-                _("TOIL Allocation {0} has been cancelled").format(allocation.name),
-                title=_("TOIL Cancelled"),
-                indicator="orange"
+                f"Reversed {allocated_for_timesheet} TOIL day(s) from allocation {allocation.name} for timesheet {doc.name}"
             )
 
     except frappe.DoesNotExistError:
@@ -329,6 +373,10 @@ def cancel_toil_allocation(doc, method):
         frappe.logger().warning(
             f"TOIL allocation {doc.toil_allocation} not found for timesheet {doc.name}"
         )
+
+    except frappe.ValidationError:
+        # Validation errors should block cancellation to keep balances consistent.
+        raise
 
     except Exception as e:
         frappe.log_error(
@@ -341,6 +389,33 @@ def cancel_toil_allocation(doc, method):
             title=_("TOIL Cancellation Warning"),
             indicator="orange"
         )
+
+
+def get_active_toil_allocation(employee: str):
+    """
+    Return the active submitted TOIL allocation for the employee, if any.
+
+    Reusing an active allocation avoids HRMS Leave Allocation overlap errors
+    when multiple timesheets are submitted inside the same 6-month period.
+    """
+    today = getdate()
+    rows = frappe.get_all(
+        "Leave Allocation",
+        filters={
+            "employee": employee,
+            "leave_type": TOIL_LEAVE_TYPE,
+            "is_toil_allocation": 1,
+            "docstatus": 1,
+            "from_date": ["<=", today],
+            "to_date": [">=", today],
+        },
+        fields=["name"],
+        order_by="to_date desc, modified desc",
+        limit_page_length=1,
+    )
+    if not rows:
+        return None
+    return frappe.get_doc("Leave Allocation", rows[0].name)
 
 
 def recalculate_toil(doc, method):

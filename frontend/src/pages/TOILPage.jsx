@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Badge,
@@ -6,1051 +6,429 @@ import {
   Button,
   Card,
   Col,
-  DatePicker,
+  Descriptions,
   Empty,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
+  Grid,
   Row,
   Space,
   Spin,
   Statistic,
+  Steps,
   Table,
-  Tabs,
   Tag,
+  Timeline,
   Typography,
   theme,
-  message,
   notification
 } from 'antd'
 import {
   CalendarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
+  EyeOutlined,
   HistoryOutlined,
+  MailOutlined,
+  MinusCircleOutlined,
+  PlusCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
-  UserAddOutlined,
-  MailOutlined,
   TeamOutlined,
+  UpOutlined,
   UserOutlined
 } from '@ant-design/icons'
-import { getHeaderBannerStyle, getHeaderIconColor } from '../utils/themeUtils'
 import dayjs from 'dayjs'
-import Swal from 'sweetalert2'
-import useToilStore from '../stores/toilStore'
-import ApprovalModal from '../components/ApprovalModal'
+import '../styles/toilPage.css'
 
-const { TextArea } = Input
+import useToilStore from '../stores/toilStore'
+import { getHeaderIconColor } from '../utils/themeUtils'
+import {
+  getToilStatusColor,
+  normalizeToilStatus,
+  TOIL_STATUSES
+} from '../utils/toilStatusUtils'
+
 const { Title, Text } = Typography
 
-const formatErrorMessage = (error, fallback = 'Something went wrong. Please try again.') => {
+const STATUS_GUIDE = {
+  [TOIL_STATUSES.PENDING_ACCRUAL]: 'Awaiting supervisor approval. TOIL days will be allocated once approved.',
+  [TOIL_STATUSES.ACCRUED]: 'Approved and allocated. TOIL days are available for leave applications.',
+  [TOIL_STATUSES.PARTIALLY_USED]: 'Some allocated TOIL days have been consumed via leave.',
+  [TOIL_STATUSES.FULLY_USED]: 'All allocated TOIL days from this timesheet have been consumed.',
+  [TOIL_STATUSES.EXPIRED]: 'Allocation expired (past 6-month validity window).',
+  [TOIL_STATUSES.REJECTED]: 'Supervisor rejected this submission. Review comments, correct, and resubmit.',
+  [TOIL_STATUSES.CANCELLED]: 'Timesheet or allocation cancelled.',
+  [TOIL_STATUSES.NOT_APPLICABLE]: 'No non-billable TOIL hours on this timesheet.'
+}
+
+const GLASS = {
+  background: 'linear-gradient(145deg, rgba(255,255,255,0.65), rgba(255,255,255,0.35))',
+  border: '1px solid rgba(255,255,255,0.45)',
+  boxShadow: '0 10px 32px rgba(15, 23, 42, 0.12)',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)'
+}
+
+const formatError = (error, fallback = 'Something went wrong.') => {
   if (!error) return fallback
-
-  const apiMessage =
-    error?.response?.data?.message ||
-    error?.response?.data?._error_message ||
-    error?.response?.data?.error?.message
-
-  const directMessage = error?.message || error?.error
-  const raw = apiMessage || directMessage || fallback
-
+  const raw = error?.response?.data?.message || error?.error?.message || error?.message
   if (typeof raw !== 'string') return fallback
   return raw.replace(/^Error:\s*/i, '').trim() || fallback
 }
 
-const classifyOvertimeError = (errorMessage) => {
-  if (!errorMessage) return null
-  const normalized = errorMessage.toLowerCase()
+const withStatus = (row = {}) => ({
+  ...row,
+  toil_status: normalizeToilStatus(row),
+  status: normalizeToilStatus(row),
+  start_date: row.start_date || row.from_date,
+  end_date: row.end_date || row.to_date
+})
 
-  if (normalized.includes('overlap') || normalized.includes('overlapping')) {
-    const rowMatch = errorMessage.match(/row\s+(\d+)/i)
-    const tsMatches = errorMessage.match(/TS-\d{4}-\d+/g) || []
-    const existingRef = tsMatches.length > 0 ? tsMatches[tsMatches.length - 1] : null
 
-    return {
-      level: 'warning',
-      title: 'Time Conflict Detected',
-      summary: existingRef
-        ? `This entry overlaps with existing timesheet ${existingRef}.`
-        : 'This entry overlaps with an existing timesheet.',
-      actionHint: rowMatch
-        ? `Update the time range in entry row ${rowMatch[1]} and try again.`
-        : 'Adjust your start/end time and try again.'
-    }
-  }
-
-  if (normalized.includes('no employee')) {
-    return {
-      level: 'error',
-      title: 'Employee Profile Missing',
-      summary: 'Your user account is not linked to an Employee record.',
-      actionHint: 'Ask HR/Admin to link your User to Employee before creating timesheets.'
-    }
-  }
-
-  if (normalized.includes('supervisor') || normalized.includes('reports_to')) {
-    return {
-      level: 'error',
-      title: 'Supervisor Setup Needed',
-      summary: 'Timesheet workflow needs a supervisor assignment.',
-      actionHint: 'Ask HR to set Employee.reports_to for your profile.'
-    }
-  }
-
-  return null
-}
-
-function TOILPage({ initialTab = 'timesheets', navigateToRoute }) {
+function TOILPage({ navigateToRoute }) {
   const { token } = theme.useToken()
-  const [activeTab, setActiveTab] = useState(initialTab)
-  const [overtimeFeedback, setOvertimeFeedback] = useState(null)
-  const [overtimeForm] = Form.useForm()
-  const [leaveForm] = Form.useForm()
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
+
+  const [expandedRowKeys, setExpandedRowKeys] = useState([])
+  const [setupRetrying, setSetupRetrying] = useState(false)
 
   const {
-    employeeSetup,
-    toilBalance,
-    leaveLedger,
-    timesheets,
-    supervisorTimesheets,
-    loading,
-    submitting,
+    employeeSetup, toilBalance, leaveLedger, timesheets, supervisorTimesheets,
+    setupLoading, balanceLoading, timesheetsLoading, supervisorLoading, ledgerLoading,
     userRole,
-    validateSetup,
-    initialize,
-    createTimesheet,
-    createLeaveApplication,
-    submitLeaveForApproval,
-    fetchTOILBalance,
-    fetchLeaveLedger,
-    fetchMyTimesheets,
-    fetchSupervisorTimesheets
+    validateSetup, initialize,
+    fetchTOILBalance, fetchLeaveLedger, fetchMyTimesheets, fetchSupervisorTimesheets
   } = useToilStore()
-
-  const [approvalModalVisible, setApprovalModalVisible] = useState(false)
-  const [timesheetForApproval, setTimesheetForApproval] = useState(null)
-  const [overtimeModalVisible, setOvertimeModalVisible] = useState(false)
-  const [approvalSubmitting, setApprovalSubmitting] = useState(false)
-
-  useEffect(() => {
-    setActiveTab(initialTab)
-  }, [initialTab])
-
-  useEffect(() => {
-    if (activeTab === 'team-requests') {
-      fetchSupervisorTimesheets().catch(() => {})
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        await validateSetup()
-        const role = await initialize()
-        await Promise.all([
-          fetchTOILBalance(),
-          fetchLeaveLedger(),
-          fetchMyTimesheets(),
-          fetchSupervisorTimesheets().catch(() => {})
-        ])
-      } catch (error) {
-        message.error({
-          content: formatErrorMessage(error, 'Unable to initialize TOIL at the moment.'),
-          duration: 5
-        })
-      }
-    }
-
-    init()
-  }, [])
 
   const availableBalance = Number(toilBalance?.available || 0)
   const totalEarned = Number(toilBalance?.total || 0)
   const totalUsed = Number(toilBalance?.used || 0)
-  const pendingTimesheets = timesheets.filter(ts => ts.docstatus === 0).length
-  const pendingTeamRequests = supervisorTimesheets.filter(ts => ts.docstatus !== 1).length
+  const isSupervisor = userRole === 'supervisor' || userRole === 'hr'
 
-  const historyRows = useMemo(() => leaveLedger || [], [leaveLedger])
-  const supervisorRows = useMemo(() => {
-    const rows = Array.isArray(supervisorTimesheets) ? [...supervisorTimesheets] : []
-    return rows.sort((a, b) => {
-      const aDate = dayjs(a.creation || a.modified)
-      const bDate = dayjs(b.creation || b.modified)
-      return bDate.valueOf() - aDate.valueOf()
-    })
+  const myTimesheetRows = useMemo(
+    () => (Array.isArray(timesheets) ? timesheets : []).map(withStatus),
+    [timesheets]
+  )
+
+  const pendingTeamRequests = useMemo(() => {
+    const rows = (Array.isArray(supervisorTimesheets) ? supervisorTimesheets : []).map(withStatus)
+    return rows.filter(r => r.toil_status === TOIL_STATUSES.PENDING_ACCRUAL).length
   }, [supervisorTimesheets])
 
-  const handleOvertimeSubmit = async () => {
-    setOvertimeFeedback(null)
+  const historyRows = useMemo(() => {
+    const raw = Array.isArray(leaveLedger) ? [...leaveLedger] : []
+    const sorted = [...raw].sort(
+      (a, b) => dayjs(a.entry_date || a.date).valueOf() - dayjs(b.entry_date || b.date).valueOf()
+    )
+    let balance = 0
+    return sorted.map(row => {
+      balance += Number(row.leaves || 0)
+      return { ...row, running_balance: Number(balance.toFixed(3)) }
+    }).reverse()
+  }, [leaveLedger])
 
-    try {
-      const values = await overtimeForm.validateFields()
-      const now = dayjs()
-      const toTime = values.date
-        .hour(now.hour())
-        .minute(now.minute())
-        .second(now.second())
-      const fromTime = toTime.clone().subtract(values.hours, 'hours')
+  const pendingTimesheets = myTimesheetRows.filter(r => r.toil_status === TOIL_STATUSES.PENDING_ACCRUAL).length
+  const rejectedTimesheets = myTimesheetRows.filter(r => r.toil_status === TOIL_STATUSES.REJECTED).length
+  const hasAccruedBalance = availableBalance > 0
 
-      const payload = {
-        start_date: fromTime.format('YYYY-MM-DD'),
-        end_date: toTime.format('YYYY-MM-DD'),
-        time_logs: [
-          {
-            activity_type: 'Execution',
-            from_time: fromTime.format('YYYY-MM-DD HH:mm:ss'),
-            to_time: toTime.format('YYYY-MM-DD HH:mm:ss'),
-            is_billable: 0,
-            description: values.description
-          }
-        ]
-      }
-
-      const created = await createTimesheet(payload)
-      const createdName = created?.name
-
-      overtimeForm.resetFields()
-      setOvertimeFeedback(null)
-
-      if (navigateToRoute && createdName) {
-        const result = await Swal.fire({
-          title: `Timesheet ${createdName} created`,
-          text: 'Open the detail view now?',
-          icon: 'success',
-          showCancelButton: true,
-          confirmButtonText: 'Open details',
-          cancelButtonText: 'Stay here',
-          timer: 9000,
-          timerProgressBar: true
-        })
-
-        if (result.isConfirmed) {
-          handleCloseOvertimeModal()
-          navigateToRoute('timesheet-toil-detail', null, null, null, null, createdName)
-        } else {
-          handleCloseOvertimeModal()
-          await Promise.all([fetchTOILBalance(), fetchMyTimesheets(), fetchLeaveLedger()])
-          setActiveTab('timesheets')
-        }
-        return
-      }
-
-      await Swal.fire({
-        title: createdName ? `Timesheet ${createdName} created` : 'Timesheet created',
-        icon: 'success',
-        timer: 2400,
-        timerProgressBar: true,
-        showConfirmButton: false
-      })
-
-      handleCloseOvertimeModal()
-      await Promise.all([fetchTOILBalance(), fetchMyTimesheets(), fetchLeaveLedger()])
-      setActiveTab('timesheets')
-    } catch (error) {
-      const errMsg = formatErrorMessage(error, 'Could not submit overtime.')
-      const classification = classifyOvertimeError(errMsg)
-
-      if (classification) {
-        const notifier = classification.level === 'warning' ? notification.warning : notification.error
-        setOvertimeFeedback({
-          level: classification.level,
-          title: classification.title,
-          summary: classification.summary,
-          actionHint: classification.actionHint
-        })
-        notifier({
-          message: classification.title,
-          description: (
-            <Space direction="vertical" size={2}>
-              <Text>{classification.summary}</Text>
-              <Text type="secondary">{classification.actionHint}</Text>
-            </Space>
-          ),
-          btn: classification.level === 'warning' ? (
-            <Button
-              size="small"
-              onClick={() => {
-                setActiveTab('timesheets')
-              }}
-            >
-              Review Timesheets
-            </Button>
-          ) : undefined,
-          duration: 7
-        })
-        return
-      }
-
-      setOvertimeFeedback({
-        level: 'error',
-        title: 'Could not create timesheet',
-        summary: errMsg,
-        actionHint: 'Please check your entry and try again.'
-      })
-      message.error({
-        content: errMsg,
-        duration: 5
-      })
-    }
-  }
-
-  const businessDaysBetween = (fromDate, toDate) => {
-    let days = 0
-    let current = fromDate.clone()
-    while (current.isSameOrBefore(toDate, 'day')) {
-      const d = current.day()
-      if (d !== 0 && d !== 6) days += 1
-      current = current.add(1, 'day')
-    }
-    return days
-  }
-
-  const handleLeaveSubmit = async () => {
-    try {
-      const values = await leaveForm.validateFields()
-      const days = businessDaysBetween(values.from_date, values.to_date)
-
-      if (days <= 0) {
-        message.warning('Select a valid weekday range for leave.')
-        return
-      }
-
-      if (days > availableBalance) {
-        Modal.warning({
-          title: 'Insufficient TOIL balance',
-          content: `Requested ${days} day(s), but only ${availableBalance.toFixed(2)} day(s) are available.`
-        })
-        return
-      }
-
-      const leaveData = {
-        leave_type: 'TOIL',
-        from_date: values.from_date.format('YYYY-MM-DD'),
-        to_date: values.to_date.format('YYYY-MM-DD'),
-        total_leave_days: days,
-        description: values.reason
-      }
-
-      const created = await createLeaveApplication(leaveData)
-      await submitLeaveForApproval(created.name)
-
-      await Swal.fire({
-        title: 'Leave request submitted',
-        text: `${days} day${days > 1 ? 's' : ''} requested successfully.`,
-        icon: 'success',
-        timer: 2400,
-        timerProgressBar: true,
-        showConfirmButton: false
-      })
-
-      leaveForm.resetFields()
-      await Promise.all([fetchTOILBalance(), fetchLeaveLedger(), fetchMyTimesheets()])
-      setActiveTab('history')
-    } catch (error) {
-      message.error({
-        content: formatErrorMessage(error, 'Could not submit leave request.'),
-        duration: 5
-      })
-    }
-  }
-
-  const handleRefresh = async () => {
-    try {
-      await Promise.all([
-        fetchTOILBalance(),
-        fetchLeaveLedger(),
-        fetchMyTimesheets(),
-        fetchSupervisorTimesheets().catch(() => {})
-      ])
-      message.success('Data refreshed')
-    } catch (error) {
-      message.error(formatErrorMessage(error, 'Failed to refresh'))
-    }
-  }
-
-  const handleRecordOvertime = () => {
-    setOvertimeModalVisible(true)
-  }
-
-  const handleCloseOvertimeModal = () => {
-    setOvertimeModalVisible(false)
-    setOvertimeFeedback(null)
-  }
-
-  const handleOpenApprovalModal = (row) => {
-    setTimesheetForApproval(row)
-    setApprovalModalVisible(true)
-  }
-
-  const handleCloseApprovalModal = () => {
-    setApprovalModalVisible(false)
-    setTimesheetForApproval(null)
-  }
-
-  const handleApprove = async (comment) => {
-    const msgKey = 'toil-approval-submit'
-    try {
-      const id = timesheetForApproval?.name ?? timesheetForApproval?.id
-      if (!id) {
-        const error = 'No timesheet selected'
-        await Swal.fire({ icon: 'error', title: 'Approval failed', text: error })
-        return { success: false, error }
-      }
-
-      message.loading({ content: 'Submitting approval...', key: msgKey, duration: 0 })
-      setApprovalSubmitting(true)
-      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.toil.timesheet_api.set_timesheet_approval', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Frappe-CSRF-Token': window.csrf_token || ''
-        },
-        credentials: 'include',
-        body: new URLSearchParams({
-          timesheet_name: String(id),
-          status: 'approved',
-          reason: comment || ''
-        }).toString()
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const payload = await response.json()
-      const result = payload?.message || payload
-      if (result?.success) {
+  // ── Effects ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await validateSetup()
+        await initialize()
         await Promise.all([
-          fetchMyTimesheets().catch(() => {}),
-          fetchSupervisorTimesheets().catch(() => {}),
-          fetchTOILBalance().catch(() => {}),
-          fetchLeaveLedger().catch(() => {})
-        ])
-        handleCloseApprovalModal()
-        message.success({ content: result?.message || 'Timesheet submitted. TOIL accrual is processing.', key: msgKey })
-        return result
-      }
-
-      const error =
-        result?.error?.message ||
-        result?.error ||
-        result?.message ||
-        'Failed to approve'
-      message.destroy(msgKey)
-      await Swal.fire({ icon: 'error', title: 'Approval failed', text: error })
-      return { success: false, error }
-    } catch (error) {
-      const errMsg = formatErrorMessage(error, 'Failed to approve')
-      message.destroy(msgKey)
-      await Swal.fire({ icon: 'error', title: 'Approval failed', text: errMsg })
-      return { success: false, error: errMsg }
-    } finally {
-      setApprovalSubmitting(false)
-    }
-  }
-
-  const handleReject = async (reason) => {
-    const msgKey = 'toil-rejection-submit'
-    try {
-      const id = timesheetForApproval?.name ?? timesheetForApproval?.id
-      if (!id) {
-        const error = 'No timesheet selected'
-        await Swal.fire({ icon: 'error', title: 'Rejection failed', text: error })
-        return { success: false, error }
-      }
-
-      message.loading({ content: 'Submitting rejection...', key: msgKey, duration: 0 })
-      setApprovalSubmitting(true)
-      const response = await fetch('/api/method/frappe_devsecops_dashboard.api.toil.timesheet_api.set_timesheet_approval', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Frappe-CSRF-Token': window.csrf_token || ''
-        },
-        credentials: 'include',
-        body: new URLSearchParams({
-          timesheet_name: String(id),
-          status: 'rejected',
-          reason: reason || ''
-        }).toString()
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const payload = await response.json()
-      const result = payload?.message || payload
-      if (result?.success) {
-        await Promise.all([
-          fetchMyTimesheets().catch(() => {}),
+          fetchTOILBalance(), fetchLeaveLedger(), fetchMyTimesheets(),
           fetchSupervisorTimesheets().catch(() => {})
         ])
-        handleCloseApprovalModal()
-        message.success({ content: result?.message || 'Timesheet rejected.', key: msgKey })
-        return result
+      } catch (err) {
+        notification.error({ message: 'Initialization failed', description: formatError(err), duration: 6 })
       }
+    }
+    init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-      const error =
-        result?.error?.message ||
-        result?.error ||
-        result?.message ||
-        'Failed to reject'
-      message.destroy(msgKey)
-      await Swal.fire({ icon: 'error', title: 'Rejection failed', text: error })
-      return { success: false, error }
-    } catch (error) {
-      const errMsg = formatErrorMessage(error, 'Failed to reject')
-      message.destroy(msgKey)
-      await Swal.fire({ icon: 'error', title: 'Rejection failed', text: errMsg })
-      return { success: false, error: errMsg }
+  const refreshAll = useCallback(async () => {
+    try {
+      await Promise.all([
+        fetchTOILBalance(), fetchLeaveLedger(), fetchMyTimesheets(),
+        fetchSupervisorTimesheets().catch(() => {})
+      ])
+      notification.success({ message: 'Data refreshed', duration: 2 })
+    } catch (err) {
+      notification.error({ message: 'Refresh failed', description: formatError(err) })
+    }
+  }, [fetchTOILBalance, fetchLeaveLedger, fetchMyTimesheets, fetchSupervisorTimesheets])
+
+  const retrySetup = async () => {
+    try {
+      setSetupRetrying(true)
+      await validateSetup()
+      await initialize()
+      await Promise.all([
+        fetchTOILBalance(), fetchLeaveLedger(), fetchMyTimesheets(),
+        fetchSupervisorTimesheets().catch(() => {})
+      ])
+      notification.success({ message: 'Setup validated' })
+    } catch (err) {
+      notification.error({ message: 'Setup still incomplete', description: formatError(err) })
     } finally {
-      setApprovalSubmitting(false)
+      setSetupRetrying(false)
     }
   }
 
-  if (loading && !employeeSetup) {
+  // ── Styles ──────────────────────────────────────────────────────
+  const pageShellStyle = {
+    padding: isMobile ? 12 : 20,
+    borderRadius: isMobile ? 14 : 18,
+    background: 'radial-gradient(circle at 10% 0%, rgba(125,211,252,0.24), rgba(167,243,208,0.1) 36%, rgba(255,255,255,0.08) 68%)'
+  }
+
+  // ── Workflow Steps ──────────────────────────────────────────────
+  const workflowCurrent = myTimesheetRows.length === 0 ? 0 : pendingTeamRequests > 0 ? 1 : hasAccruedBalance ? 2 : 1
+  const workflowSteps = [
+    { title: 'Record TOIL', description: myTimesheetRows.length > 0 ? `${myTimesheetRows.length} recorded` : 'Create overtime entry' },
+    { title: 'Supervisor Approval', description: pendingTeamRequests > 0 ? `${pendingTeamRequests} pending` : 'Up to date' },
+    { title: 'Use TOIL', description: hasAccruedBalance ? `${availableBalance.toFixed(2)} days available` : 'Earn balance first' }
+  ]
+
+  // ── Column Definitions ──────────────────────────────────────────
+  const col = (title) => <Text strong style={{ fontSize: 13, color: token.colorText }}>{title}</Text>
+
+  const timesheetColumns = [
+    {
+      title: col('Timesheet'), dataIndex: 'name', key: 'name',
+      render: (name) => (
+        <Button type="link" style={{ padding: 0, height: 'auto', fontWeight: 600, fontSize: 14 }}
+          onClick={() => navigateToRoute?.('timesheet-toil-detail', null, null, null, null, name)}>
+          {name}
+        </Button>
+      )
+    },
+    { title: col('Period'), key: 'range', render: (_, r) => <Text style={{ fontSize: 12, color: token.colorTextSecondary }}>{r.start_date || '-'} to {r.end_date || '-'}</Text> },
+    { title: col('Total Hrs'), dataIndex: 'total_hours', key: 'hours', align: 'right', render: (v) => <Text style={{ fontSize: 12 }}>{Number(v || 0).toFixed(2)}</Text> },
+    { title: col('TOIL Days'), key: 'toil', align: 'right', render: (_, r) => <Tag color="blue">{Number(r.toil_days || 0).toFixed(3)}</Tag> },
+    { title: col('Status'), key: 'status', render: (_, r) => <Tag color={getToilStatusColor(r.toil_status)}>{r.toil_status}</Tag> }
+  ]
+
+  const auditColumns = [
+    { title: col('Date'), dataIndex: 'entry_date', key: 'date', width: 120, render: (v) => <Text style={{ fontSize: 12 }}>{v ? dayjs(v).format('MMM DD, YYYY') : '-'}</Text> },
+    { title: col('Type'), key: 'type', width: 100, render: (_, r) => r.transaction_type === 'Leave Allocation' ? <Tag color="green" icon={<PlusCircleOutlined />}>Earned</Tag> : <Tag color="red" icon={<MinusCircleOutlined />}>Used</Tag> },
+    { title: col('Days'), dataIndex: 'leaves', key: 'days', align: 'right', width: 90, render: (v) => { const n = Number(v || 0); return <Text strong style={{ color: n > 0 ? '#52c41a' : '#ff4d4f' }}>{n > 0 ? '+' : ''}{n.toFixed(3)}</Text> } },
+    { title: col('Balance'), dataIndex: 'running_balance', key: 'balance', align: 'right', width: 100, render: (v) => <Tag color="processing">{Number(v || 0).toFixed(3)}d</Tag> },
+    { title: col('Reference'), dataIndex: 'transaction_name', key: 'ref', render: (v) => <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>{v || '-'}</Text> },
+    { title: col('Expiry'), key: 'expiry', width: 90, render: (_, r) => { if (r.days_until_expiry == null) return '-'; if (r.days_until_expiry <= 0) return <Tag color="error">Expired</Tag>; if (r.days_until_expiry <= 30) return <Tag color="warning">{r.days_until_expiry}d</Tag>; return <Text style={{ fontSize: 12 }}>{r.days_until_expiry}d</Text> } }
+  ]
+
+  // ── Expanded Row ────────────────────────────────────────────────
+  const renderExpandedRow = (record) => {
+    const s = record.toil_status
     return (
-      <div style={{ textAlign: 'center', padding: '100px 0' }}>
-        <Spin size="large" />
+      <div style={{ padding: '8px 0' }}>
+        <Descriptions size="small" bordered column={isMobile ? 1 : 2} style={{ marginBottom: 12 }}>
+          <Descriptions.Item label="Status"><Tag color={getToilStatusColor(s)}>{s}</Tag></Descriptions.Item>
+          <Descriptions.Item label="Explanation"><Text type="secondary" style={{ fontSize: 13 }}>{STATUS_GUIDE[s] || '-'}</Text></Descriptions.Item>
+          <Descriptions.Item label="TOIL Calculation"><Text>{Number(record.total_toil_hours || 0).toFixed(2)} hrs &divide; 8 = <strong>{Number(record.toil_days || 0).toFixed(3)} days</strong></Text></Descriptions.Item>
+          <Descriptions.Item label="Allocation Ref"><Text copyable={!!record.toil_allocation}>{record.toil_allocation || 'Pending approval'}</Text></Descriptions.Item>
+          <Descriptions.Item label="Created">{record.creation ? dayjs(record.creation).format('MMM DD, YYYY HH:mm:ss') : '-'}</Descriptions.Item>
+          <Descriptions.Item label="Modified">{record.modified ? dayjs(record.modified).format('MMM DD, YYYY HH:mm:ss') : '-'}</Descriptions.Item>
+        </Descriptions>
+        {s === TOIL_STATUSES.REJECTED && (
+          <Alert type="error" showIcon style={{ marginBottom: 12 }} message="Rejected by supervisor" description="Check document comments for the reason. Correct and resubmit."
+            action={<Button size="small" type="primary" danger onClick={() => navigateToRoute?.('timesheet-toil-detail', null, null, null, null, record.name)}>Open &amp; Edit</Button>} />
+        )}
+        <Button type="link" icon={<EyeOutlined />} style={{ padding: 0 }} onClick={() => navigateToRoute?.('timesheet-toil-detail', null, null, null, null, record.name)}>
+          View full details with time logs
+        </Button>
       </div>
     )
   }
 
+  // ── Loading / Setup Error ───────────────────────────────────────
+  if (setupLoading && !employeeSetup) {
+    return <div style={{ textAlign: 'center', padding: '100px 0' }}><Spin size="large" /></div>
+  }
+
   if (!employeeSetup?.valid) {
     const issues = employeeSetup?.issues || ['Configuration incomplete. Contact HR.']
-    const isEmployeeMissing = issues.some(
-      (i) => typeof i === 'string' && i.toLowerCase().includes('no employee') && i.toLowerCase().includes('record')
-    )
-
-    const setupConfig = isEmployeeMissing
-      ? {
-          icon: UserOutlined,
-          title: 'Employee profile required',
-          summary: 'Your user account is not linked to an Employee record. HR needs to create your Employee master and link it to your User before you can use TOIL.',
-          fixHint: 'Ask HR to create your Employee record in Frappe and set the User (user_id) field to your login email.',
-          actionLabel: 'Ask HR to create your Employee record'
-        }
-      : {
-          icon: TeamOutlined,
-          title: 'TOIL setup required',
-          summary: 'You need a supervisor assigned before you can record overtime or request TOIL leave.',
-          fixHint: 'Your HR team can fix this by setting the reports_to field on your Employee master record in Frappe.',
-          actionLabel: 'Ask HR to assign your supervisor'
-        }
-
-    const SetupIcon = setupConfig.icon
-
+    const isEmployeeMissing = issues.some(i => typeof i === 'string' && i.toLowerCase().includes('no employee'))
+    const cfg = isEmployeeMissing
+      ? { icon: UserOutlined, title: 'Almost there', summary: 'Your account needs to be linked to your employee profile.', fixHint: 'Ask HR to connect your login to your employee profile.', label: 'Contact HR to complete setup' }
+      : { icon: TeamOutlined, title: 'One more step', summary: 'A reporting manager needs to be assigned for approval routing.', fixHint: 'Ask HR to set your reporting manager.', label: 'Contact HR to assign your manager' }
+    const SetupIcon = cfg.icon
     return (
-      <Card
-        style={{
-          maxWidth: 560,
-          margin: '40px auto',
-          textAlign: 'center',
-          borderRadius: 12,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
-        }}
-      >
-        <Empty
-          image={
-            <div
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #fff2e8 0%, #ffe7ba 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto'
-              }}
-            >
-              <SetupIcon style={{ fontSize: 36, color: '#fa8c16' }} />
+      <div style={pageShellStyle}>
+        <Card className="toil-glass-card" style={{ maxWidth: 680, margin: '60px auto', borderRadius: 16, ...GLASS }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div style={{ width: 72, height: 72, borderRadius: 16, background: 'linear-gradient(145deg, rgba(22,119,255,0.12), rgba(22,119,255,0.06))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <SetupIcon style={{ fontSize: 36, color: token.colorPrimary }} />
             </div>
-          }
-          description={null}
-        >
-          <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 8 }}>
-            {setupConfig.title}
-          </Typography.Title>
-          <Typography.Paragraph type="secondary" style={{ marginBottom: 16, fontSize: 14 }}>
-            {setupConfig.summary}
-          </Typography.Paragraph>
-          <div
-            style={{
-              textAlign: 'left',
-              background: token.colorFillQuaternary,
-              padding: 16,
-              borderRadius: 8,
-              marginBottom: 20
-            }}
-          >
-            <Typography.Text strong style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <UserAddOutlined /> What&apos;s missing
-            </Typography.Text>
-            <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
-              {issues.map((issue, i) => (
-                <li key={i}>
-                  <Typography.Text>{issue}</Typography.Text>
-                </li>
-              ))}
-            </ul>
+            <Title level={3} style={{ margin: 0, marginBottom: 8 }}>{cfg.title}</Title>
+            <Text type="secondary" style={{ fontSize: 14, display: 'block', maxWidth: 520, margin: '0 auto' }}>{cfg.summary}</Text>
           </div>
-          <Typography.Paragraph type="secondary" style={{ marginBottom: 16, fontSize: 13 }}>
-            {setupConfig.fixHint}
-          </Typography.Paragraph>
-          <Space>
-            <Button
-              type="primary"
-              icon={<MailOutlined />}
-              onClick={() => { window.location.href = '/app' }}
-            >
-              Open Frappe Desk
-            </Button>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {setupConfig.actionLabel}
-            </Typography.Text>
-          </Space>
-        </Empty>
-      </Card>
+          <Alert type="warning" showIcon message="What needs to happen" style={{ marginBottom: 16 }} description={<ul style={{ margin: 0, paddingLeft: 16 }}>{issues.map((issue, i) => <li key={i}>{issue}</li>)}</ul>} />
+          <Alert type="info" showIcon icon={<CheckCircleOutlined />} message="Next step" description={cfg.fixHint} style={{ marginBottom: 20 }} />
+          <Button type="primary" size="large" icon={<ReloadOutlined />} onClick={retrySetup} loading={setupRetrying} block={isMobile} style={{ height: 44, borderRadius: 10, marginBottom: 12 }}>Retry Setup Validation</Button>
+          <div style={{ textAlign: 'center' }}><Text type="secondary" style={{ fontSize: 12 }}><MailOutlined style={{ marginRight: 6 }} />{cfg.label}</Text></div>
+        </Card>
+      </div>
     )
   }
 
-  const timesheetColumns = [
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Timesheet</Text>,
-      dataIndex: 'name',
-      key: 'name',
-      render: (name, row) => (
-        <Button
-          type="link"
-          onClick={() => navigateToRoute && navigateToRoute('timesheet-toil-detail', null, null, null, null, name)}
-          style={{ padding: 0, height: 'auto', fontWeight: 600, fontSize: '14px' }}
-        >
-          {name}
-        </Button>
-      )
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Range</Text>,
-      key: 'range',
-      render: (_, row) => (
-        <Text style={{ fontSize: '12px', color: token.colorTextSecondary }}>
-          {row.start_date} to {row.end_date}
-        </Text>
-      )
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Hours</Text>,
-      dataIndex: 'total_hours',
-      key: 'hours',
-      align: 'right',
-      render: v => <Text style={{ fontSize: '12px' }}>{Number(v || 0).toFixed(2)}</Text>
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>TOIL</Text>,
-      key: 'toil',
-      align: 'right',
-      render: (_, row) => (
-        <Tag color="blue">{Number(row.toil_days || 0).toFixed(2)} day(s)</Tag>
-      )
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Status</Text>,
-      key: 'status',
-      render: (_, row) => {
-        if (row.docstatus === 1) return <Tag color="green">Submitted</Tag>
-        if (row.docstatus === 2) return <Tag color="red">Cancelled</Tag>
-        return <Tag color="orange">Draft</Tag>
-      }
-    }
-  ]
-
-  const historyColumns = [
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Date</Text>,
-      dataIndex: 'from_date',
-      key: 'date',
-      render: v => (
-        <Text style={{ fontSize: '12px', color: token.colorTextSecondary }}>
-          {v ? dayjs(v).format('YYYY-MM-DD') : '-'}
-        </Text>
-      )
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Type</Text>,
-      dataIndex: 'transaction_type',
-      key: 'type',
-      render: v => (v === 'Leave Allocation' ? <Tag color="green">Earned</Tag> : <Tag color="red">Used</Tag>)
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Reference</Text>,
-      dataIndex: 'transaction_name',
-      key: 'ref',
-      render: v => <Text style={{ fontSize: '12px', fontFamily: 'monospace' }}>{v || '-'}</Text>
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Days</Text>,
-      dataIndex: 'leaves',
-      key: 'days',
-      align: 'right',
-      render: v => {
-        const num = Number(v || 0)
-        return num > 0 ? <Tag color="green">+{num}</Tag> : <Tag color="red">{num}</Tag>
-      }
-    }
-  ]
-
-  const supervisorColumns = [
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Timesheet</Text>,
-      dataIndex: 'name',
-      key: 'name',
-      render: (name, row) => (
-        <Button
-          type="link"
-          onClick={() => navigateToRoute && navigateToRoute('timesheet-toil-detail', null, null, null, null, name)}
-          style={{ padding: 0, height: 'auto', fontWeight: 600, fontSize: '14px' }}
-        >
-          {name}
-        </Button>
-      )
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Employee</Text>,
-      dataIndex: 'employee_name',
-      key: 'employee_name',
-      render: v => <Text style={{ fontSize: '12px' }}>{v || '-'}</Text>
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Range</Text>,
-      key: 'range',
-      render: (_, row) => (
-        <Text style={{ fontSize: '12px', color: token.colorTextSecondary }}>
-          {row.start_date} to {row.end_date}
-        </Text>
-      )
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>TOIL Hours</Text>,
-      dataIndex: 'total_toil_hours',
-      key: 'toil_hours',
-      align: 'right',
-      render: v => <Text style={{ fontSize: '12px' }}>{Number(v || 0).toFixed(2)}</Text>
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>TOIL Days</Text>,
-      dataIndex: 'toil_days',
-      key: 'toil_days',
-      align: 'right',
-      render: v => <Tag color="blue">{Number(v || 0).toFixed(2)}</Tag>
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Created</Text>,
-      dataIndex: 'creation',
-      key: 'creation',
-      render: v => (
-        <Text style={{ fontSize: '12px', color: token.colorTextSecondary }}>
-          {v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-'}
-        </Text>
-      )
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Status</Text>,
-      key: 'docstatus',
-      render: (_, row) => {
-        if (row.docstatus === 1) return <Tag color="green">Submitted</Tag>
-        if (row.docstatus === 2) return <Tag color="red">Cancelled</Tag>
-        return <Tag color="orange">Draft</Tag>
-      }
-    },
-    {
-      title: <Text strong style={{ fontSize: '13px', color: token.colorText }}>Actions</Text>,
-      key: 'actions',
-      render: (_, row) => (
-        row.docstatus !== 1 ? (
-          <Button type="primary" size="small" onClick={() => handleOpenApprovalModal(row)}>
-            Approve / Reject
-          </Button>
-        ) : (
-          <Tag color="green">Reviewed</Tag>
-        )
-      )
-    }
-  ]
-
+  // ── Main Dashboard ──────────────────────────────────────────────
   return (
-    <div>
-      {/* Header - matches Change Management Teams */}
-      <Card style={{
-        marginBottom: 16,
-        ...getHeaderBannerStyle(token)
-      }}>
-        <Row justify="space-between" align="middle">
-          <Col xs={24} sm={16}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Breadcrumb
-                items={[
-                  { title: 'Ops' },
-                  { title: 'Timesheet (TOIL Record)' }
-                ]}
-                style={{ fontSize: '12px' }}
-              />
-              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                <ClockCircleOutlined style={{
-                  marginRight: 16,
-                  color: getHeaderIconColor(token),
-                  fontSize: '32px'
-                }} />
-                Timesheet (TOIL Record)
-              </Title>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                Record overtime, request leave, and review your history in one place.
-              </Text>
-            </Space>
+    <div style={pageShellStyle} className="toil-page">
+
+      {/* ─── Hero Header ─── */}
+      <Card className="toil-glass-card toil-hero-card" style={{ marginBottom: 16, ...GLASS }}>
+        <Row justify="space-between" align="middle" gutter={[12, 12]}>
+          <Col xs={24} md={14}>
+            <Breadcrumb items={[{ title: 'Ops' }, { title: 'TOIL Management' }]} style={{ fontSize: 12, marginBottom: 6 }} />
+            <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+              <ClockCircleOutlined style={{ marginRight: 14, color: getHeaderIconColor(token), fontSize: 30 }} />
+              TOIL Dashboard
+            </Title>
+            <Text type="secondary" style={{ fontSize: 13 }}>Record overtime, get approval, apply for leave. Each workflow step has its own dedicated page.</Text>
           </Col>
-          <Col xs={24} sm={8} style={{ textAlign: 'right', marginTop: 16 }}>
-            <Space>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={handleRefresh}
-                loading={loading}
-              >
-                Refresh
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleRecordOvertime}
-              >
-                Record Overtime
-              </Button>
+          <Col xs={24} md={10} style={{ textAlign: isMobile ? 'left' : 'right' }}>
+            <Space wrap>
+              <Tag color="processing">Balance: {availableBalance.toFixed(2)}d</Tag>
+              {pendingTimesheets > 0 && <Tag color="warning">Pending: {pendingTimesheets}</Tag>}
+              {rejectedTimesheets > 0 && <Tag color="error">Rejected: {rejectedTimesheets}</Tag>}
+              <Button icon={<ReloadOutlined />} onClick={refreshAll} loading={timesheetsLoading || balanceLoading}>Refresh</Button>
             </Space>
           </Col>
         </Row>
       </Card>
 
-      {/* Stats Row */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>
-            <Statistic title="Available" value={availableBalance} precision={2} suffix="days" />
+      {/* ─── Balance Metrics ─── */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={24} md={8}>
+          <Card className="toil-glass-card toil-metric-card" style={GLASS}>
+            <Statistic title="Available Balance" value={availableBalance} precision={3} suffix="days" valueStyle={{ fontWeight: 700 }} />
+            <Text type="secondary" className="toil-metric-note">Ready to use for leave</Text>
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
-          <Card style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>
-            <Statistic title="Earned" value={totalEarned} precision={2} suffix="days" />
+        <Col xs={24} md={8}>
+          <Card className="toil-glass-card toil-metric-card" style={GLASS}>
+            <Statistic title="Total Earned" value={totalEarned} precision={3} suffix="days" />
+            <Text type="secondary" className="toil-metric-note">Lifetime accrued</Text>
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
-          <Card style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>
-            <Statistic title="Used / Pending" value={`${totalUsed.toFixed(2)} / ${pendingTimesheets}`} />
+        <Col xs={24} md={8}>
+          <Card className="toil-glass-card toil-metric-card" style={GLASS}>
+            <Statistic title="Total Used" value={totalUsed} precision={3} suffix="days" />
+            <Text type="secondary" className="toil-metric-note">Consumed via leave</Text>
           </Card>
         </Col>
       </Row>
 
-      {/* Tabs Card - matches Change Management table card styling */}
-      <Card style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'timesheets',
-              label: (
-                <span>
-                  <CheckCircleOutlined /> My Timesheets
-                </span>
-              ),
-              children: (
-                <div>
-                  <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text type="secondary">Your timesheets. Click a row to view details.</Text>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={handleRecordOvertime}>
-                      Create
-                    </Button>
-                  </div>
-                  <Table
-                    rowKey="name"
-                    dataSource={timesheets}
-                    columns={timesheetColumns}
-                    pagination={{ pageSize: 8, showSizeChanger: true, showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}` }}
-                    size="middle"
-                    locale={{ emptyText: <Empty description="No timesheets yet." style={{ marginTop: 50, marginBottom: 50 }} /> }}
-                  />
-                </div>
-              )
-            },
-            {
-              key: 'leave',
-              label: (
-                <span>
-                  <CalendarOutlined /> Apply for Leave
-                </span>
-              ),
-              children: (
-                <Form
-                  form={leaveForm}
-                  layout="vertical"
-                  disabled={availableBalance <= 0}
-                  style={{ maxWidth: 560 }}
-                >
-                  {availableBalance <= 0 && (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message="No TOIL balance available"
-                      description="Submit overtime first, then request leave."
-                      style={{ marginBottom: 16 }}
-                    />
-                  )}
-                  <Form.Item label="From Date" name="from_date" rules={[{ required: true, message: 'Select start date' }]}>
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      disabledDate={current => current && current.isBefore(dayjs().startOf('day'))}
-                    />
-                  </Form.Item>
-                  <Form.Item label="To Date" name="to_date" rules={[{ required: true, message: 'Select end date' }]}>
-                    <DatePicker
-                      style={{ width: '100%' }}
-                      disabledDate={current => {
-                        const from = leaveForm.getFieldValue('from_date')
-                        return current && from && current.isBefore(from, 'day')
-                      }}
-                    />
-                  </Form.Item>
-                  <Form.Item label="Reason" name="reason" rules={[{ required: true, message: 'Enter reason' }]}>
-                    <TextArea rows={4} placeholder="Reason for TOIL leave." />
-                  </Form.Item>
-                  <Button type="primary" onClick={handleLeaveSubmit} loading={submitting}>
-                    Submit Leave Request
-                  </Button>
-                </Form>
-              )
-            },
-            {
-              key: 'history',
-              label: (
-                <span>
-                  <HistoryOutlined /> My History
-                </span>
-              ),
-              children: (
-                <div>
-                  <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                    Leave Ledger: earned and used TOIL. Refresh to see approval updates and balance changes.
-                  </Text>
-                  <Table
-                    rowKey={(row, i) => row?.transaction_name ? `${row.transaction_name}-${i}` : `history-${i}`}
-                    dataSource={historyRows}
-                    columns={historyColumns}
-                    pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}` }}
-                    size="middle"
-                    locale={{ emptyText: <Empty description="No TOIL history yet." style={{ marginTop: 50, marginBottom: 50 }} /> }}
-                  />
-                </div>
-              )
-            },
-            {
-              key: 'team-requests',
-              label: (
-                <Space size={6}>
-                  <TeamOutlined />
-                  <span>Team Requests</span>
-                  <Badge
-                    count={pendingTeamRequests}
-                    overflowCount={99}
-                    color={pendingTeamRequests > 0 ? '#fa541c' : '#d9d9d9'}
-                    style={{ boxShadow: 'none' }}
-                  />
-                </Space>
-              ),
-              children: (
-                <div>
-                  {approvalSubmitting ? (
-                    <Alert
-                      type="info"
-                      showIcon
-                      style={{ marginBottom: 12 }}
-                      message="Updating timesheet approval..."
-                      description="Refreshing team request state with latest backend data."
-                    />
-                  ) : null}
-                  <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                    Team requests are sorted by creation. The badge counts only items with docstatus not equal to Submitted.
-                  </Text>
-                  <Table
-                    rowKey="name"
-                    dataSource={supervisorRows}
-                    columns={supervisorColumns}
-                    pagination={{ pageSize: 8, showSizeChanger: true, showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}` }}
-                    size="middle"
-                    loading={loading}
-                    locale={{ emptyText: <Empty description="No team requests found." style={{ marginTop: 50, marginBottom: 50 }} /> }}
-                  />
-                </div>
-              )
-            }
-          ]}
+      {/* ─── Workflow + Actions ─── */}
+      <Card className="toil-glass-card" style={{ marginBottom: 20, ...GLASS }}>
+        <Text strong style={{ display: 'block', marginBottom: 12 }}>TOIL Workflow</Text>
+        <Steps size="small" current={workflowCurrent} items={workflowSteps} responsive style={{ marginBottom: 16 }} />
+        <Space wrap>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigateToRoute?.('toil-timesheet-new')}>
+            Record Overtime
+          </Button>
+          {isSupervisor && (
+            <Button icon={<TeamOutlined />} onClick={() => navigateToRoute?.('toil-approvals')}>
+              Approvals
+              {pendingTeamRequests > 0 && <Badge count={pendingTeamRequests} size="small" style={{ marginLeft: 8, boxShadow: 'none' }} />}
+            </Button>
+          )}
+          <Button icon={<CalendarOutlined />} onClick={() => navigateToRoute?.('toil-leave-new')} disabled={!hasAccruedBalance}>
+            Apply for Leave
+          </Button>
+        </Space>
+      </Card>
+
+      {/* ─── My Timesheets ─── */}
+      <Card className="toil-glass-card" style={{ marginBottom: 20, ...GLASS }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <Space size={8}>
+            <CheckCircleOutlined style={{ color: token.colorPrimary }} />
+            <Title level={5} style={{ margin: 0 }}>My Timesheets</Title>
+            <Badge count={myTimesheetRows.length} showZero color="#1677ff" style={{ boxShadow: 'none' }} />
+          </Space>
+          <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => navigateToRoute?.('toil-timesheet-new')}>Record Overtime</Button>
+        </div>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>
+          Expand any row for audit details: status explanation, TOIL calculation, timestamps, and allocation reference.
+        </Text>
+        <Table
+          className="toil-table" rowKey="name" dataSource={myTimesheetRows} columns={timesheetColumns}
+          loading={timesheetsLoading} size="middle"
+          scroll={isMobile ? { x: 800 } : undefined}
+          pagination={{ pageSize: 8, showSizeChanger: true, showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}` }}
+          locale={{ emptyText: <Empty description="No timesheets yet. Record overtime to get started." style={{ margin: '40px 0' }} /> }}
+          expandable={{
+            expandedRowKeys,
+            onExpandedRowsChange: (keys) => setExpandedRowKeys(keys),
+            expandedRowRender: renderExpandedRow,
+            expandRowByClick: true,
+            rowExpandable: () => true
+          }}
         />
       </Card>
 
-      <Modal
-        title="Record Overtime"
-        open={overtimeModalVisible}
-        onCancel={handleCloseOvertimeModal}
-        footer={null}
-        width={560}
-        destroyOnClose
-      >
-        <Form form={overtimeForm} layout="vertical">
-          {overtimeFeedback ? (
-            <Alert
-              type={overtimeFeedback.level === 'warning' ? 'warning' : 'error'}
-              showIcon
-              style={{ marginBottom: 16 }}
-              message={overtimeFeedback.title}
-              description={
-                <Space direction="vertical" size={2}>
-                  <Text>{overtimeFeedback.summary}</Text>
-                  <Text type="secondary">{overtimeFeedback.actionHint}</Text>
-                </Space>
-              }
-            />
-          ) : null}
-          <Form.Item label="Date Worked" name="date" rules={[{ required: true, message: 'Select a date' }]}>
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item label="Hours Worked" name="hours" rules={[{ required: true, message: 'Enter hours' }]}>
-            <InputNumber min={0.5} max={24} step={0.5} style={{ width: '100%' }} addonAfter="hours" />
-          </Form.Item>
-          <Form.Item
-            label="What did you work on?"
-            name="description"
-            rules={[{ required: true, message: 'Add a short description' }]}
-          >
-            <TextArea rows={4} placeholder="Example: Incident triage and production hardening." />
-          </Form.Item>
-          <Space>
-            <Button type="primary" onClick={handleOvertimeSubmit} loading={submitting}>
-              Save & View Details
-            </Button>
-            <Button onClick={handleCloseOvertimeModal}>Cancel</Button>
-            <Text type="secondary" style={{ marginLeft: 8 }}>Supervisor approval is required before TOIL accrues.</Text>
+      {/* ─── Audit Trail ─── */}
+      <Card className="toil-glass-card" style={{ marginBottom: 20, ...GLASS }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <Space size={8}>
+            <HistoryOutlined style={{ color: '#722ed1' }} />
+            <Title level={5} style={{ margin: 0 }}>Audit Trail</Title>
+            <Badge count={historyRows.length} showZero color="#722ed1" style={{ boxShadow: 'none' }} />
           </Space>
-        </Form>
-      </Modal>
+        </div>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>
+          Complete Leave Ledger for TOIL. Every accrual and consumption is recorded with running balance, references, and expiry.
+        </Text>
+        <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 12 }}>
+          Current balance: <Text strong>{availableBalance.toFixed(3)} days</Text>
+        </Text>
 
-      <ApprovalModal
-        visible={approvalModalVisible}
-        timesheet={timesheetForApproval}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onCancel={handleCloseApprovalModal}
-        loading={approvalSubmitting}
-      />
+        {historyRows.length > 0 && (
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={16}>
+              <Table
+                className="toil-table" size="small"
+                rowKey={(row, i) => row?.transaction_name ? `${row.transaction_name}-${i}` : `audit-${i}`}
+                dataSource={historyRows} columns={auditColumns} loading={ledgerLoading}
+                scroll={{ x: 700 }}
+                pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}` }}
+              />
+            </Col>
+            <Col xs={24} lg={8}>
+              <Card size="small" title="Timeline" style={{ background: 'rgba(248,250,252,0.65)', maxHeight: 480, overflowY: 'auto' }}>
+                <Timeline
+                  items={historyRows.slice(0, 15).map((row) => {
+                    const isEarned = Number(row.leaves || 0) > 0
+                    return {
+                      color: isEarned ? 'green' : 'red',
+                      dot: isEarned ? <PlusCircleOutlined /> : <MinusCircleOutlined />,
+                      children: (
+                        <div>
+                          <Text strong style={{ fontSize: 13 }}>{isEarned ? 'Earned' : 'Used'} {Math.abs(Number(row.leaves || 0)).toFixed(3)}d</Text>
+                          <br /><Text type="secondary" style={{ fontSize: 12 }}>{row.entry_date ? dayjs(row.entry_date).format('MMM DD, YYYY') : '-'}</Text>
+                          <br /><Text style={{ fontSize: 12 }}>Balance: {Number(row.running_balance || 0).toFixed(3)}d</Text>
+                        </div>
+                      )
+                    }
+                  })}
+                />
+              </Card>
+            </Col>
+          </Row>
+        )}
+        {historyRows.length === 0 && !ledgerLoading && (
+          <Empty description="No TOIL audit entries yet." style={{ margin: '40px 0' }} />
+        )}
+        {ledgerLoading && historyRows.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+        )}
+      </Card>
     </div>
   )
 }

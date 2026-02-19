@@ -19,7 +19,8 @@ import {
   FileProtectOutlined,
   BarChartOutlined,
   TeamOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  ArrowLeftOutlined
 } from '@ant-design/icons'
 import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
@@ -72,6 +73,9 @@ import ChangeManagementTeamForm from './components/ChangeManagementTeamForm'
 import TOILDetail from './components/TOILDetail'
 import ErrorBoundary from './components/ErrorBoundary'
 import TOILPage from './pages/TOILPage'
+import TOILApprovalsPage from './pages/TOILApprovalsPage'
+import TimesheetCreateForm from './components/toil/TimesheetCreateForm'
+import LeaveApplicationForm from './components/toil/LeaveApplicationForm'
 
 import { ConfigProvider } from 'antd'
 import { buildLoginUrl, handlePostLoginRedirect } from './utils/redirectUtils'
@@ -660,21 +664,34 @@ function AppContent({
       case 'timesheet-toil':
         return (
           <ErrorBoundary>
-            <TOILPage navigateToRoute={navigateToRoute} initialTab="timesheets" />
+            <TOILPage navigateToRoute={navigateToRoute} />
           </ErrorBoundary>
         )
 
       case 'toil-timesheet-new':
         return (
           <ErrorBoundary>
-            <TOILPage navigateToRoute={navigateToRoute} initialTab="timesheets" />
+            <div style={{ padding: 20, maxWidth: 960, margin: '0 auto' }}>
+              <Button icon={<ArrowLeftOutlined />} style={{ marginBottom: 16 }} onClick={() => navigateToRoute('timesheet-toil')}>Back to Dashboard</Button>
+              <TimesheetCreateForm onSuccess={() => navigateToRoute('timesheet-toil')} onCancel={() => navigateToRoute('timesheet-toil')} />
+            </div>
           </ErrorBoundary>
         )
 
       case 'toil-leave-new':
         return (
           <ErrorBoundary>
-            <TOILPage navigateToRoute={navigateToRoute} initialTab="leave" />
+            <div style={{ padding: 20, maxWidth: 800, margin: '0 auto' }}>
+              <Button icon={<ArrowLeftOutlined />} style={{ marginBottom: 16 }} onClick={() => navigateToRoute('timesheet-toil')}>Back to Dashboard</Button>
+              <LeaveApplicationForm onSuccess={() => navigateToRoute('timesheet-toil')} onCancel={() => navigateToRoute('timesheet-toil')} />
+            </div>
+          </ErrorBoundary>
+        )
+
+      case 'toil-approvals':
+        return (
+          <ErrorBoundary>
+            <TOILApprovalsPage navigateToRoute={navigateToRoute} />
           </ErrorBoundary>
         )
 

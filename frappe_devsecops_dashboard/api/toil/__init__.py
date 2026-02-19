@@ -51,10 +51,14 @@ from frappe_devsecops_dashboard.api.toil.balance_api import (
     get_toil_summary,
     get_leave_ledger
 )
+from frappe_devsecops_dashboard.api.toil.query_service import (
+    get_available_toil_allocations,
+    get_allocation_balance,
+)
 
 
 def clear_toil_cache(employee: str = None):
-    """Clear TOIL cache keys."""
+    """Clear TOIL cache keys for a specific employee, or all if none given."""
     cache = frappe.cache()
     if employee:
         for key in (
@@ -63,7 +67,26 @@ def clear_toil_cache(employee: str = None):
             f"toil-get_toil_report-{employee}",
         ):
             cache.delete_value(key)
-    cache.delete_keys("toil-*")
+    else:
+        cache.delete_keys("toil-*")
+
+
+@frappe.whitelist()
+def get_supervisor_timesheets(limit: int = 20, offset: int = 0):
+    """Compatibility wrapper for legacy tests/calls."""
+    return get_timesheets_to_approve(limit=limit, offset=offset)
+
+
+@frappe.whitelist()
+def approve_timesheet(timesheet_name: str, comment: str = None):
+    """Compatibility wrapper for legacy tests/calls."""
+    return set_timesheet_approval(timesheet_name=timesheet_name, status="approved", reason=comment)
+
+
+@frappe.whitelist()
+def reject_timesheet(timesheet_name: str, reason: str):
+    """Compatibility wrapper for legacy tests/calls."""
+    return set_timesheet_approval(timesheet_name=timesheet_name, status="rejected", reason=reason)
 
 __all__ = [
     # Validation APIs
@@ -96,6 +119,11 @@ __all__ = [
     'get_toil_balance',
     'get_toil_summary',
     'get_leave_ledger',
+    'get_available_toil_allocations',
+    'get_allocation_balance',
+    'get_supervisor_timesheets',
+    'approve_timesheet',
+    'reject_timesheet',
 
     # Utilities
     'clear_toil_cache'

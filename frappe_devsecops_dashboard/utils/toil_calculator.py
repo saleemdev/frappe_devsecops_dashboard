@@ -8,10 +8,9 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate
 
-# Import helper function from parent toil module
-# Note: api.toil is now a package, so we import from the parent toil.py directly
-import sys
-import os
+from frappe_devsecops_dashboard.api.toil.query_service import (
+    get_allocation_balance as query_get_allocation_balance,
+)
 
 def get_allocation_balance(allocation_name: str) -> float:
     """
@@ -23,14 +22,7 @@ def get_allocation_balance(allocation_name: str) -> float:
     Returns:
         Remaining balance
     """
-    balance = frappe.db.sql("""
-        SELECT COALESCE(SUM(leaves), 0) as balance
-        FROM `tabLeave Ledger Entry`
-        WHERE transaction_name = %(allocation)s
-        AND docstatus = 1
-    """, {"allocation": allocation_name}, as_dict=True)[0].balance
-
-    return flt(balance, 3)
+    return flt(query_get_allocation_balance(allocation_name), 3)
 
 
 def calculate_toil_hours(timesheet_doc):

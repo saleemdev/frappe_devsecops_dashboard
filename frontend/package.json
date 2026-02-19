@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build --base=/assets/frappe_devsecops_dashboard/frontend/",
     "preview": "vite preview",
-    "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint src --max-warnings 0",
+    "lint:toil": "eslint src/pages/TOILPage.jsx src/components/TOILDetail.jsx src/components/ApprovalModal.jsx src/components/TOILList.jsx src/components/TOILCalendar.jsx src/utils/toilStatusUtils.js src/utils/toilCalendarUtils.js src/stores/toilStore.js src/services/api/toil.js src/services/api/config.js --max-warnings 0",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
     "test:e2e": "cypress run --spec 'cypress/e2e/**/*.cy.js'",
@@ -23,6 +24,7 @@
     "playwright:test:zenhub:firefox": "playwright test tests/e2e/zenhub-dashboard.spec.ts --project=firefox",
     "playwright:test:zenhub:webkit": "playwright test tests/e2e/zenhub-dashboard.spec.ts --project=webkit",
     "playwright:test:zenhub:mobile": "playwright test tests/e2e/zenhub-dashboard.spec.ts --project='Mobile Chrome'",
+    "playwright:test:toil": "playwright test tests/e2e/toil.spec.ts --project=chromium",
     "playwright:test:wiki": "playwright test tests/e2e/wiki.spec.ts",
     "playwright:test:wiki:headed": "playwright test tests/e2e/wiki.spec.ts --headed",
     "playwright:debug": "playwright test --debug",
@@ -46,6 +48,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.1",
     "@cypress/code-coverage": "^3.14.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

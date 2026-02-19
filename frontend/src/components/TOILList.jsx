@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Card,
   Button,
@@ -8,7 +8,6 @@ import {
   Tag,
   message,
   Empty,
-  Spin,
   Row,
   Col,
   DatePicker,
@@ -33,6 +32,13 @@ import {
 import useToilStore from '../stores/toilStore'
 import useNavigationStore from '../stores/navigationStore'
 import ApprovalModal from './ApprovalModal'
+import TOILCalendar from './TOILCalendar'
+import {
+  getToilStatusColor,
+  isReviewableTimesheet,
+  normalizeToilStatus,
+  TOIL_STATUSES
+} from '../utils/toilStatusUtils'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
@@ -44,17 +50,14 @@ const TOILList = ({ navigateToRoute }) => {
     timesheets,
     loading,
     submitting,
-    error,
     filters,
     viewMode,
     userRole,
-    currentView,
     setFilters,
     setViewMode,
     loadViewMode,
     fetchTimesheets,
-    approveTimesheet,
-    rejectTimesheet,
+    setTimesheetApproval,
     initialize
   } = useToilStore()
 
@@ -68,10 +71,13 @@ const TOILList = ({ navigateToRoute }) => {
   // Empty dependency array ensures this runs only once
   // Zustand store actions are stable references and don't need to be in dependencies
   useEffect(() => {
-    initialize()
-    loadViewMode()
-    fetchTimesheets()
-  }, [])
+    const boot = async () => {
+      await initialize()
+      loadViewMode()
+      await fetchTimesheets()
+    }
+    boot()
+  }, [fetchTimesheets, initialize, loadViewMode])
 
   // Handler for view timesheet
   const handleViewTimesheet = (id) => {
@@ -94,7 +100,7 @@ const TOILList = ({ navigateToRoute }) => {
   // Handler for approve timesheet
   const handleApproveTimesheet = async (id, comment = null) => {
     try {
-      const result = await approveTimesheet(id, comment)
+      const result = await setTimesheetApproval(id, 'approved', comment)
       if (result.success) {
         message.success(result.message || 'Timesheet submitted. TOIL accrual is processing.')
         return result
@@ -114,7 +120,7 @@ const TOILList = ({ navigateToRoute }) => {
   // Handler for reject timesheet
   const handleRejectTimesheet = async (id, reason) => {
     try {
-      const result = await rejectTimesheet(id, reason)
+      const result = await setTimesheetApproval(id, 'rejected', reason)
       if (result.success) {
         message.success(result.message || 'Timesheet rejected')
         return result
@@ -144,20 +150,19 @@ const TOILList = ({ navigateToRoute }) => {
     setFilters({ dateRange })
   }
 
-  // Get status color
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Draft': return 'default'
-      case 'Pending Accrual': return 'orange'
-      case 'Accrued': return 'blue'
-      case 'Partially Used': return 'cyan'
-      case 'Fully Used': return 'green'
-      default: return 'default'
-    }
-  }
+  const normalizedTimesheets = useMemo(
+    () =>
+      timesheets.map((timesheet) => ({
+        ...timesheet,
+        toil_status: normalizeToilStatus(timesheet),
+        start_date: timesheet.start_date || timesheet.from_date,
+        end_date: timesheet.end_date || timesheet.to_date
+      })),
+    [timesheets]
+  )
 
   // Filter timesheets based on search and filters
-  const filteredTimesheets = timesheets.filter(timesheet => {
+  const filteredTimesheets = normalizedTimesheets.filter(timesheet => {
     // Search filter
     const searchTerm = filters.search || ''
     const matchesSearch = !searchTerm ||
@@ -170,7 +175,7 @@ const TOILList = ({ navigateToRoute }) => {
     // Date range filter
     let matchesDate = true
     if (filters.dateRange && filters.dateRange.length === 2) {
-      const fromDate = new Date(timesheet.from_date)
+      const fromDate = new Date(timesheet.start_date || timesheet.from_date)
       matchesDate = fromDate >= filters.dateRange[0].toDate() && fromDate <= filters.dateRange[1].toDate()
     }
 
@@ -198,7 +203,7 @@ const TOILList = ({ navigateToRoute }) => {
       key: 'date_range',
       width: 200,
       render: (_, record) => (
-        <Text>{record.from_date} to {record.to_date}</Text>
+        <Text>{record.start_date || '-'} to {record.end_date || '-'}</Text>
       )
     },
     {
@@ -237,17 +242,11 @@ const TOILList = ({ navigateToRoute }) => {
       dataIndex: 'toil_status',
       key: 'toil_status',
       width: 140,
-      render: (status) => (
-        <Tag color={getStatusColor(status)}>{status || 'Not Applicable'}</Tag>
+      render: (_, record) => (
+        <Tag color={getToilStatusColor(normalizeToilStatus(record))}>{normalizeToilStatus(record)}</Tag>
       ),
-      filters: [
-        { text: 'Draft', value: 'Draft' },
-        { text: 'Pending Accrual', value: 'Pending Accrual' },
-        { text: 'Accrued', value: 'Accrued' },
-        { text: 'Partially Used', value: 'Partially Used' },
-        { text: 'Fully Used', value: 'Fully Used' }
-      ],
-      onFilter: (value, record) => record.toil_status === value
+      filters: Object.values(TOIL_STATUSES).map((status) => ({ text: status, value: status })),
+      onFilter: (value, record) => normalizeToilStatus(record) === value
     },
     {
       title: 'Actions',
@@ -281,7 +280,7 @@ const TOILList = ({ navigateToRoute }) => {
               style={{ color: '#ff4d4f' }}
             />
           </Tooltip>
-          {userRole === 'supervisor' && record.toil_status === 'Pending Accrual' && (
+          {userRole === 'supervisor' && isReviewableTimesheet(record) && (
             <>
               <Tooltip title="Approve">
                 <Button
@@ -373,11 +372,14 @@ const TOILList = ({ navigateToRoute }) => {
               style={{ width: '100%' }}
             >
               <Option value="all">All Status</Option>
-              <Option value="Draft">Draft</Option>
+              <Option value={TOIL_STATUSES.NOT_APPLICABLE}>Not Applicable</Option>
               <Option value="Pending Accrual">Pending Accrual</Option>
               <Option value="Accrued">Accrued</Option>
               <Option value="Partially Used">Partially Used</Option>
               <Option value="Fully Used">Fully Used</Option>
+              <Option value={TOIL_STATUSES.REJECTED}>Rejected</Option>
+              <Option value={TOIL_STATUSES.EXPIRED}>Expired</Option>
+              <Option value={TOIL_STATUSES.CANCELLED}>Cancelled</Option>
             </Select>
           </Col>
           <Col xs={24} sm={8} md={6}>
@@ -435,10 +437,11 @@ const TOILList = ({ navigateToRoute }) => {
             }}
           />
         ) : (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
-            <CalendarOutlined style={{ fontSize: '48px', color: '#bfbfbf', marginBottom: '16px' }} />
-            <Text type="secondary">Calendar view coming soon</Text>
-          </div>
+          <TOILCalendar
+            timesheets={filteredTimesheets}
+            onTimesheetClick={handleViewTimesheet}
+            loading={loading}
+          />
         )}
       </Card>
 

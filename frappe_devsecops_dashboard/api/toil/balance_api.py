@@ -1,257 +1,210 @@
 """
 TOIL System - Balance API
-Handles TOIL balance queries with expiry warnings
+Handles TOIL balance and ledger queries.
 """
+
+from __future__ import annotations
+
+from typing import Any, Dict, List
 
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate, add_days, cstr
-from typing import Dict, Any, List
+from frappe.utils import add_days, cstr, flt, getdate
 
-from frappe_devsecops_dashboard.constants import TOIL_LEAVE_TYPE
-from frappe_devsecops_dashboard.api.toil.validation_api import (
-    validate_employee_access,
-    get_current_employee
+from frappe_devsecops_dashboard.api.toil.api_utils import fail, ok
+from frappe_devsecops_dashboard.api.toil.query_service import (
+    get_available_toil_allocations,
+    get_leave_ledger_report,
 )
+from frappe_devsecops_dashboard.api.toil.validation_api import get_current_employee, validate_employee_access
+from frappe_devsecops_dashboard.constants import TOIL_LEAVE_TYPE
 
 
-@frappe.whitelist()
+def _resolve_employee(employee: str | None) -> str | None:
+    if employee:
+        return employee
+    return get_current_employee()
+
+
+def _serialize_balance(
+    employee: str,
+    employee_name: str,
+    accrued: float,
+    consumed: float,
+    allocations: List[Dict[str, Any]],
+    available: float | None = None,
+) -> Dict[str, Any]:
+    available_value = flt(available if available is not None else (accrued - consumed), 3)
+    expiring_soon_allocations = [row for row in allocations if (row.get("days_until_expiry") is not None and row["days_until_expiry"] <= 30)]
+    expiring_soon_days = flt(sum(flt(row.get("balance") or 0, 3) for row in expiring_soon_allocations), 3)
+
+    return {
+        "employee": employee,
+        "employee_name": employee_name,
+        "available": available_value,
+        "total": flt(accrued, 3),
+        "used": flt(consumed, 3),
+        "expiring_soon": expiring_soon_days,
+        "expiring_window_days": 30,
+        "allocations": allocations,
+    }
+
+
+@frappe.whitelist(methods=["GET"])
 def get_toil_balance_for_leave(employee: str = None) -> Dict[str, Any]:
-    """
-    Get available TOIL balance with expiry warnings for leave application
+    """Get TOIL balance using Leave Ledger Entry as source of truth."""
+    target_employee = _resolve_employee(employee)
+    if not target_employee:
+        return fail(
+            "NO_EMPLOYEE_RECORD",
+            _("No employee record found for current user"),
+            http_status=400,
+        )
 
-    This endpoint provides comprehensive balance information needed for leave applications:
-    - Current available balance
-    - Expiring soon warnings (within 30 days)
-    - Allocation breakdown (FIFO order)
-    - Usage recommendations
-
-    Args:
-        employee: Employee ID (optional, defaults to current user)
-
-    Returns:
-        {
-            "success": true,
-            "data": {
-                "employee": "EMP-001",
-                "employee_name": "John Doe",
-                "available_balance": 5.5,
-                "total_accrued": 10.0,
-                "total_consumed": 4.5,
-                "expiring_soon": 2.0,
-                "expiring_in_days": 30,
-                "expiry_warning": "You have 2.0 days expiring in the next 30 days",
-                "allocations": [
-                    {
-                        "name": "LA-001",
-                        "balance": 2.0,
-                        "allocated": 3.0,
-                        "from_date": "2024-01-01",
-                        "to_date": "2024-07-01",
-                        "days_until_expiry": 20,
-                        "source_timesheet": "TS-001"
-                    }
-                ]
-            },
-            "message": "Balance fetched successfully"
-        }
-    """
     try:
-        # Default to current employee
-        if not employee:
-            employee = get_current_employee()
-            if not employee:
-                return {
-                    "success": False,
-                    "error": {
-                        "code": "NO_EMPLOYEE_RECORD",
-                        "message": _("No employee record found for current user"),
-                        "field": None
-                    }
-                }
+        validate_employee_access(target_employee)
+        to_dt = getdate()
+        # Balance should include all active ledger rows, not only recent history.
+        from_dt = add_days(to_dt, -3650)
+        ledger = get_leave_ledger_report(
+            employee=target_employee,
+            from_date=from_dt,
+            to_date=to_dt,
+            leave_type=TOIL_LEAVE_TYPE,
+        )
 
-        # Validate access
-        validate_employee_access(employee)
+        rows = ledger.get("rows", [])
+        accrued = flt(sum(max(flt(row.get("leaves") or 0, 3), 0) for row in rows), 3)
+        consumed = flt(abs(sum(min(flt(row.get("leaves") or 0, 3), 0) for row in rows)), 3)
+        available = flt(ledger.get("total_balance") or 0, 3)
 
-        toil_leave_type = TOIL_LEAVE_TYPE
-        today = getdate()
-        thirty_days_out = add_days(today, 30)
+        employee_name = frappe.db.get_value("Employee", target_employee, "employee_name")
+        allocations = get_available_toil_allocations(target_employee)
 
-        # Get total accrued (from Leave Allocations)
-        total_accrued = frappe.db.sql("""
-            SELECT COALESCE(SUM(leaves), 0) as total
-            FROM `tabLeave Ledger Entry`
-            WHERE employee = %(employee)s
-            AND leave_type = %(leave_type)s
-            AND transaction_type = 'Leave Allocation'
-            AND docstatus = 1
-        """, {
-            "employee": employee,
-            "leave_type": toil_leave_type
-        }, as_dict=True)[0].total
+        payload = _serialize_balance(
+            employee=target_employee,
+            employee_name=employee_name,
+            accrued=accrued,
+            consumed=consumed,
+            allocations=allocations,
+            available=available,
+        )
+        payload["source"] = "Leave Ledger Entry"
+        payload["ledger_from_date"] = cstr(ledger.get("from_date"))
+        payload["ledger_to_date"] = cstr(ledger.get("to_date"))
+        payload["ledger_row_count"] = len(rows)
 
-        # Get total consumed (from Leave Applications)
-        total_consumed = frappe.db.sql("""
-            SELECT COALESCE(ABS(SUM(leaves)), 0) as total
-            FROM `tabLeave Ledger Entry`
-            WHERE employee = %(employee)s
-            AND leave_type = %(leave_type)s
-            AND transaction_type = 'Leave Application'
-            AND docstatus = 1
-        """, {
-            "employee": employee,
-            "leave_type": toil_leave_type
-        }, as_dict=True)[0].total
-
-        # Calculate current available balance
-        available_balance = flt(total_accrued - total_consumed, 3)
-
-        # Get employee name
-        employee_name = frappe.db.get_value("Employee", employee, "employee_name")
-
-        return {
-            "success": True,
-            "data": {
-                "employee": employee,
-                "employee_name": employee_name,
-                "available": available_balance,
-                "total": flt(total_accrued, 3),
-                "used": flt(total_consumed, 3)
-            },
-            "message": _("Balance fetched successfully")
-        }
-
+        return ok(data=payload, message=_("Balance fetched successfully"))
     except frappe.PermissionError:
-        frappe.response['http_status_code'] = 403
-        return {
-            "success": False,
-            "error": {
-                "code": "PERMISSION_DENIED",
-                "message": _("Permission denied to access this employee's balance"),
-                "field": None
-            }
-        }
-    except Exception as e:
-        frappe.response['http_status_code'] = 500
+        return fail(
+            "PERMISSION_DENIED",
+            _("Permission denied to access this employee's balance"),
+            http_status=403,
+        )
+    except Exception as exc:
         frappe.log_error(
             title="TOIL Balance API Error",
-            message=f"Error fetching TOIL balance: {str(e)}"
+            message=f"Error fetching TOIL balance: {str(exc)}",
         )
-        return {
-            "success": False,
-            "error": {
-                "code": "FETCH_ERROR",
-                "message": _("An error occurred while fetching balance: {0}").format(str(e)),
-                "field": None
-            }
-        }
+        return fail(
+            "FETCH_ERROR",
+            _("An error occurred while fetching balance: {0}").format(str(exc)),
+            http_status=500,
+        )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["GET"])
 def get_balance_summary(employee: str = None) -> Dict[str, Any]:
-    """
-    Get simplified balance summary (for dashboard widgets)
+    """Get summary balance metrics for widgets."""
+    target_employee = _resolve_employee(employee)
+    if not target_employee:
+        return fail(
+            "NO_EMPLOYEE_RECORD",
+            _("No employee record found for current user"),
+            http_status=400,
+        )
 
-    Args:
-        employee: Employee ID (optional, defaults to current user)
-
-    Returns:
-        {
-            "success": true,
-            "data": {
-                "available": 5.5,
-                "expiring_soon": 2.0,
-                "pending_accrual": 1.0
-            }
-        }
-    """
     try:
-        # Default to current employee
-        if not employee:
-            employee = get_current_employee()
-            if not employee:
-                return {
-                    "success": False,
-                    "error": {
-                        "code": "NO_EMPLOYEE_RECORD",
-                        "message": _("No employee record found for current user"),
-                        "field": None
-                    }
-                }
+        validate_employee_access(target_employee)
 
-        # Validate access
-        validate_employee_access(employee)
-
-        # Get detailed balance
-        balance_result = get_toil_balance_for_leave(employee)
-
+        balance_result = get_toil_balance_for_leave(target_employee)
         if not balance_result.get("success"):
             return balance_result
 
-        balance_data = balance_result["data"]
+        balance_data = balance_result.get("data", {})
 
-        # Get pending accrual (timesheets submitted but not yet approved)
-        pending_accrual = frappe.db.sql("""
-            SELECT
-                COALESCE(SUM(toil_days), 0) as total
+        pending_accrual = frappe.db.sql(
+            """
+            SELECT COALESCE(SUM(toil_days), 0) AS total
             FROM `tabTimesheet`
             WHERE employee = %(employee)s
-            AND docstatus = 0
-            AND total_toil_hours > 0
-        """, {"employee": employee}, as_dict=True)[0].total
+              AND total_toil_hours > 0
+              AND docstatus = 0
+              AND (IFNULL(toil_status, '') = '' OR toil_status = 'Pending Accrual')
+            """,
+            {"employee": target_employee},
+            as_dict=True,
+        )[0]["total"]
 
-        return {
-            "success": True,
-            "data": {
-                "available": balance_data["available"],
-                "expiring_soon": 0,  # Field not currently calculated
-                "pending_accrual": flt(pending_accrual, 3),
-                "total_accrued": balance_data["total"],
-                "total_consumed": balance_data["used"]
+        return ok(
+            data={
+                "available": flt(balance_data.get("available") or 0, 3),
+                "expiring_soon": flt(balance_data.get("expiring_soon") or 0, 3),
+                "pending_accrual": flt(pending_accrual or 0, 3),
+                "total_accrued": flt(balance_data.get("total") or 0, 3),
+                "total_consumed": flt(balance_data.get("used") or 0, 3),
             },
-            "message": _("Balance summary fetched successfully")
-        }
-
-    except Exception as e:
-        frappe.response['http_status_code'] = 500
+            message=_("Balance summary fetched successfully"),
+        )
+    except frappe.PermissionError:
+        return fail(
+            "PERMISSION_DENIED",
+            _("Permission denied to access this employee's balance"),
+            http_status=403,
+        )
+    except Exception as exc:
         frappe.log_error(
             title="TOIL Balance API Error",
-            message=f"Error fetching balance summary: {str(e)}"
+            message=f"Error fetching balance summary: {str(exc)}",
         )
-        return {
-            "success": False,
-            "error": {
-                "code": "FETCH_ERROR",
-                "message": _("An error occurred while fetching balance summary: {0}").format(str(e)),
-                "field": None
-            }
-        }
+        return fail(
+            "FETCH_ERROR",
+            _("An error occurred while fetching balance summary: {0}").format(str(exc)),
+            http_status=500,
+        )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["GET"])
 def get_toil_balance(employee: str = None) -> Dict[str, Any]:
-    """Legacy-compatible wrapper returning concise TOIL balance."""
+    """Legacy-compatible concise TOIL balance wrapper."""
     result = get_toil_balance_for_leave(employee)
     if not result.get("success"):
         return result
 
     data = result.get("data", {})
-    return {
-        "success": True,
-        "employee": data.get("employee"),
-        "employee_name": data.get("employee_name"),
-        "balance": data.get("available", 0),
-        "total_accrued": data.get("total", 0),
-        "total_consumed": data.get("used", 0),
-        "expiring_soon": [],
-        "leave_type": TOIL_LEAVE_TYPE,
-        "unit": "days"
-    }
+    allocations = data.get("allocations", []) if isinstance(data, dict) else []
+    expiring_allocations = [
+        row for row in allocations if (row.get("days_until_expiry") is not None and row["days_until_expiry"] <= 30)
+    ]
+    return ok(
+        data={
+            "employee": data.get("employee"),
+            "employee_name": data.get("employee_name"),
+            "balance": data.get("available", 0),
+            "total_accrued": data.get("total", 0),
+            "total_consumed": data.get("used", 0),
+            "expiring_soon": expiring_allocations,
+            "expiring_soon_days": data.get("expiring_soon", 0),
+            "allocations": allocations,
+            "leave_type": TOIL_LEAVE_TYPE,
+            "unit": "days",
+        }
+    )
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["GET"])
 def get_toil_summary(employee: str = None) -> Dict[str, Any]:
-    """Legacy-compatible wrapper returning summary metrics."""
+    """Legacy-compatible summary wrapper."""
     balance = get_toil_balance_for_leave(employee)
     if not balance.get("success"):
         return balance
@@ -263,80 +216,71 @@ def get_toil_summary(employee: str = None) -> Dict[str, Any]:
     b = balance.get("data", {})
     s = summary.get("data", {})
 
-    return {
-        "success": True,
-        "employee": b.get("employee"),
-        "current_balance": b.get("available", 0),
-        "total_accrued": s.get("total_accrued", 0),
-        "total_consumed": s.get("total_consumed", 0),
-        "expiring_soon": s.get("expiring_soon", 0),
-        "pending_accrual": s.get("pending_accrual", 0)
-    }
+    return ok(
+        data={
+            "employee": b.get("employee"),
+            "current_balance": b.get("available", 0),
+            "total_accrued": s.get("total_accrued", 0),
+            "total_consumed": s.get("total_consumed", 0),
+            "expiring_soon": s.get("expiring_soon", 0),
+            "pending_accrual": s.get("pending_accrual", 0),
+        }
+    )
 
 
-@frappe.whitelist()
-def get_leave_ledger(employee: str = None) -> Dict[str, Any]:
-    """Return TOIL leave ledger rows for current/target employee."""
-    try:
-        if not employee:
-            employee = get_current_employee()
-            if not employee:
-                return {
-                    "success": False,
-                    "error": {
-                        "code": "NO_EMPLOYEE_RECORD",
-                        "message": _("No employee record found for current user"),
-                        "field": None
-                    }
-                }
-
-        validate_employee_access(employee)
-
-        rows = frappe.get_list(
-            "Leave Ledger Entry",
-            fields=[
-                "name",
-                "employee",
-                "leave_type",
-                "from_date",
-                "to_date",
-                "transaction_type",
-                "transaction_name",
-                "leaves",
-                "is_expired",
-                "creation"
-            ],
-            filters={
-                "employee": employee,
-                "leave_type": TOIL_LEAVE_TYPE,
-                "docstatus": 1
-            },
-            order_by="creation desc",
-            limit_page_length=500
+@frappe.whitelist(methods=["GET"])
+def get_leave_ledger(employee: str = None, from_date: str = None, to_date: str = None) -> Dict[str, Any]:
+    """Return Leave Ledger report rows for TOIL history."""
+    target_employee = _resolve_employee(employee)
+    if not target_employee:
+        return fail(
+            "NO_EMPLOYEE_RECORD",
+            _("No employee record found for current user"),
+            http_status=400,
         )
 
-        return {
-            "success": True,
-            "data": rows,
-            "total": len(rows)
-        }
+    try:
+        validate_employee_access(target_employee)
+        to_dt = getdate(to_date or getdate())
+        from_dt = getdate(from_date or add_days(to_dt, -120))
+        ledger = get_leave_ledger_report(
+            employee=target_employee,
+            from_date=from_dt,
+            to_date=to_dt,
+            leave_type=TOIL_LEAVE_TYPE,
+        )
+        rows = ledger.get("rows", [])
+
+        for row in rows:
+            row["leaves"] = flt(row.get("leaves") or 0, 3)
+            if row.get("to_date"):
+                row["days_until_expiry"] = (getdate(row["to_date"]) - getdate()).days
+            else:
+                row["days_until_expiry"] = None
+            row["entry_date"] = row.get("date")
+
+        return ok(
+            data=rows,
+            total=len(rows),
+            balance=flt(ledger.get("total_balance") or 0, 3),
+            from_date=cstr(ledger.get("from_date")),
+            to_date=cstr(ledger.get("to_date")),
+            leave_type=TOIL_LEAVE_TYPE,
+            source="Leave Ledger Entry",
+        )
     except frappe.PermissionError:
-        frappe.response["http_status_code"] = 403
-        return {
-            "success": False,
-            "error": {
-                "code": "PERMISSION_DENIED",
-                "message": _("Permission denied to access this employee's ledger"),
-                "field": None
-            }
-        }
-    except Exception as e:
-        frappe.response["http_status_code"] = 500
-        return {
-            "success": False,
-            "error": {
-                "code": "FETCH_ERROR",
-                "message": _("An error occurred while fetching leave ledger: {0}").format(str(e)),
-                "field": None
-            }
-        }
+        return fail(
+            "PERMISSION_DENIED",
+            _("Permission denied to access this employee's ledger"),
+            http_status=403,
+        )
+    except Exception as exc:
+        frappe.log_error(
+            title="TOIL Balance API Error",
+            message=f"Error fetching leave ledger: {str(exc)}",
+        )
+        return fail(
+            "FETCH_ERROR",
+            _("An error occurred while fetching leave ledger: {0}").format(str(exc)),
+            http_status=500,
+        )

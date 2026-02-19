@@ -4,8 +4,8 @@
  * Pattern: IncidentsCalendar.jsx
  */
 
-import React, { useMemo } from 'react'
-import { Calendar, Badge, Card, Typography, Space, theme } from 'antd'
+import { useMemo } from 'react'
+import { Calendar, Badge, Button, Card, Typography, Space, theme } from 'antd'
 import dayjs from 'dayjs'
 import { useResponsive } from '../hooks/useResponsive'
 import {
@@ -16,6 +16,7 @@ import {
   formatTOILDays,
   TOIL_STATUS_COLORS
 } from '../utils/toilCalendarUtils'
+import { normalizeToilStatus } from '../utils/toilStatusUtils'
 
 const { Text } = Typography
 
@@ -88,7 +89,7 @@ const TOILCalendar = ({ timesheets = [], onTimesheetClick, loading = false }) =>
 
           {/* Individual timesheets - color coded by status */}
           {displayTimesheets.map((timesheet, idx) => {
-            const statusColor = getStatusColor(timesheet.toil_status || timesheet.toilStatus)
+            const statusColor = getStatusColor(normalizeToilStatus(timesheet))
 
             return (
               <TimesheetCard
@@ -148,7 +149,8 @@ const TOILCalendar = ({ timesheets = [], onTimesheetClick, loading = false }) =>
               {month}
             </Typography.Title>
             <Space>
-              <button
+              <Button
+                aria-label="Go to previous month"
                 onClick={() => onChange(value.subtract(1, 'month'))}
                 style={{
                   border: `1px solid ${token.colorBorder}`,
@@ -169,8 +171,9 @@ const TOILCalendar = ({ timesheets = [], onTimesheetClick, loading = false }) =>
                 }}
               >
                 Previous
-              </button>
-              <button
+              </Button>
+              <Button
+                aria-label="Go to current month"
                 onClick={() => onChange(dayjs())}
                 style={{
                   border: `1px solid ${token.colorPrimary}`,
@@ -191,8 +194,9 @@ const TOILCalendar = ({ timesheets = [], onTimesheetClick, loading = false }) =>
                 }}
               >
                 Today
-              </button>
-              <button
+              </Button>
+              <Button
+                aria-label="Go to next month"
                 onClick={() => onChange(value.add(1, 'month'))}
                 style={{
                   border: `1px solid ${token.colorBorder}`,
@@ -213,7 +217,7 @@ const TOILCalendar = ({ timesheets = [], onTimesheetClick, loading = false }) =>
                 }}
               >
                 Next
-              </button>
+              </Button>
             </Space>
           </div>
 
@@ -279,13 +283,18 @@ const TOILCalendar = ({ timesheets = [], onTimesheetClick, loading = false }) =>
                   style={{
                     width: 12,
                     height: 12,
-                    backgroundColor: TOIL_STATUS_COLORS['Draft'].hex,
+                    backgroundColor: TOIL_STATUS_COLORS.Rejected.hex,
                     borderRadius: 2
                   }}
                 />
-                <Text type="secondary">Draft</Text>
+                <Text type="secondary">Rejected</Text>
               </Space>
             </div>
+          )}
+          {isMobile && (
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              Calendar badges show number of TOIL timesheets per day.
+            </Text>
           )}
         </Space>
       </div>
